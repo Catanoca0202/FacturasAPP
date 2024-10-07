@@ -416,10 +416,14 @@ function saveClientData(formData) {
   if (!sheet) {
     throw new Error('La hoja "Clientes" no existe.');
   }
-
+  let existe=verificarCodigo(formData.numeroIdentificacion,"Clientes")
   const lastRow = sheet.getLastRow();
   const dataRange = sheet.getRange(2, 2, lastRow, 19).getValues(); // Obtener desde la columna B hasta la S (19 columnas)
-
+  if(existe){
+    SpreadsheetApp.getUi().alert("El Numero de Identificacion ya existe, por favor poner un Numero de Identificacion unico");
+    throw new Error('por favor poner un Numero de Identificacion unico');
+  }
+  Logger.log("aFTER new error")
   let emptyRow = 0;
   for (let i = 0; i < dataRange.length; i++) {
     const row = dataRange[i];

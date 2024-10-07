@@ -579,6 +579,78 @@ function ProcesarFormularioFactura(data) {
   return link;
 }
 
+function unirNombreYcodigo(hoja){
+
+}
+
+
+function verificarCodigo(codigo, nombreHoja) {
+  Logger.log("Verificar codigos");
+  // Clientes o Productos
+  let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nombreHoja);
+  if (nombreHoja === "Clientes") {
+    try {
+      let columnaNumIdentificacionC = 6;
+      let lastActiveRow = sheet.getLastRow();
+      let rangeNumeroIdentificaciones = sheet.getRange(2, columnaNumIdentificacionC, lastActiveRow - 1);
+      let NumerosIdentificacion = String(rangeNumeroIdentificaciones.getValues()); 
+      NumerosIdentificacion=NumerosIdentificacion.split(",")
+      Logger.log("Numero identificacion");
+      Logger.log(NumerosIdentificacion);
+      Logger.log("codigo: " + codigo);
+
+      // Verificar si el código ya existe
+      if (NumerosIdentificacion.includes(String(codigo))) {
+        Logger.log("El Num identificion ya existe.");
+        return true
+      } else {
+        Logger.log("El Num identificion no existe.");
+        return false
+      }
+    } catch (error) {
+      Logger.log("Error al verificar el Num identificion: " + error.message);
+    }
+  } else if (nombreHoja === "Productos") {
+    try{
+      let columnaNumIdentificacionP = 1;
+      let lastActiveRow = sheet.getLastRow();
+      let rangeCodigoReferencia = sheet.getRange(2, columnaNumIdentificacionP, lastActiveRow - 1);
+      let codigosReferencia = String(rangeCodigoReferencia.getValues());
+      codigosReferencia=codigosReferencia.split(",")
+      if(codigosReferencia.includes(String(codigo))){
+        Logger.log("El código ya existe.");
+        return true
+      } else {
+        Logger.log("El código no existe.");
+        return false
+      }
+    }catch(error){
+      Logger.log("Error al verificar el codigo: " + error.message);
+    }
+    
+  } else if(nombreHoja==="Historial Facturas") {
+    try{
+      let columnaNumFactura = 1;
+      let lastActiveRow = sheet.getLastRow();
+      let rangeNumeroFactura = sheet.getRange(2, columnaNumFactura, lastActiveRow - 1);
+      let numeroFacturas = String(rangeNumeroFactura.getValues());
+      numeroFacturas=numeroFacturas.split(",")
+      if(numeroFacturas.includes(String(codigo))){
+        Logger.log("El código ya existe.");
+        return true
+      } else {
+        Logger.log("El código no existe.");
+        return false
+      }
+    }catch(error){
+      Logger.log("Error al verificar el codigo: " + error.message);
+    }
+  }else{
+    Logger.log("No coindicden");
+  }
+}
+
+
 function insertarImagen(fila) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Historial Facturas');
   var imageUrl = 'https://cdn.icon-icons.com/icons2/1674/PNG/512/download_111133.png'; // Reemplaza con la URL de tu imagen

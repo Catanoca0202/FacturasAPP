@@ -7,7 +7,7 @@ var spreadsheet = SpreadsheetApp.getActive();
 // directorio carlos /home/cley/src/MisFacturasApp
 
 function onOpen() {
-
+  //showSidebar()
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var ui = SpreadsheetApp.getUi();
   // https://developers.google.com/apps-script/guides/menus
@@ -20,6 +20,7 @@ function onOpen() {
 
 
   return;
+  
 }
 
 function pruebaLogo(){
@@ -85,12 +86,24 @@ function openClientesSheet() {
   var sheet = ss.getSheetByName("Clientes");
   SpreadsheetApp.setActiveSheet(sheet);
 }
+function openDatosEmisorSheet(){
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Datos de emisor");
+  SpreadsheetApp.setActiveSheet(sheet);
+}
 
 function showClientes() {
   var html = HtmlService.createHtmlOutputFromFile('menuCliente')
     .setTitle('Menu cliente');
   SpreadsheetApp.getUi()
     .showSidebar(html);
+}
+
+function showAjustes(){
+  var html = HtmlService.createHtmlOutputFromFile('menuAjustes')
+  .setTitle('Datos emisor');
+SpreadsheetApp.getUi()
+  .showSidebar(html);
 }
 
 
@@ -134,6 +147,11 @@ function showEnviarEmailPost() {
 
 
 function processForm(data) {
+  let existe=verificarCodigo(data.codigoReferencia,"Productos")
+  if(existe){
+    SpreadsheetApp.getUi().alert("El codigo de referencia ya existe, por favor poner un codigo de referencia unico");
+    throw new Error('por favor poner un Numero de Identificacion unico');
+  }
   try {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Productos");
     const lastRow = sheet.getLastRow();
@@ -152,20 +170,20 @@ function processForm(data) {
 
     sheet.getRange(newRow, 1).setValue(codigoReferencia);
     sheet.getRange(newRow, 1).setHorizontalAlignment('center');
-    sheet.getRange(newRow, 1).setBorder(true,true,true,true,null,null,null,null);
+    //sheet.getRange(newRow, 1).setBorder(true,true,true,true,null,null,null,null);
 
     sheet.getRange(newRow, 2).setValue(nombre);
     sheet.getRange(newRow, 2).setHorizontalAlignment('center');
-    sheet.getRange(newRow, 2).setBorder(true,true,true,true,null,null,null,null);
+    //sheet.getRange(newRow, 2).setBorder(true,true,true,true,null,null,null,null);
 
     sheet.getRange(newRow, 3).setValue(valorUnitario);
     sheet.getRange(newRow,3).setHorizontalAlignment('normal');
     sheet.getRange(newRow, 3).setNumberFormat('€#,##0.00');
-    sheet.getRange(newRow, 3).setBorder(true,true,true,true,null,null,null,null);
+    //sheet.getRange(newRow, 3).setBorder(true,true,true,true,null,null,null,null);
     
     // Establece el IVA y formatea la celda como porcentaje
     const ivaCell = sheet.getRange(newRow, 4);
-    ivaCell.setBorder(true,true,true,true,null,null,null,null);
+    //ivaCell.setBorder(true,true,true,true,null,null,null,null);
     ivaCell.setHorizontalAlignment('center');
     ivaCell.setValue(iva); // Establece el valor del IVA como decimal
     ivaCell.setNumberFormat('0.00%'); // Formatea la celda como porcentaje con dos decimales
@@ -173,12 +191,12 @@ function processForm(data) {
     sheet.getRange(newRow, 5).setValue(precioConIva); // Guarda el precio con IVA
     sheet.getRange(newRow, 5).setHorizontalAlignment('normal');
     sheet.getRange(newRow, 5).setNumberFormat('€#,##0.00');
-    sheet.getRange(newRow, 5).setBorder(true,true,true,true,null,null,null,null);
+   // sheet.getRange(newRow, 5).setBorder(true,true,true,true,null,null,null,null);
 
     sheet.getRange(newRow, 6).setValue(impuestos); // Guarda el valor de los impuestos
     sheet.getRange(newRow, 6).setHorizontalAlignment('normal');
     sheet.getRange(newRow, 6).setNumberFormat('€#,##0.00');
-    sheet.getRange(newRow, 6).setBorder(true,true,true,true,null,null,null,null);
+    //sheet.getRange(newRow, 6).setBorder(true,true,true,true,null,null,null,null);
 
     sheet.getRange(newRow, 7).setValue(retenciones);
     sheet.getRange(newRow, 8).setValue(recargo);
@@ -237,6 +255,8 @@ function generatePdfFromPlantilla() {
     throw new Error('Exception: ' + e.message);
   }
 }
+
+
 
 function getPdfUrl() {
   var pdfBlob = generatePdfFromPlantilla();
@@ -374,7 +394,16 @@ function onEdit(e) {
     
         // Restablece el valor a 0
         celdaEditada.setValue(0);
-      }}
+      }
+    }else if(colEditada==7 && rowEditada==2){
+      let valorFacturaNumero = celdaEditada.getValue();
+      let existe=verificarCodigo(valorFacturaNumero,"Historial Facturas")
+      if(existe){
+        SpreadsheetApp.getUi().alert("El numero de factura ya existe, por favor poner un numero de factura unico");
+        celdaEditada.setValue("");
+        throw new Error('por favor poner un Numero de Identificacion unico');
+      }
+    }
 
     let lastRowProducto=getLastProductRow(hojaActual, productStartRow, taxSectionStartRow);
     if (lastRowProducto===productStartRow){
