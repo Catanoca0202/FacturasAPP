@@ -863,8 +863,26 @@ function verificarYCopiarContacto(e) {
 
 function generarNumeroFactura(){
   let sheet = spreadsheet.getSheetByName('Factura');
+  let sheetHistorial=spreadsheet.getSheetByName("Historial facturas")
+  let columnaNumeroFactura=1
+  let lastActiveRow=sheetHistorial.getLastRow()
+  let rangeNumeroFactura = sheetHistorial.getRange(2, columnaNumeroFactura, lastActiveRow - 1);
+  let numeroFacturas = rangeNumeroFactura.getValues();
 
-  let numeroActual= sheet.getRange("G2").getValue();
+  // Inicializar una variable para almacenar el número mayor
+  let numeroMayor = -Infinity;
+
+  // Iterar sobre el array de arrays
+  for (let i = 0; i < numeroFacturas.length; i++) {
+    let numero = Number(numeroFacturas[i][0]); // Convertir el valor a número
+    Logger.log("numero "+numero)
+    if (numero > numeroMayor) {
+      numeroMayor = numero; // Actualizar si encontramos un número mayor
+    }
+  }
+
+  Logger.log(numeroMayor)
+  let numeroActual= numeroMayor
   numeroActual=Number(numeroActual);
   numeroActual++
   sheet.getRange("G2").setValue(numeroActual);

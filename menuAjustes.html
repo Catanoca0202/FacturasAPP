@@ -16,45 +16,82 @@
     <link href="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/css/fontello-codes.css" rel="stylesheet">
     
     <script>
-      function openFactura() {
-        google.script.run.showMenuFactura();
+      function showMenuPrincipal() {
+          google.script.run.showSidebar();
+        }
+      function obtenerToken() {
+        window.open("https://www.facturasapp.com/Aplicacion/")
       }
-      function openClientes() {
-        google.script.run.openClientesSheet();
-        google.script.run.showClientes();
+      function generarToken() {
+        window.open("https://www.facturasapp.com/Publico/registro")
       }
-      function showPreProductos() {
-        google.script.run.showPreProductos();
-      }
-      function openAjustes() {
-        google.script.run.openDatosEmisorSheet();
-        google.script.run.menuAjustes();
-        
-      }
+
     </script>
   </head>
   <body class="d-flex h-100">
     
     <div class="assistant-container d-flex w-100 h-100 mx-auto flex-column">
-
+  
       <header class="mb-auto">
        <div id="logo" class="d-flex justify-content-center bg-primary">
          <img src="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/images/logoAssistant.png" alt="">
        </div>
-      </header>
    
-     <main>
-       <div class="text-center">
+     </header>
+   
+   
+    <main>
+   
+       <div class="row py-3 px-4 gx-0">
+         <div class="col-12 py-4">
+   
 
-
-         <a onclick="" class="btn btn-lg btn-outline-secondary mb-2"><i class="icon-24-outlined-other-file-and-folder-file-text"></i><span>Obtener token </span></a>
-         <a onclick="" class="btn btn-lg btn-outline-secondary mb-2"><i class="icon-24-outlined-other-person-user-plus"></i><span>Generar token</span></a>
-
-
+         </div>
+   
+   
+         <div class="col-12 mt-4 px-0">
+           <div class="row">
+             <div class="col-6">
+               <a onclick="obtenerToken()" class="btn btn-secondary btn-lg w-100">
+                 <i class="icon-plus me-0"></i><span>Obtener <br>Token</span>
+               </a>
+           </div>
+           <div class="col-6">
+             <a onclick="generarToken()" class="btn btn-secondary btn-lg w-100">
+               <i class="icon-erase me-0"></i><span>Generar <br>Token</span>
+             </a>
+         </div>
+   
+         </div>
+   
        </div>
+   
+   
      </main>
+   
+   
+   
+    <footer class="mt-auto">
+      <div class="row p-4 gx-0">
+        <div class="col-6 pe-1">
+          <a onclick="showMenuPrincipal()" class="btn btn-outline-primary btn-lg w-100 btn-menu d-flex align-items-center justify-content-between">
+            <span>Home</span>
+            <i class="icon-24-outlined-other-location-home"></i>
+          </a>
+        </div>
+      </div>
+    </footer>
+    
+    
+    
+   
+   
+   
+   
    </div>
-
-   <script src="js/bootstrap.min.js"></script>
+  
+  
+    
   </body>
 </html>
+
