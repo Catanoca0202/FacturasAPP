@@ -201,6 +201,10 @@ function processForm(data) {
     sheet.getRange(newRow, 7).setValue(retenciones);
     sheet.getRange(newRow, 8).setValue(recargo);
 
+    let referenciaUnica =nombre+"-"+codigoReferencia
+    sheet.getRange(newRow,9).setValue(referenciaUnica)
+    sheet.getRange(newRow, 9).setHorizontalAlignment('normal');
+    
     return "Datos guardados correctamente";
   } catch (error) {
     return "Error al guardar los datos: " + error.message;

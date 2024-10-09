@@ -464,8 +464,10 @@ function saveClientData(formData) {
 
   sheet.getRange(emptyRow, 2, 1, values.length).setValues([values]);
 
-  sheet.getRange(emptyRow, 1,).setValue("Valido");
 
+  let referenciaUnica =formData.nombreCliente+"-"+formData.numeroIdentificacion
+  sheet.getRange(emptyRow, 22).setValue(referenciaUnica);
+  sheet.getRange(emptyRow, 1,).setValue("Valido");
   SpreadsheetApp.getUi().alert("Nuevo cliente generado satisfactoriamente");
 }
 
