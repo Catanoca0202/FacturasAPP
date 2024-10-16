@@ -1,14 +1,51 @@
 {
-  "timeZone": "America/Bogota",
+  "timeZone": "Europe/Madrid",
   "dependencies": {
     "enabledAdvancedServices": [
       {
         "userSymbol": "Sheets",
-        "version": "v4",
-        "serviceId": "sheets"
+        "serviceId": "sheets",
+        "version": "v4"
       }
     ]
   },
   "exceptionLogging": "STACKDRIVER",
-  "runtimeVersion": "V8"
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/script.container.ui",
+    "https://www.googleapis.com/auth/script.send_mail",
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/script.locale"
+  ],
+  "runtimeVersion": "V8",  
+  "addOns": {
+    "common": {
+      "name": "Facturaspp for Google Sheets",
+      "logoUrl": "https://www.facturasapp.com/Publico/images/favicon/apple-touch-icon.png", 
+      "useLocaleFromApp": true,
+      "homepageTrigger": {
+        "runFunction": "onHomepage",
+        "enabled": true
+      },"openLinkUrlPrefixes": [
+        "https://www.facturasapp.com",
+        "https://facturasapp-qa.cenet.ws/",
+        "https://docs.google.com"],
+      "universalActions": [{
+        "label": "Más información sobre FacturasApp",
+        "openLink": "https://www.facturasapp.com"
+      },
+      {
+        "label": "Términos y condiciones de uso",
+        "openLink": "https://noticias.facturasapp.com/2024/07/terminos-y-condiciones.html"
+      },
+      {
+        "label": "Política de privacidad",
+        "openLink": "https://noticias.facturasapp.com/2024/10/politica-de-privacidad-de-facturasapp.html"
+      }
+      ]
+    },
+     "sheets": {
+    }    
+  }
 }

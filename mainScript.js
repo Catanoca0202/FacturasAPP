@@ -8,17 +8,23 @@ var spreadsheet = SpreadsheetApp.getActive();
 
 function onOpen() {
   //showSidebar()
+  console.log("onOpenEntering");
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var ui = SpreadsheetApp.getUi();
   // https://developers.google.com/apps-script/guides/menus
 
-  ui.createMenu('Sidebar')
-    .addItem('Sidebar', 'showSidebar')
-    .addToUi()
-    .addItem('Producto', 'showPreProductos')
+  ui.createMenu('FacturasApp')
+    .addItem('Inicio', 'showSidebar')
     .addToUi();
 
+  //showSidebar()
 
+  console.log("setActiveSheet Inicio");
+  //var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = SpreadsheetApp.getSheetByName("Inicio");
+  SpreadsheetApp.setActiveSheet(sheet);
+
+  console.log("onOpenReturning");
   return;
   
 }
@@ -30,11 +36,20 @@ function pruebaLogo(){
 }
 
 function showSidebar() {
+  console.log("showSidebar Enters");
+ 
+  console.log("setActiveSheet Inicio");
+  var sheet =  SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Inicio");
+  SpreadsheetApp.setActiveSheet(sheet);
+
+
   var html = HtmlService.createHtmlOutputFromFile('main')
     .setTitle('Menú');
   SpreadsheetApp.getUi()
     .showSidebar(html);
+  console.log("showSidebar Exits");    
 }
+
 function showPreProductos() {
   console.log("Attempting to show Productos");
   var html = HtmlService.createHtmlOutputFromFile('preProductos')
