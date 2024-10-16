@@ -51,11 +51,12 @@ function inactivarCliente(cliente){
   let sitioWeb=datos_sheet.getRange("W2").getValue();
   let email=datos_sheet.getRange("X2").getValue();
   let estado=datos_sheet.getRange("Y2").getValue();
+  let nombreOriginal=datos_sheet.getRange("AC2").getValue();
 
 
   // Proceso para agregar a la hoja de clientes inactivos
   hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 1).setValue(estado);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 2).setValue(cliente);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 2).setValue(nombreOriginal);
   hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 3).setValue(tipoContacto);
   hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 4).setValue(tipoPersona);
   hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 5).setValue(tipoDoc);
@@ -75,6 +76,7 @@ function inactivarCliente(cliente){
   hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 19).setValue(telefono);
   hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 20).setValue(sitioWeb);
   hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 21).setValue(email);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 22).setValue(cliente);
 
   //eliminar cliente de la hoja clientes
 
@@ -86,6 +88,7 @@ function activarCliente(cliente){
   let hojaClientesInactivos=spreadsheet.getSheetByName('ClientesInvalidos');
   let hojaClietnes=spreadsheet.getSheetByName("Clientes")
   Logger.log(cliente)
+  //let numIdentificacion=hojaClietnes.getRange().getValue()
   datos_sheet.getRange("I6").setValue(cliente)
 
   let rowDelCliente=datos_sheet.getRange("G6").getValue();
@@ -112,9 +115,10 @@ function activarCliente(cliente){
   let telefono = datos_sheet.getRange('Z6').getValue();
   let sitioWeb = datos_sheet.getRange('AA6').getValue();
   let email = datos_sheet.getRange('AB6').getValue();
+  let nombreOriginal=datos_sheet.getRange('AC6').getValue();
   
   hojaClietnes.getRange(rowMaximaClientes, 1).setValue(estado);
-  hojaClietnes.getRange(rowMaximaClientes, 2).setValue(cliente);
+  hojaClietnes.getRange(rowMaximaClientes, 2).setValue(nombreOriginal);
   hojaClietnes.getRange(rowMaximaClientes, 3).setValue(tipoContacto);
   hojaClietnes.getRange(rowMaximaClientes, 4).setValue(tipoPersona);
   hojaClietnes.getRange(rowMaximaClientes, 5).setValue(tipoDoc);
@@ -134,6 +138,7 @@ function activarCliente(cliente){
   hojaClietnes.getRange(rowMaximaClientes, 19).setValue(telefono);
   hojaClietnes.getRange(rowMaximaClientes, 20).setValue(sitioWeb);
   hojaClietnes.getRange(rowMaximaClientes, 21).setValue(email);
+  hojaClietnes.getRange(rowMaximaClientes, 22).setValue(cliente);
 
   hojaClientesInactivos.deleteRow(rowDelCliente)
   hojaClientesInactivos.insertRowAfter(rowMaximaClientesInactivos)
@@ -147,7 +152,7 @@ function buscarClientes(terminoBusqueda,hojaA) {
 
     var sheet = spreadsheet.getSheetByName('ClientesInvalidos');
     var ultimaFila = sheet.getLastRow(); 
-    var valores = sheet.getRange(2, 2, ultimaFila - 1, 1).getValues();
+    var valores = sheet.getRange(2, 22, ultimaFila - 1, 1).getValues();
 
     for (var i = 0; i < valores.length; i++) {
       var valor = valores[i][0]; // Accede al primer (y único) valor de cada fila
@@ -157,7 +162,7 @@ function buscarClientes(terminoBusqueda,hojaA) {
 }
   
   var ultimaFila = sheet.getLastRow(); 
-  var valores = sheet.getRange(2, 2, ultimaFila - 1, 1).getValues(); // `ultimaFila - 1` porque empieza en la fila 2
+  var valores = sheet.getRange(2, 22, ultimaFila - 1, 1).getValues(); // `ultimaFila - 1` porque empieza en la fila 2
 
 
   if(terminoBusqueda===""){
@@ -416,7 +421,7 @@ function saveClientData(formData) {
   if (!sheet) {
     throw new Error('La hoja "Clientes" no existe.');
   }
-  let existe=verificarCodigo(formData.numeroIdentificacion,"Clientes")
+  let existe=verificarCodigo(formData.numeroIdentificacion,"Clientes",false)
   const lastRow = sheet.getLastRow();
   const dataRange = sheet.getRange(2, 2, lastRow, 19).getValues(); // Obtener desde la columna B hasta la S (19 columnas)
   if(existe){

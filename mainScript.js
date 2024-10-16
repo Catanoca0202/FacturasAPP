@@ -147,7 +147,7 @@ function showEnviarEmailPost() {
 
 
 function processForm(data) {
-  let existe=verificarCodigo(data.codigoReferencia,"Productos")
+  let existe=verificarCodigo(data.codigoReferencia,"Productos",false)
   if(existe){
     SpreadsheetApp.getUi().alert("El codigo de referencia ya existe, por favor poner un codigo de referencia unico");
     throw new Error('por favor poner un Numero de Identificacion unico');
@@ -401,7 +401,7 @@ function onEdit(e) {
       }
     }else if(colEditada==7 && rowEditada==2){
       let valorFacturaNumero = celdaEditada.getValue();
-      let existe=verificarCodigo(valorFacturaNumero,"Historial Facturas")
+      let existe=verificarCodigo(valorFacturaNumero,"Historial Facturas",false)
       if(existe){
         SpreadsheetApp.getUi().alert("El numero de factura ya existe, por favor poner un numero de factura unico");
         celdaEditada.setValue("");
@@ -426,13 +426,46 @@ function onEdit(e) {
     updateTotalProductCounter(lastRowProducto,productStartRow,hojaActual,taxSectionStartRow)
   } else if (hojaActual.getName() === "Clientes") {
     let celdaEditada = e.range;
+    let hojaCliente=e.source.getActiveSheet();
+    
     let rowEditada = celdaEditada.getRow();
     let colEditada = celdaEditada.getColumn();
     let colTipoDePersona=2
     let tipoPersona= obtenerTipoDePersona(e);
+
+    if (colEditada ==6 && rowEditada>1){
+      Logger.log("entro a ver si el edit es en numero")
+      let numeroIdentificacion=hojaCliente.getRange(rowEditada,colEditada).getValue()
+      Logger.log("num i"+numeroIdentificacion )
+      let existe=verificarCodigo(numeroIdentificacion,"Clientes",true)
+      if(existe){
+        SpreadsheetApp.getUi().alert("El numero de identificacion ya existe, por favor elegir otro numero unico");
+        celdaEditada.setValue("");
+        verificarDatosObligatorios(e,tipoPersona)
+        throw new Error('por favor poner un Numero de Identificacion unico');
+      }
+    }
+
     verificarDatosObligatorios(e,tipoPersona)
+    agregarCodigoIdentificador(e)
   
 
+  }
+}
+
+function agregarCodigoIdentificador(e){
+  hojaCliente=e.source.getActiveSheet();
+  let range = e.range;
+  let rowEditada = range.getRow();
+  let colEditada = range.getColumn();
+  let estadoActual=hojaCliente.getRange(rowEditada,1).getValue()
+  Logger.log("entrado a codigo-identiicador")
+  Logger.log("estado actual "+estadoActual)
+  if (estadoActual=="Valido"){
+    let nombre=hojaCliente.getRange(rowEditada,2).getValue()
+    let numeroIdentificacion=hojaCliente.getRange(rowEditada,6).getValue()
+    let identificadorUnico=nombre+"-"+numeroIdentificacion
+    hojaCliente.getRange(rowEditada,22).setValue(identificadorUnico)
   }
 }
 

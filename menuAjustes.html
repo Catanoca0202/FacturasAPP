@@ -20,7 +20,7 @@
           google.script.run.showSidebar();
         }
       function obtenerToken() {
-        window.open("https://www.facturasapp.com/Aplicacion/")
+        SpreadsheetApp.getUi().alert("Vinculación exitosa");
       }
       function generarToken() {
         window.open("https://www.facturasapp.com/Publico/registro")
@@ -40,32 +40,23 @@
       <main>
         <div class="container py-5">
           <div class="row justify-content-center">
+            <div class="col-12 col-md-6">
+              <p class="fs-6 text-center">Por favor, completa la siguiente información para poder vincular tu cuenta de FacturasApp con GoogleSheets. Si no tienes una cuenta, puedes <a href="https://www.facturasapp.com/Publico/registro" target="_blank">registrarte aquí</a>.</p>
+            </div>
             <!-- Form Fields -->
             <div class="col-12 col-md-6">
               <div class="mb-3">
                 <label for="inputField1" class="form-label fs-3 fw-bold">Usuario</label>
-                <input type="text" class="form-control" id="inputField1" placeholder="Ingrese valor para campo 1">
+                <input type="text" class="form-control" id="inputField1" placeholder="Ingresa tu usuario">
               </div>
               <div class="mb-3">
                 <label for="inputField2" class="form-label fs-3 fw-bold">Contraseña</label>
-                <input type="text" class="form-control" id="inputField2" placeholder="Ingrese valor para campo 2">
+                <input type="text" class="form-control" id="inputField2" placeholder="Ingresa tu contraseña">
               </div>
             </div>
           </div>
           
-          <div class="row mt-4 justify-content-center">
-            <!-- Buttons -->
-            <div class="col-6 col-md-4">
-              <a onclick="obtenerToken()" class="btn btn-secondary btn-lg w-100">
-                <i class="icon-plus"></i> Acceder a Token
-              </a>
-            </div>
-            <div class="col-6 col-md-4">
-              <a onclick="generarToken()" class="btn btn-secondary btn-lg w-100">
-                <i class="icon-erase"></i> Crear usuario
-              </a>
-            </div>
-          </div>
+
         </div>
       </main>
 
@@ -73,8 +64,13 @@
         <div class="row p-4 gx-0">
           <div class="col-6 pe-1">
             <a onclick="showMenuPrincipal()" class="btn btn-outline-primary btn-lg w-100 btn-menu d-flex align-items-center justify-content-between">
-              <span>Home</span>
+              <span>Inicio</span>
               <i class="icon-24-outlined-other-location-home"></i>
+            </a>
+          </div>
+          <div class="col-6 col-md-4">
+            <a onclick="" class="btn btn-outline-primary btn-lg w-100 btn-menu d-flex align-items-center justify-content-between">
+              Vincular
             </a>
           </div>
         </div>

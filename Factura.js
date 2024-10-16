@@ -584,15 +584,22 @@ function unirNombreYcodigo(hoja){
 }
 
 
-function verificarCodigo(codigo, nombreHoja) {
+function verificarCodigo(codigo, nombreHoja,inHoja) {
   Logger.log("Verificar codigos");
   // Clientes o Productos
   let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nombreHoja);
-  if (nombreHoja === "Clientes") {
+  if (codigo==""){
+    return false
+  }else if (nombreHoja === "Clientes") {
     try {
       let columnaNumIdentificacionC = 6;
       let lastActiveRow = sheet.getLastRow();
-      let rangeNumeroIdentificaciones = sheet.getRange(2, columnaNumIdentificacionC, lastActiveRow - 1);
+      let rangeNumeroIdentificaciones;
+      if(inHoja){
+        rangeNumeroIdentificaciones = sheet.getRange(2, columnaNumIdentificacionC, lastActiveRow - 2);
+      }else{
+        rangeNumeroIdentificaciones = sheet.getRange(2, columnaNumIdentificacionC, lastActiveRow - 1);
+      }
       let NumerosIdentificacion = String(rangeNumeroIdentificaciones.getValues()); 
       NumerosIdentificacion=NumerosIdentificacion.split(",")
       Logger.log("Numero identificacion");
@@ -1290,7 +1297,7 @@ function calcularPorcentaje(valor, total) {
 function showCustomDialog() {
   var html = HtmlService.createHtmlOutputFromFile('postFactura')
       .setWidth(400)
-      .setHeight(300);
+      .setHeight(400);
   SpreadsheetApp.getUi().showModalDialog(html, 'Elige una opcion');
 }
 
