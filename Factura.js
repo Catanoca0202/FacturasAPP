@@ -1290,6 +1290,10 @@ function guardarYGenerarInvoice(){
   
 }
 
+function showMensajeRespuesta(){
+  SpreadsheetApp.getUi().alert("Vinculacion exitosa");
+}
+
 function calcularPorcentaje(valor, total) {
   return (valor / total) * 100;
 }
