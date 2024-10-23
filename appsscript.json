@@ -1,5 +1,7 @@
 {
   "timeZone": "Europe/Madrid",
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
   "dependencies": {
     "enabledAdvancedServices": [
       {
@@ -9,7 +11,6 @@
       }
     ]
   },
-  "exceptionLogging": "STACKDRIVER",
   "oauthScopes": [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/script.container.ui",
@@ -18,34 +19,40 @@
     "https://www.googleapis.com/auth/script.external_request",
     "https://www.googleapis.com/auth/script.locale"
   ],
-  "runtimeVersion": "V8",  
+  "urlFetchWhitelist": [
+    "https://www.facturasapp.com/",
+    "https://facturasapp-qa.cenet.ws/",
+    "https://cdn.icon-icons.com/"
+  ],
   "addOns": {
     "common": {
       "name": "Facturaspp for Google Sheets",
-      "logoUrl": "https://www.facturasapp.com/Publico/images/favicon/apple-touch-icon.png", 
+      "logoUrl": "https://www.facturasapp.com/Publico/images/favicon/apple-touch-icon.png",
       "useLocaleFromApp": true,
       "homepageTrigger": {
         "runFunction": "onHomepage",
         "enabled": true
-      },"openLinkUrlPrefixes": [
-        "https://www.facturasapp.com",
+      },
+      "openLinkUrlPrefixes": [
+        "https://www.facturasapp.com/",
         "https://facturasapp-qa.cenet.ws/",
-        "https://docs.google.com"],
-      "universalActions": [{
-        "label": "Más información sobre FacturasApp",
-        "openLink": "https://www.facturasapp.com"
-      },
-      {
-        "label": "Términos y condiciones de uso",
-        "openLink": "https://noticias.facturasapp.com/2024/07/terminos-y-condiciones.html"
-      },
-      {
-        "label": "Política de privacidad",
-        "openLink": "https://noticias.facturasapp.com/2024/10/politica-de-privacidad-de-facturasapp.html"
-      }
+        "https://docs.google.com/"
+      ],
+      "universalActions": [
+        {
+          "label": "Más información sobre FacturasApp",
+          "openLink": "https://www.facturasapp.com"
+        },
+        {
+          "label": "Términos y condiciones de uso",
+          "openLink": "https://noticias.facturasapp.com/2024/07/terminos-y-condiciones.html"
+        },
+        {
+          "label": "Política de privacidad",
+          "openLink": "https://noticias.facturasapp.com/2024/10/politica-de-privacidad-de-facturasapp.html"
+        }
       ]
     },
-     "sheets": {
-    }    
+    "sheets": {}
   }
 }

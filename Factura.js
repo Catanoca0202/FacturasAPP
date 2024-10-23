@@ -1717,6 +1717,7 @@ function subirFactura(nombre, pdfBlob) {
 
 function crearCarpeta() {
   var folder = DriveApp.createFolder("FacturasApp");
+  Logger.log('Folder created: ' + folder.getName() + ' (ID: ' + folder.getId() + ')');
   var id = folder.getId();
   hojaDatosEmisor.getRange("B14").setValue(id);
 }
