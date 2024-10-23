@@ -50,6 +50,20 @@ function showSidebar() {
   console.log("showSidebar Exits");    
 }
 
+function showVincularCuenta() {
+  var html = HtmlService.createHtmlOutputFromFile('menuVincular')
+    .setTitle('Vincular cuenta');
+  SpreadsheetApp.getUi()
+    .showSidebar(html);
+}
+
+function showEliminarInfo(){
+  var html = HtmlService.createHtmlOutputFromFile('menuEliminarInfo')
+  .setTitle('Eliminar informacion');
+SpreadsheetApp.getUi()
+  .showSidebar(html);
+}
+
 function showPreProductos() {
   console.log("Attempting to show Productos");
   var html = HtmlService.createHtmlOutputFromFile('preProductos')
