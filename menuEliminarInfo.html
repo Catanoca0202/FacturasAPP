@@ -16,9 +16,26 @@
     <link href="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/css/fontello-codes.css" rel="stylesheet">
     
     <script>
-      function showMenuPrincipal() {
-          google.script.run.showSidebar();
+
+      function toggleButton() {
+        var checkbox = document.getElementById('Confirmacion');
+        var botonEliminar = document.getElementById('botonEliminar');
+
+
+        if (checkbox.checked) {
+          botonEliminar.removeAttribute('disabled');
+        } else {
+          botonEliminar.setAttribute('disabled', 'disabled');
         }
+      }
+
+      function showMenuPrincipal() {
+        google.script.run.showSidebar();
+      }
+
+      function borrarInformacion(){
+        google.script.run.eliminarTotalidadInformacion()
+      }
     </script>
   </head>
   
@@ -35,13 +52,25 @@
         <div class="container py-5">
           <div class="row justify-content-center">
             <div class="col-12 col-md-6">
-              <p class="fs-6 text-center">Por favor, completa la siguiente información para poder vincular tu cuenta de FacturasApp con GoogleSheets. Si no tienes una cuenta, puedes <a href="https://www.facturasapp.com/Publico/registro" target="_blank">registrarte aquí</a>.</p>
+              <p class="fs-6 text-center">Si estás seguro de borrar la totalidad de la información actual, incluyendo contactos, productos, datos del emisor, etc., por favor selecciona el recuadro y luego haz clic en el botón.</p>
             </div>
-
-          
-
+          </div>
         </div>
       </main>
+      <div class="col-12 d-flex justify-content-center">
+        <div class="col-8 col-md-4">
+
+          <a id="botonEliminar" class="btn btn-primary btn-lg w-100 btn-menu d-flex align-items-center justify-content-center" disabled="disabled">
+            <span>Eliminar la información</span>
+          </a>
+        </div>
+        <div class="text-center col-2">
+          <label for="Confirmacion">
+  
+            <input type="checkbox" id="Confirmacion" onclick="toggleButton()">
+          </label>
+        </div>
+      </div>
       <footer class="mt-auto">
         <div class="row p-4 gx-0">
             <div class="col-12 text-center">
@@ -51,9 +80,7 @@
                 </a>
             </div>
         </div>
-    </footer>
-
-
+      </footer>
     </div>
   
   </body>
