@@ -601,11 +601,10 @@ function ProcesarFormularioFactura(data) {
   //Prueba
   //var lista = DriveApp.getFilesByName("Factura.pdf");
   //var nuevoId = lista.next().getId();
-
-  var pdf = DriveApp.getFileById(idAsociado);
-  var link = pdf.getDownloadUrl();
+  let pdf = Drive.Files.get(idAsociado);
   //Logger.log(nuevoId);
-  return link;
+  var url = "https://drive.google.com/uc?export=download&id=" + idAsociado;
+  return url;
 }
 
 function unirNombreYcodigo(hoja){
