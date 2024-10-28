@@ -1,32 +1,38 @@
 {
   "timeZone": "Europe/Madrid",
-  "exceptionLogging": "STACKDRIVER",
-  "runtimeVersion": "V8",
   "dependencies": {
     "enabledAdvancedServices": [
       {
         "userSymbol": "Sheets",
         "serviceId": "sheets",
         "version": "v4"
+      },
+      {
+        "userSymbol": "Drive",
+        "version": "v3",
+        "serviceId": "drive"
       }
     ]
   },
+  "exceptionLogging": "STACKDRIVER",
   "oauthScopes": [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/script.container.ui",
     "https://www.googleapis.com/auth/script.send_mail",
-    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/script.external_request",
     "https://www.googleapis.com/auth/script.locale"
   ],
+  "runtimeVersion": "V8",
   "urlFetchWhitelist": [
     "https://www.facturasapp.com/",
     "https://facturasapp-qa.cenet.ws/",
-    "https://cdn.icon-icons.com/"
+    "https://cdn.icon-icons.com/",
+    "https://docs.google.com/","https://www.googleapis.com/drive/v3/files"
   ],
   "addOns": {
     "common": {
-      "name": "Facturaspp for Google Sheets",
+      "name": "Facturasppggil for Google Sheets",
       "logoUrl": "https://www.facturasapp.com/Publico/images/favicon/apple-touch-icon.png",
       "useLocaleFromApp": true,
       "homepageTrigger": {
@@ -34,9 +40,10 @@
         "enabled": true
       },
       "openLinkUrlPrefixes": [
-        "https://www.facturasapp.com/",
+        "https://www.facturasapp.com",
         "https://facturasapp-qa.cenet.ws/",
-        "https://docs.google.com/"
+        "https://docs.google.com",
+        "https://cdn.icon-icons.com/"
       ],
       "universalActions": [
         {

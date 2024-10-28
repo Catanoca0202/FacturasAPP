@@ -17,7 +17,7 @@
 
     <script>
       function sendPdfByEmail() {
-        var email = document.getElementById('email').value;
+        var email = document.getElementById('inputEmail4').value;
         google.script.run.withSuccessHandler(function(response) {
           alert(response);
         }).enviarEmailPostFactura(email);

@@ -439,16 +439,25 @@ function convertPdfToBase64() {
 
   let lastRowFacturasId=hoja.getLastRow()
   var idArchivo = hoja.getRange("B" + lastRowFacturasId).getValue();
-  const file = DriveApp.getFileById(idArchivo);
-  const base64String = Utilities.base64Encode(file.getBlob().getBytes());
-  invoiceData.Document.fileName=String(file.getName())
-  Logger.log(JSON.stringify(invoiceData))
-  invoiceData.file=  base64String;
+  // usa la API avanzada de Drive
+  var file = Drive.Files.get(idArchivo);
+  const url = `https://www.googleapis.com/drive/v3/files/${idArchivo}?alt=media`;
+  var pdfBlob = UrlFetchApp.fetch(url, {
+  headers: {
+      Authorization: `Bearer ${ScriptApp.getOAuthToken()}`,
+  },
+  }).getBlob();
+
+  var base64String = Utilities.base64Encode(pdfBlob.getBytes());
+ // Logger.log("base64String "+base64String)
+  Logger.log("File titel "+file.name)
+  invoiceData.Document.fileName = String(file.name);  
+  invoiceData.file = base64String;
   
-  Logger.log("Nuevo valor de invoiceData.file: " + invoiceData.fileName);
+  Logger.log("Nuevo valor de invoiceData.file: " + invoiceData.Document.fileName);
   let nuevoJsonData = JSON.stringify(invoiceData);
 
-  return nuevoJsonData
+  return nuevoJsonData;
 
 }
 function enviarFactura(){
@@ -518,8 +527,13 @@ function linkDescargaFactura() {
   var lastRow = hoja.getLastRow();
   var idArchivo = hoja.getRange("B" + lastRow).getValue();
   var numFactura = hoja.getRange("A" + lastRow).getValue();
-  var pdf = DriveApp.getFileById(idArchivo);
-  var url = pdf.getDownloadUrl();
+  
+  
+  var file = Drive.Files.get(idArchivo);
+
+  
+  var url = "https://drive.google.com/uc?export=download&id=" + idArchivo;
+  
   return {
     numFactura: numFactura,
     url: url
@@ -536,8 +550,23 @@ function enviarEmailPostFactura(email) {
   var lastRow = hoja.getLastRow();
   var idArchivo = hoja.getRange("B" + lastRow).getValue();
   var numFactura = hoja.getRange("A" + lastRow).getValue();
-  var pdfFile = DriveApp.getFileById(idArchivo).getBlob();
-  var subject = `Factura ${numFactura}`
+
+  Logger.log("email "+email)
+  Logger.log("idArchivo "+idArchivo)
+  Logger.log("numFactura "+numFactura)
+
+
+  var file = Drive.Files.get(idArchivo);
+  Logger.log("file obtenido exitosamente." + file.name);
+  const url = `https://www.googleapis.com/drive/v3/files/${idArchivo}?alt=media`;
+  var pdfBlob = UrlFetchApp.fetch(url, {
+  headers: {
+      Authorization: `Bearer ${ScriptApp.getOAuthToken()}`,
+  },
+  }).getBlob();
+
+  pdfBlob.setName(file.name)
+  var subject = `Factura ${numFactura}`;
   var body = 'Adjunto encontrará la factura en formato PDF.';
 
   if (!email) {
@@ -548,7 +577,7 @@ function enviarEmailPostFactura(email) {
     to: email,
     subject: subject,
     body: body,
-    attachments: [pdfFile.getAs(MimeType.PDF)]
+    attachments: [pdfBlob.setName(file.name)]  // Adjuntar el archivo PDF
   });
 
   return "PDF generado y enviado por correo electrónico a " + email;
@@ -1614,7 +1643,7 @@ function obtenerDatosFactura(factura){
           if (!hojaEnBlanco){
             Logger.log("entrar hoja en blanco")
             var pdfFactura = generatePdfFromPlantilla();
-            var id = subirFactura(facturaNumero, pdfFactura);
+            var id = subirFactura2(facturaNumero, pdfFactura);
             resetPlantilla();
             return id;
           }
@@ -1724,4 +1753,34 @@ function crearCarpeta() {
 
 function eliminarTotalidadInformacion(){
   
+}
+
+function crearCarpetaConDriveAPI() {
+  var nombreCarpeta = "FacturasApp";
+  
+  var folderMetadata = {
+    'name': nombreCarpeta,
+    'mimeType': 'application/vnd.google-apps.folder'
+  };
+  
+  var folder = Drive.Files.create(folderMetadata);  // Usamos el servicio avanzado de Drive
+  
+  var id = folder.id;  // Obtenemos el ID de la nueva carpeta
+  hojaDatosEmisor.getRange("B14").setValue(id);
+}
+
+function subirFactura2(nombre, pdfBlob) {
+  Logger.log("subir factura 2")
+  let hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Datos de emisor');
+  let IdCarpeta=hoja.getRange("B14").getValue()
+  let fileMetadata = {
+    'name': 'Factura ' + nombre + '.pdf',
+    'mimeType': 'application/pdf',
+    'parents': [IdCarpeta]  // Opcional: si quieres especificar una carpeta
+  };
+  let file = Drive.Files.create(fileMetadata, pdfBlob);
+
+
+  Logger.log('PDF creado y subido: ' + file.id);
+  return file.id; 
 }
