@@ -491,28 +491,44 @@ function jsonAPIkey(usuario,contra){
 
   return json
 }
-function obtenerAPIkey(usuario,contra){
+function obtenerAPIkey(usuario, contra) {
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
-  let url ="https://facturasapp-qa.cenet.ws/ApiGateway/AppSecurity/ApiKey"
-  let json =jsonAPIkey(usuario,contra)
-  let opciones={
-    "method" : "post",
+  let url = "https://facturasapp-qa.cenet.ws/ApiGateway/AppSecurity/ApiKey";
+  let json = jsonAPIkey(usuario, contra);
+  let opciones = {
+    "method": "post",
     "contentType": "application/json",
-    "payload" : JSON.stringify(json),
+    "payload": JSON.stringify(json),
     'muteHttpExceptions': true
   };
 
   try {
     let respuesta = UrlFetchApp.fetch(url, opciones);
-    let apiKey = respuesta.getContentText().replace(/[\[\]"]/g, '');
-    Logger.log(respuesta.getContentText()); // Muestra la respuesta de la API en los logs
-    SpreadsheetApp.getUi().alert("Se ha vinculado tu cuenta exitosamente");
-    hojaDatosEmisor.getRange("B15").setValue(apiKey)
+    let contenidoRespuesta = respuesta.getContentText();
+    
+    // Intentamos parsear la respuesta como JSON
+    let respuestaJson;
+    try {
+      respuestaJson = JSON.parse(contenidoRespuesta);
+    } catch (e) {
+      throw new Error("Respuesta inesperada de la API. No es JSON válido.");
+    }
+    
+    // Verificar si la respuesta contiene un API Key en el formato esperado
+    if (Array.isArray(respuestaJson) && respuestaJson.length > 0 && typeof respuestaJson[0] === 'string') {
+      let apiKey = respuestaJson[0]; // Extrae el API Key
+      Logger.log("API Key obtenida: " + apiKey);
+      SpreadsheetApp.getUi().alert("Se ha vinculado tu cuenta exitosamente");
+      hojaDatosEmisor.getRange("B15").setValue(apiKey);  // Almacena el API Key en la celda
+    } else {
+      throw new Error("Error de la API: " + contenidoRespuesta); // Muestra el error de la API
+    }
   } catch (error) {
     Logger.log("Error al enviar el JSON a la API: " + error.message);
-    SpreadsheetApp.getUi().alert("Error al vincular tu cuenta. Verifica que le usuario y la contraseña esten correctos he intenta de nuevo si el error presiste comunicate con soporte");
+    SpreadsheetApp.getUi().alert("Error al vincular tu cuenta. Verifica que el usuario y la contraseña estén correctos e intenta de nuevo. Si el error persiste, comunícate con soporte.");
   }
 }
+
 
 
 function convertPdfToBase64Prueba() {

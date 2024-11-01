@@ -3,9 +3,6 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="">
-    <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
-    <meta name="generator" content="Hugo 0.84.0">
     <title>Formulario con Botones</title>
 
     <!-- Bootstrap core CSS -->
@@ -17,21 +14,28 @@
     
     <script>
       function showMenuPrincipal() {
-          google.script.run.showSidebar();
-        }
-      function obtenerToken() {
-        let contra= document.getElementById('Contra').value
-        let usuario = document.getElementById("Usuario").value
-        google.script.run.obtenerAPIkey(usuario,contra)
+        google.script.run.showSidebar();
       }
+
+      function obtenerToken() {
+        let contra = document.getElementById('Contra').value;
+        let usuario = document.getElementById("Usuario").value;
+        google.script.run.obtenerAPIkey(usuario, contra);
+      }
+
       function generarToken() {
-        window.open("https://www.facturasapp.com/Publico/registro")
+        window.open("https://www.facturasapp.com/Publico/registro");
+      }
+
+      function togglePasswordVisibility() {
+        const passwordField = document.getElementById('Contra');
+        const checkbox = document.getElementById('togglePassword');
+        passwordField.type = checkbox.checked ? 'text' : 'password';
       }
     </script>
   </head>
   
   <body class="d-flex h-100">
-    
     <div class="assistant-container d-flex w-100 h-100 mx-auto flex-column">
       <header class="mb-auto">
         <div id="logo" class="d-flex justify-content-center bg-primary">
@@ -48,12 +52,17 @@
             <!-- Form Fields -->
             <div class="col-12 col-md-6">
               <div class="mb-3">
-                <label for="inputField1" class="form-label fs-3 fw-bold">Usuario</label>
+                <label for="Usuario" class="form-label fs-3 fw-bold">Usuario</label>
                 <input type="text" class="form-control" id="Usuario" placeholder="Ingresa tu usuario">
               </div>
               <div class="mb-3">
-                <label for="inputField2" class="form-label fs-3 fw-bold">Contraseña</label>
-                <input type="text" class="form-control" id="Contra" placeholder="Ingresa tu contraseña">
+                <label for="Contra" class="form-label fs-3 fw-bold">Contraseña</label>
+                <input type="password" class="form-control" id="Contra" placeholder="Ingresa tu contraseña">
+              </div>
+              <!-- Toggle checkbox for showing/hiding password -->
+              <div class="form-check mb-3">
+                <input type="checkbox" class="form-check-input" id="togglePassword" onclick="togglePasswordVisibility()">
+                <label class="form-check-label" for="togglePassword">Mostrar contraseña</label>
               </div>
             </div>
           </div>
@@ -64,23 +73,19 @@
               </a>
             </div>
           </div>
-          
-
         </div>
       </main>
+
       <footer class="mt-auto">
         <div class="row p-4 gx-0">
-            <div class="col-12 text-center">
-                <a onclick="showMenuPrincipal()" class="btn btn-outline-primary btn-lg w-100 d-flex align-items-center justify-content-center">
-                    <span>Inicio</span>
-                    <i class="icon-24-outlined-other-location-home ms-2"></i>
-                </a>
-            </div>
+          <div class="col-12 text-center">
+            <a onclick="showMenuPrincipal()" class="btn btn-outline-primary btn-lg w-100 d-flex align-items-center justify-content-center">
+              <span>Inicio</span>
+              <i class="icon-24-outlined-other-location-home ms-2"></i>
+            </a>
+          </div>
         </div>
-    </footer>
-
-
+      </footer>
     </div>
-  
   </body>
 </html>
