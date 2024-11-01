@@ -479,6 +479,39 @@ function enviarFactura(){
     SpreadsheetApp.getUi().alert("Error al enviar la factura a FacturasApp. Intente de nuevo si el error presiste comuniquese con soporte");
   }
 }
+
+function jsonAPIkey(usuario,contra){
+  let json={
+    "user": usuario,
+    "password": contra
+  }
+
+  return json
+}
+function obtenerAPIkey(usuario,contra){
+  let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
+  let url ="https://facturasapp-qa.cenet.ws/ApiGateway/AppSecurity/ApiKey"
+  let json =jsonAPIkey(usuario,contra)
+  let opciones={
+    "method" : "post",
+    "contentType": "application/json",
+    "payload" : JSON.stringify(json),
+    'muteHttpExceptions': true
+  };
+
+  try {
+    let respuesta = UrlFetchApp.fetch(url, opciones);
+    let apiKey = respuesta.getContentText().replace(/[\[\]"]/g, '');
+    Logger.log(respuesta.getContentText()); // Muestra la respuesta de la API en los logs
+    SpreadsheetApp.getUi().alert("Se ha vinculado tu cuenta exitosamente");
+    hojaDatosEmisor.getRange("B15").setValue(apiKey)
+  } catch (error) {
+    Logger.log("Error al enviar el JSON a la API: " + error.message);
+    SpreadsheetApp.getUi().alert("Error al vincular tu cuenta. Verifica que le usuario y la contraseña esten correctos he intenta de nuevo si el error presiste comunicate con soporte");
+  }
+}
+
+
 function convertPdfToBase64Prueba() {
   let hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Facturas ID');
   let hojaListadoEstao = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ListadoEstado');
@@ -1388,8 +1421,8 @@ function obtenerDatosFactura(factura){
   Logger.log(typeof(factura))
   //Logger.log("data +"+data)
   for (var i = 1; i < data.length; i++) { // Comienza en 1 para saltar la fila de encabezado
-    Logger.log(data[i][invoiceColIndex])
-    Logger.log(typeof(data[i][invoiceColIndex]))
+    //Logger.log(data[i][invoiceColIndex])
+    //Logger.log(typeof(data[i][invoiceColIndex]))
     if (data[i][invoiceColIndex] == factura) {
       var jsonData = data[i][jsonColIndex];
       Logger.log("jsondata "+jsonData)
@@ -1642,8 +1675,9 @@ function obtenerDatosFactura(factura){
           if (!hojaEnBlanco){
             Logger.log("entrar hoja en blanco")
             var pdfFactura = generatePdfFromPlantilla();
-            var id = subirFactura2(facturaNumero, pdfFactura);
             resetPlantilla();
+            var id = subirFactura2(facturaNumero, pdfFactura);
+    
             return id;
           }
           
@@ -1664,6 +1698,7 @@ function testWriteNIFToPlantilla() {
 }
 
 function resetPlantilla() {
+  Logger.log("entro a reset")
   var targetSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Copia de Plantilla');
 
   // Borrar información de productos

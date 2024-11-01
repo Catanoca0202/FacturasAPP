@@ -20,7 +20,9 @@
           google.script.run.showSidebar();
         }
       function obtenerToken() {
-        google.script.run.showMensajeRespuesta()
+        let contra= document.getElementById('Contra').value
+        let usuario = document.getElementById("Usuario").value
+        google.script.run.obtenerAPIkey(usuario,contra)
       }
       function generarToken() {
         window.open("https://www.facturasapp.com/Publico/registro")
@@ -47,11 +49,11 @@
             <div class="col-12 col-md-6">
               <div class="mb-3">
                 <label for="inputField1" class="form-label fs-3 fw-bold">Usuario</label>
-                <input type="text" class="form-control" id="inputField1" placeholder="Ingresa tu usuario">
+                <input type="text" class="form-control" id="Usuario" placeholder="Ingresa tu usuario">
               </div>
               <div class="mb-3">
                 <label for="inputField2" class="form-label fs-3 fw-bold">Contraseña</label>
-                <input type="text" class="form-control" id="inputField2" placeholder="Ingresa tu contraseña">
+                <input type="text" class="form-control" id="Contra" placeholder="Ingresa tu contraseña">
               </div>
             </div>
           </div>

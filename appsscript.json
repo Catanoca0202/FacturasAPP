@@ -28,11 +28,12 @@
     "https://www.facturasapp.com/",
     "https://facturasapp-qa.cenet.ws/",
     "https://cdn.icon-icons.com/",
-    "https://docs.google.com/","https://www.googleapis.com/drive/v3/files"
+    "https://docs.google.com/",
+    "https://www.googleapis.com/drive/v3/files"
   ],
   "addOns": {
     "common": {
-      "name": "Facturasppggil for Google Sheets",
+      "name": "FacturasApp for Google Sheets",
       "logoUrl": "https://www.facturasapp.com/Publico/images/favicon/apple-touch-icon.png",
       "useLocaleFromApp": true,
       "homepageTrigger": {
