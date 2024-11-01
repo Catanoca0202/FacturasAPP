@@ -461,12 +461,15 @@ function convertPdfToBase64() {
 
 }
 function enviarFactura(){
-  let url ="https://facturasapp-qa.cenet.ws/ApiGateway/InvoiceSync/LoadInvoice/LoadDocument"
+  let url ="https://facturasapp-qa.cenet.ws/ApiGateway/InvoiceSync/v2/LoadInvoice/LoadDocument"
   let json =convertPdfToBase64()
+  let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
+  let APIkey=hojaDatosEmisor.getRange("B15").getValue()
   let opciones={
     "method" : "post",
     "contentType": "application/json",
     "payload" : json,
+    "X-API-KEY":APIkey,
     'muteHttpExceptions': true
   };
 
@@ -1300,8 +1303,6 @@ function guardarYGenerarInvoice(){
     "file": "base64",
     "Document": {
       "fileName": "nombre documento",
-      "userId": userId,
-      "companyId": companyId,
       "invoice": {
         "invoiceType": false,
         "contactName": String(cliente),
