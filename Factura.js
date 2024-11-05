@@ -469,13 +469,13 @@ function enviarFactura(){
     "method" : "post",
     "contentType": "application/json",
     "payload" : json,
-    "X-API-KEY":APIkey,
+    "headers": {"X-API-KEY": APIkey},
     'muteHttpExceptions': true
   };
 
   try {
     var respuesta = UrlFetchApp.fetch(url, opciones);
-    Logger.log(respuesta.getContentText()); // Muestra la respuesta de la API en los logs
+    Logger.log(respuesta.status); // Muestra la respuesta de la API en los logs
     SpreadsheetApp.getUi().alert("Factura enviada correctamente a FacturasApp. Si desea verla ingrese a https://facturasapp-qa.cenet.ws/Aplicacion/");
   } catch (error) {
     Logger.log("Error al enviar el JSON a la API: " + error.message);

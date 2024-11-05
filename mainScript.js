@@ -21,7 +21,8 @@ function onOpen() {
 
   console.log("setActiveSheet Inicio");
   //var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = SpreadsheetApp.getSheetByName("Inicio");
+  
+  var sheet = ss.getSheetByName("Inicio");
   SpreadsheetApp.setActiveSheet(sheet);
 
   console.log("onOpenReturning");
