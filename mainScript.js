@@ -36,6 +36,13 @@ function pruebaLogo(){
   hoja.getRange("B20").setValue(celdaLogo);
 }
 
+function showDesvincular(){
+  var html = HtmlService.createHtmlOutputFromFile('menuDesvincular')
+  .setTitle('Desvincular cuenta');
+SpreadsheetApp.getUi()
+  .showSidebar(html);
+}
+
 function showSidebar() {
   console.log("showSidebar Enters");
  
@@ -482,6 +489,21 @@ function onEdit(e) {
 
   }
 }
+
+function DesvincularFacturasApp(){
+  Logger.log("Desvincular")
+  let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
+  hojaDatosEmisor.getRange("B15").setValue("")
+  SpreadsheetApp.getUi().alert('Haz desvinculado exitosamente facturasApp ');
+}
+
+function MensajeErrorDesvincularFacturasApp(){
+  Logger.log("Error Desvincular")
+  SpreadsheetApp.getUi().alert('Si deseas desvincular facturasApp asegurate de escribir DESVINCULAR en el campo');
+  
+}
+
+
 
 function agregarCodigoIdentificador(e){
   hojaCliente=e.source.getActiveSheet();

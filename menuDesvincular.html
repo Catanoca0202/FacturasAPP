@@ -3,9 +3,6 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="">
-    <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
-    <meta name="generator" content="Hugo 0.84.0">
     <title>Formulario con Botones</title>
 
     <!-- Bootstrap core CSS -->
@@ -16,25 +13,39 @@
     <link href="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/css/fontello-codes.css" rel="stylesheet">
     
     <script>
-      function showMenuPrincipal() {
-          google.script.run.showSidebar();
+      function toggleButton() {
+        const inputText = document.getElementById('confirmacionTexto').value;
+        const botonEliminar = document.getElementById('botonEliminar');
+
+        // Habilita el botón solo si el texto es exactamente "ELIMINAR"
+        if (inputText === "DESVINCULAR") {
+          botonEliminar.removeAttribute('disabled');
+          botonEliminar.classList.add('btn-danger');  // Cambia a color rojo
+          botonEliminar.classList.remove('btn-secondary'); // Remueve color deshabilitado
+        } else {
+          botonEliminar.setAttribute('disabled', 'disabled');
+          botonEliminar.classList.remove('btn-danger');
+          botonEliminar.classList.add('btn-secondary');  // Añade color deshabilitado
         }
-      function showEliminarInfo() {
-        google.script.run.showEliminarInfo()
-      }
-      function showVincular() {
-        google.script.run.showVincularCuenta()
-
       }
 
-      function showDesvincular(){
-        google.script.run.showDesvincular()
+      function showMenuPrincipal() {
+        google.script.run.showSidebar();
+      }
+
+
+      function Desvincular(){
+        const inputText = document.getElementById('confirmacionTexto').value;
+        if(inputText==="DESVINCULAR"){
+            google.script.run.DesvincularFacturasApp();
+        }else{
+            google.script.run.MensajeErrorDesvincularFacturasApp();
+        }
       }
     </script>
   </head>
   
   <body class="d-flex h-100">
-    
     <div class="assistant-container d-flex w-100 h-100 mx-auto flex-column">
       <header class="mb-auto">
         <div id="logo" class="d-flex justify-content-center bg-primary">
@@ -45,7 +56,7 @@
               <a onclick="showMenuPrincipal()"><i class="icon-left nav-icon"></i></a>
             </div>
             <div class="col-7 p-0 d-flex align-items-center">
-              <h2 class="mb-0 ms-4"> Ajustes</h2>
+              <h2 class="mb-0 ms-4"> Desvincular FacturasApp</h2>
             </div>
         </div>
       </header>
@@ -53,33 +64,25 @@
       <main>
         <div class="container py-5">
           <div class="row justify-content-center">
-
-
-          <div class="col-12 d-flex justify-content-center mt-3">
-            <div class="col-8 col-md-4">
-              <a onclick="showVincular()" class="btn btn-primary btn-lg w-100 btn-menu d-flex align-items-center justify-content-center">
-                <span>Vincular facturasApp</span>
-              </a>
+            <div class="col-12 col-md-6">
+              <p class="fs-6 text-center">Si estás seguro de desvincular tu cuenta de facturasApp porfavor escribe la palabra <strong>"DESVINCULAR"</strong> en el campo a continuación y luego haz clic en el botón.</p>
             </div>
           </div>
-          <div class="col-12 d-flex justify-content-center mt-3">
+          <!-- Campo de confirmación y botón de eliminación -->
+          <div class="row justify-content-center mt-3">
+            <div class="col-8 col-md-4 mb-3 text-center">
+              <label for="confirmacionTexto" class="form-label">Confirma:</label>
+              <input type="text" id="confirmacionTexto" class="form-control" placeholder="Escribe DESVINCULAR" oninput="toggleButton()">
+            </div>
             <div class="col-8 col-md-4">
-              <a onclick="showDesvincular()" class="btn btn-primary btn-lg w-100 btn-menu d-flex align-items-center justify-content-center">
-                <span>Desvincular facturasApp</span>
+              <a id="botonEliminar" class="btn btn-secondary btn-lg w-100 btn-menu d-flex align-items-center justify-content-center" onclick="Desvincular()" disabled="disabled">
+                <span>Desvincular</span>
               </a>
             </div>
-          </div>
-          <div class="col-12 d-flex justify-content-center mt-3">
-            <div class="col-8 col-md-4">
-              <a onclick="showEliminarInfo()" class="btn btn-primary btn-lg w-100 btn-menu d-flex align-items-center justify-content-center">
-                <span>Borrar informacion</span>
-              </a>
-            </div>
-          </div>
-          
           </div>
         </div>
       </main>
+
       <footer class="mt-auto">
         <div class="row p-4 gx-0">
             <div class="col-12 text-center">
@@ -89,10 +92,7 @@
                 </a>
             </div>
         </div>
-    </footer>
-
-
+      </footer>
     </div>
-  
   </body>
 </html>
