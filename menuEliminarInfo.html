@@ -34,7 +34,13 @@
       }
 
       function borrarInformacion() {
-        google.script.run.eliminarTotalidadInformacion();
+        const inputText = document.getElementById('confirmacionTexto').value;
+        if(inputText==="ELIMINAR"){
+            google.script.run.eliminarTotalidadInformacion();
+        }else{
+            google.script.run.MensajeErrorDesvincularFacturasApp();
+        }
+        
       }
     </script>
   </head>

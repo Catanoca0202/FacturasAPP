@@ -1802,9 +1802,6 @@ function crearCarpeta() {
   hojaDatosEmisor.getRange("B14").setValue(id);
 }
 
-function eliminarTotalidadInformacion(){
-  
-}
 
 function crearCarpetaConDriveAPI() {
   var nombreCarpeta = "FacturasApp";

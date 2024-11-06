@@ -504,6 +504,56 @@ function MensajeErrorDesvincularFacturasApp(){
 }
 
 
+function eliminarTotalidadInformacion(){
+  let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
+  let hojaHistorialFactura = spreadsheet.getSheetByName('Historial Facturas');
+  let hojaProductos = spreadsheet.getSheetByName('Productos');
+  let hojaCodigosFatura = spreadsheet.getSheetByName('Facturas ID');
+  let hojaClientes=spreadsheet.getSheetByName("Clientes");
+  let hojaListadoEstado=spreadsheet.getSheetByName('ListadoEstado');
+  let ClientesInvalidos=spreadsheet.getSheetByName('ClientesInvalidos');
+  
+  borrarInfoHoja(hojaDatosEmisor)
+  borrarInfoHoja(hojaHistorialFactura)
+  borrarInfoHoja(hojaProductos)
+  borrarInfoHoja(hojaCodigosFatura)
+  borrarInfoHoja(hojaClientes)
+  borrarInfoHoja(hojaListadoEstado)
+  borrarInfoHoja(ClientesInvalidos)
+
+  //falta borrar carpeta esa con pdfs
+}
+
+function borrarInfoHoja(hoja){
+  let lastrow=Number(hoja.getLastRow())
+  let nombreHoja=hoja.getSheetName()
+  Logger.log("borrarInfoHoja")
+  Logger.log("nombreHoja "+nombreHoja)
+  Logger.log("lastrow "+lastrow)
+  if (nombreHoja==="Datos de emisor" ){
+    Logger.log("Hoja es datos emisor ")
+  }else{
+    Logger.log("else")
+    hoja.deleteRows(2,lastrow)
+    let maxRows=hoja.getMaxRows()
+    Logger.log("maxRows "+maxRows)
+    let dif = 1000-maxRows
+    Logger.log("dif "+dif)
+    hoja.insertRows(maxRows,dif)
+
+    // for(let j=2;j<=lastrow;j++){
+    //   Logger.log("j "+j)
+
+
+    // }
+  }
+}
+
+function mensajeBorrarInfoError(){
+  Logger.log("Error borrar info")
+  SpreadsheetApp.getUi().alert('Si deseas eliminar toda la informacion de facturasApp asegurate de escribir ELIMINAR en el campo');
+}
+
 
 function agregarCodigoIdentificador(e){
   hojaCliente=e.source.getActiveSheet();
