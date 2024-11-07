@@ -1817,6 +1817,19 @@ function crearCarpetaConDriveAPI() {
   hojaDatosEmisor.getRange("B14").setValue(id);
 }
 
+function eliminarCarpetaConDriveAPI() {
+  var idCarpeta = hojaDatosEmisor.getRange("B14").getValue();  // Obtenemos el ID de la carpeta desde una celda
+
+  try {
+    Drive.Files.remove(idCarpeta);  // Elimina la carpeta usando el servicio avanzado de Drive
+    Logger.log("Carpeta eliminada exitosamente.");
+    hojaDatosEmisor.getRange("B14").setValue("");
+  } catch (e) {
+    Logger.log("Error al eliminar la carpeta: " + e.message);
+  }
+}
+
+
 function subirFactura2(nombre, pdfBlob) {
   Logger.log("subir factura 2")
   let hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Datos de emisor');

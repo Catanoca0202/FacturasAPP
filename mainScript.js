@@ -513,13 +513,17 @@ function eliminarTotalidadInformacion(){
   let hojaListadoEstado=spreadsheet.getSheetByName('ListadoEstado');
   let ClientesInvalidos=spreadsheet.getSheetByName('ClientesInvalidos');
   
-  borrarInfoHoja(hojaDatosEmisor)
+  
   borrarInfoHoja(hojaHistorialFactura)
   borrarInfoHoja(hojaProductos)
   borrarInfoHoja(hojaCodigosFatura)
   borrarInfoHoja(hojaClientes)
   borrarInfoHoja(hojaListadoEstado)
   borrarInfoHoja(ClientesInvalidos)
+  borrarInfoHoja(hojaDatosEmisor)
+  eliminarCarpetaConDriveAPI()
+  SpreadsheetApp.getUi().alert('Informacion eliminada correctamente');
+
 
   //falta borrar carpeta esa con pdfs
 }
@@ -532,6 +536,7 @@ function borrarInfoHoja(hoja){
   Logger.log("lastrow "+lastrow)
   if (nombreHoja==="Datos de emisor" ){
     Logger.log("Hoja es datos emisor ")
+    hoja.getRange(1,2,13).setValue("")
   }else{
     Logger.log("else")
     hoja.deleteRows(2,lastrow)
