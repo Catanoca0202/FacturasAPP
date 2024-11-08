@@ -13,8 +13,8 @@ function onOpen() {
   var ui = SpreadsheetApp.getUi();
   // https://developers.google.com/apps-script/guides/menus
 
-  ui.createMenu('FacturasApp')
-    .addItem('Inicio', 'showSidebar')
+  ui.createAddonMenu()
+    .addItem('FacturasApp', 'showSidebar')
     .addToUi();
 
   //showSidebar()
@@ -95,7 +95,7 @@ function openFacturaSheet() {
 
 function openHistorialSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName("Historial Facturas");
+  var sheet = ss.getSheetByName("Historial Facturas Data");
   SpreadsheetApp.setActiveSheet(sheet);
 }
 
@@ -438,7 +438,7 @@ function onEdit(e) {
       }
     }else if(colEditada==7 && rowEditada==2){
       let valorFacturaNumero = celdaEditada.getValue();
-      let existe=verificarCodigo(valorFacturaNumero,"Historial Facturas",false)
+      let existe=verificarCodigo(valorFacturaNumero,"Historial Facturas Data",false)
       if(existe){
         SpreadsheetApp.getUi().alert("El numero de factura ya existe, por favor poner un numero de factura unico");
         celdaEditada.setValue("");
@@ -487,6 +487,17 @@ function onEdit(e) {
     agregarCodigoIdentificador(e)
   
 
+  }else if (hojaActual.getName() === "Historial Facturas"){
+    let celdaEditada = e.range;
+    let rowEditada = celdaEditada.getRow();
+    let colEditada = celdaEditada.getColumn();
+    if(rowEditada==5 && colEditada==9){
+      Logger.log("dentto de selccionar filtor")
+      let valor = celdaEditada.getValue()
+      filtroHistorialFacturas(valor)
+    }
+  }else if (hojaActual.getName() === "Productos"){
+    verificarDatosObligatoriosProductos(e)
   }
 }
 
@@ -506,7 +517,7 @@ function MensajeErrorDesvincularFacturasApp(){
 
 function eliminarTotalidadInformacion(){
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
-  let hojaHistorialFactura = spreadsheet.getSheetByName('Historial Facturas');
+  let hojaHistorialFactura = spreadsheet.getSheetByName('Historial Facturas Data');
   let hojaProductos = spreadsheet.getSheetByName('Productos');
   let hojaCodigosFatura = spreadsheet.getSheetByName('Facturas ID');
   let hojaClientes=spreadsheet.getSheetByName("Clientes");

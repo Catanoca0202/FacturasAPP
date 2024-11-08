@@ -61,6 +61,8 @@
         }
       ]
     },
-    "sheets": {}
+    "sheets": {"homepageTrigger": {
+            "runFunction": "onOpen"
+         }}
   }
 }

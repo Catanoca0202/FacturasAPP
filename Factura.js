@@ -273,12 +273,22 @@ function guardarFactura(){
 }
 function agregarFilaNueva(){
   let hojaFactura = spreadsheet.getSheetByName('Factura');
-  let taxSectionStartRow = getTaxSectionStartRow(hojaFactura);//recordar este devuelve el lugar en donde deberian estar base imponible, toca restar -1
+  let numeroFilasParaAgregar = hojaFactura.getRange("B13").getValue();
+  
+  // Verificar si numeroFilasParaAgregar es nulo, vacío o no es un número
+  if (numeroFilasParaAgregar == 0 || numeroFilasParaAgregar == "" || isNaN(numeroFilasParaAgregar)) {
+    SpreadsheetApp.getUi().alert("Error: Por favor, ingresa un número válido de filas para agregar.");
+    return; // Detener la ejecución si hay error
+  }
+  
+  let taxSectionStartRow = getTaxSectionStartRow(hojaFactura); // recordar este devuelve el lugar en donde deberían estar base imponible, toca restar -1
   const productStartRow = 15;
   const lastProductRow = getLastProductRow(hojaFactura, productStartRow, taxSectionStartRow);
-  Logger.log("agregarfILA NUEVAA")
-  hojaFactura.insertRowAfter(lastProductRow)
+  
+  Logger.log("Agregar fila nueva");
+  hojaFactura.insertRows(lastProductRow, numeroFilasParaAgregar);
 }
+
 function agregarProductoDesdeFactura(cantidad,producto){
   let hojaFactura = spreadsheet.getSheetByName('Factura');
   let taxSectionStartRow = getTaxSectionStartRow(hojaFactura);//recordar este devuelve el lugar en donde deberian estar base imponible, toca restar -1
@@ -362,7 +372,7 @@ function insertarImagenBorrarFila(fila){
 
 function guardarFacturaHistorial() {
   var hojaFactura = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Factura');
-  var hojaListado = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Historial Facturas');
+  var hojaListado = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Historial Facturas Data');
   var numeroFactura = hojaFactura.getRange("G2").getValue();
   var cliente = hojaFactura.getRange("B2").getValue();
   var fechaEmision = hojaFactura.getRange("G4").getValue();
@@ -715,7 +725,7 @@ function verificarCodigo(codigo, nombreHoja,inHoja) {
       Logger.log("Error al verificar el codigo: " + error.message);
     }
     
-  } else if(nombreHoja==="Historial Facturas") {
+  } else if(nombreHoja==="Historial Facturas Data") {
     try{
       let columnaNumFactura = 1;
       let lastActiveRow = sheet.getLastRow();
@@ -739,7 +749,7 @@ function verificarCodigo(codigo, nombreHoja,inHoja) {
 
 
 function  insertarImagen(fila) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Historial Facturas');
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Historial Facturas Data');
   var imageUrl = 'https://cdn.icon-icons.com/icons2/1674/PNG/512/download_111133.png'; // Reemplaza con la URL de tu imagen
   var cell = sheet.getRange('F' + fila);
   cell.setHorizontalAlignment('center');
@@ -759,7 +769,7 @@ function descargarFactura() {
 }
 
 function guardarFilaFactura() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Historial Facturas');
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Historial Facturas Data');
   var cell = sheet.getActiveCell();
   var fila = cell.getRow();
   sheet.getRange('Z1').setValue(fila); // Guardar la fila en una celda oculta (Z1)
@@ -768,7 +778,7 @@ function guardarFilaFactura() {
 
 
 function generarPDFfactura() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Historial Facturas');
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Historial Facturas Data');
   var fila = sheet.getRange('Z1').getValue(); // Leer el número de fila de la celda oculta
   var numeroFactura = sheet.getRange('A' + fila).getValue(); // Obtener el número de factura
 
@@ -950,7 +960,7 @@ function verificarYCopiarContacto(e) {
 
 function generarNumeroFactura(){
   let sheet = spreadsheet.getSheetByName('Factura');
-  let sheetHistorial=spreadsheet.getSheetByName("Historial facturas")
+  let sheetHistorial=spreadsheet.getSheetByName("Historial Facturas Data")
   let columnaNumeroFactura=1
   let lastActiveRow=sheetHistorial.getLastRow()
   let rangeNumeroFactura = sheetHistorial.getRange(2, columnaNumeroFactura, lastActiveRow - 1);
@@ -1844,4 +1854,25 @@ function subirFactura2(nombre, pdfBlob) {
 
   Logger.log('PDF creado y subido: ' + file.id);
   return file.id; 
+}
+
+
+function filtroHistorialFacturas(tipoFiltro){
+  Logger.log("debtro de fitrlo historial")
+  Logger.log("tipoFiltro "+tipoFiltro)
+  let Formula=''
+  let hojahistorial=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Historial Facturas');
+  if(tipoFiltro=="Numero factura"){
+    Formula="=FILTER('Historial Facturas Data'!A2:E1000;ISNUMBER(SEARCH(C5;'Historial Facturas Data'!A2:A1000)))"
+  }else if(tipoFiltro=="NIF"){
+    Formula="=FILTER('Historial Facturas Data'!A2:E1000;ISNUMBER(SEARCH(C5;'Historial Facturas Data'!C2:C1000)))"
+  }else if(tipoFiltro=="Cliente"){
+    Formula="=FILTER('Historial Facturas Data'!A2:E1000;ISNUMBER(SEARCH(C5;'Historial Facturas Data'!B2:B1000)))"
+  }else if(tipoFiltro=="Estado"){
+    Formula="=FILTER('Historial Facturas Data'!A2:E1000;ISNUMBER(SEARCH(C5;'Historial Facturas Data'!E2:E1000)))"
+  }
+
+  hojahistorial.getRange("B8").setValue(Formula)
+  
+
 }

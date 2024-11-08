@@ -476,7 +476,14 @@ function saveClientData(formData) {
   SpreadsheetApp.getUi().alert("Nuevo cliente generado satisfactoriamente");
 }
 
-
+function verificarDatosObligatoriosProductos(e){
+  let sheet = e.source.getActiveSheet();
+  let range = e.range;
+  let rowEditada = range.getRow();
+  let colEditada = range.getColumn();
+  let ultimaColumnaPermitida = 10;
+  let todasLasColumnas = [ 2, 3, 4, 5, ];
+}
 
 function verificarDatosObligatorios(e, tipoPersona) {
   let sheet = e.source.getActiveSheet();
