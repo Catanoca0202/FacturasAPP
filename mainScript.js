@@ -14,7 +14,7 @@ function onOpen() {
   // https://developers.google.com/apps-script/guides/menus
 
   ui.createAddonMenu()
-    .addItem('FacturasApp', 'showSidebar')
+    .addItem('Inicio', 'showSidebar')
     .addToUi();
 
   //showSidebar()
@@ -24,7 +24,7 @@ function onOpen() {
   
   var sheet = ss.getSheetByName("Inicio");
   SpreadsheetApp.setActiveSheet(sheet);
-
+  
   console.log("onOpenReturning");
   return;
   
@@ -205,42 +205,41 @@ function processForm(data) {
     const precioConIva = valorUnitario * (1 + iva);
     const impuestos = valorUnitario * iva;
 
-    sheet.getRange(newRow, 1).setValue(codigoReferencia);
-    sheet.getRange(newRow, 1).setHorizontalAlignment('center');
+    sheet.getRange(newRow, 2).setValue(codigoReferencia);
+    sheet.getRange(newRow, 2).setHorizontalAlignment('center');
     //sheet.getRange(newRow, 1).setBorder(true,true,true,true,null,null,null,null);
 
-    sheet.getRange(newRow, 2).setValue(nombre);
-    sheet.getRange(newRow, 2).setHorizontalAlignment('center');
+    sheet.getRange(newRow, 3).setValue(nombre);
+    sheet.getRange(newRow, 3).setHorizontalAlignment('center');
     //sheet.getRange(newRow, 2).setBorder(true,true,true,true,null,null,null,null);
 
-    sheet.getRange(newRow, 3).setValue(valorUnitario);
-    sheet.getRange(newRow,3).setHorizontalAlignment('normal');
-    sheet.getRange(newRow, 3).setNumberFormat('€#,##0.00');
+    sheet.getRange(newRow, 4).setValue(valorUnitario);
+    sheet.getRange(newRow,4).setHorizontalAlignment('normal');
+    sheet.getRange(newRow, 4).setNumberFormat('€#,##0.00');
     //sheet.getRange(newRow, 3).setBorder(true,true,true,true,null,null,null,null);
     
     // Establece el IVA y formatea la celda como porcentaje
-    const ivaCell = sheet.getRange(newRow, 4);
+    const ivaCell = sheet.getRange(newRow, 5);
     //ivaCell.setBorder(true,true,true,true,null,null,null,null);
     ivaCell.setHorizontalAlignment('center');
     ivaCell.setValue(iva); // Establece el valor del IVA como decimal
     ivaCell.setNumberFormat('0.00%'); // Formatea la celda como porcentaje con dos decimales
 
-    sheet.getRange(newRow, 5).setValue(precioConIva); // Guarda el precio con IVA
-    sheet.getRange(newRow, 5).setHorizontalAlignment('normal');
-    sheet.getRange(newRow, 5).setNumberFormat('€#,##0.00');
+    sheet.getRange(newRow, 6).setValue("=D"+newRow+"*E"+newRow+"+D"+newRow); // Guarda el precio con IVA
+    sheet.getRange(newRow, 6).setHorizontalAlignment('normal');
    // sheet.getRange(newRow, 5).setBorder(true,true,true,true,null,null,null,null);
 
-    sheet.getRange(newRow, 6).setValue(impuestos); // Guarda el valor de los impuestos
-    sheet.getRange(newRow, 6).setHorizontalAlignment('normal');
-    sheet.getRange(newRow, 6).setNumberFormat('€#,##0.00');
+    sheet.getRange(newRow, 7).setValue("=F"+newRow+"-D"+newRow); // Guarda el valor de los impuestos
+    sheet.getRange(newRow, 7).setHorizontalAlignment('normal');
     //sheet.getRange(newRow, 6).setBorder(true,true,true,true,null,null,null,null);
 
-    sheet.getRange(newRow, 7).setValue(retenciones);
-    sheet.getRange(newRow, 8).setValue(recargo);
+    sheet.getRange(newRow, 8).setValue(retenciones);
+    sheet.getRange(newRow, 9).setValue(recargo);
 
     let referenciaUnica =nombre+"-"+codigoReferencia
-    sheet.getRange(newRow,9).setValue(referenciaUnica)
-    sheet.getRange(newRow, 9).setHorizontalAlignment('normal');
+    sheet.getRange(newRow,10).setValue(referenciaUnica)
+    sheet.getRange(newRow, 10).setHorizontalAlignment('normal');
+    
     
     return "Datos guardados correctamente";
   } catch (error) {
@@ -533,6 +532,8 @@ function eliminarTotalidadInformacion(){
   borrarInfoHoja(ClientesInvalidos)
   borrarInfoHoja(hojaDatosEmisor)
   eliminarCarpetaConDriveAPI()
+  hojaDatosEmisor.getRange("B15").setBackground('#FFC7C7')
+  hojaDatosEmisor.getRange("B15").setValue("Desvinculado")
   SpreadsheetApp.getUi().alert('Informacion eliminada correctamente');
 
 

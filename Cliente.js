@@ -476,13 +476,58 @@ function saveClientData(formData) {
   SpreadsheetApp.getUi().alert("Nuevo cliente generado satisfactoriamente");
 }
 
+
 function verificarDatosObligatoriosProductos(e){
   let sheet = e.source.getActiveSheet();
   let range = e.range;
   let rowEditada = range.getRow();
   let colEditada = range.getColumn();
-  let ultimaColumnaPermitida = 10;
-  let todasLasColumnas = [ 2, 3, 4, 5, ];
+  let ultimaColumnaPermitida = 9;
+  let  columnasObligatorias= [ 2, 3, 4,5];
+  let estadosDefault = [""];
+  let todasLasColumnas=[1,2,3,4,5,6,5,6,7,8,9]
+
+  if (rowEditada > 1 && colEditada <= ultimaColumnaPermitida) {
+    let estaCompleto = true;
+    let estaVacioOPredeterminado = true;
+
+    // Borrar el color de fondo de todas las celdas obligatorias antes de la verificación
+    for (let i = 0; i < todasLasColumnas.length; i++) {
+      sheet.getRange(rowEditada, todasLasColumnas[i]).setBackground(null);
+    }
+
+    // Verificar celdas obligatorias
+    for (let i = 0; i < columnasObligatorias.length; i++) {
+      let valorDeCelda = sheet.getRange(rowEditada, columnasObligatorias[i]).getValue();
+      // if(i==5){
+      //   if(valorDeCelda==""){
+      //     sheet.getRange(rowEditada, columnasObligatorias[i]).setBackground('#FFC7C7'); // Resaltar en rojo claro
+      //   }else{
+      //     estaVacioOPredeterminado = false;
+      //   }
+      // }
+      if (estadosDefault.includes(valorDeCelda)) {
+        estaCompleto = false;
+        sheet.getRange(rowEditada, columnasObligatorias[i]).setBackground('#FFC7C7'); // Resaltar en rojo claro
+      } else {
+        estaVacioOPredeterminado = false;
+      }
+    }
+
+    // Actualizar el estado en la primera columna
+    if (estaVacioOPredeterminado) {
+      sheet.getRange(rowEditada, 1).clearContent(); // Limpiar contenido de "Estado"
+    } else {
+      let status = estaCompleto ? "Valido" : "No Valido";
+      if (status=="Valido"){
+        sheet.getRange(rowEditada, 6).setValue("=D"+rowEditada+"*E"+rowEditada+"+D"+rowEditada); // Guarda el precio con IVA
+
+    
+        sheet.getRange(rowEditada, 7).setValue("=F"+rowEditada+"-D"+rowEditada); // Guarda el valor de los impuestos
+      }
+      sheet.getRange(rowEditada, 1).setValue(status); // Establecer valor en "Estado"
+    }
+  }
 }
 
 function verificarDatosObligatorios(e, tipoPersona) {

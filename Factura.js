@@ -5,6 +5,7 @@ FILA_INICIAL_PREFACTURA = 8;
 COLUMNA_FINAL = 50;
 ADDITIONAL_ROWS = 3 + 3; //(Personalizacion)
 
+
 var spreadsheet = SpreadsheetApp.getActive();
 var prefactura_sheet = spreadsheet.getSheetByName('Factura');
 var unidades_sheet = spreadsheet.getSheetByName('Unidades');
@@ -529,12 +530,18 @@ function obtenerAPIkey(usuario, contra) {
       let apiKey = respuestaJson[0]; // Extrae el API Key
       Logger.log("API Key obtenida: " + apiKey);
       SpreadsheetApp.getUi().alert("Se ha vinculado tu cuenta exitosamente");
-      hojaDatosEmisor.getRange("B15").setValue(apiKey);  // Almacena el API Key en la celda
+      hojaDatosEmisor.getRange("B15").setBackground('#ccffc7')  // Almacena el API Key en la celda
+      hojaDatosEmisor.getRange("B15").setValue("Vinculado")
     } else {
+      hojaDatosEmisor.getRange("B15").setBackground('#FFC7C7')
+      hojaDatosEmisor.getRange("B15").setValue("Desvinculado")
       throw new Error("Error de la API: " + contenidoRespuesta); // Muestra el error de la API
+      
     }
   } catch (error) {
     Logger.log("Error al enviar el JSON a la API: " + error.message);
+    hojaDatosEmisor.getRange("B15").setBackground('#FFC7C7')
+    hojaDatosEmisor.getRange("B15").setValue("Desvinculado")
     SpreadsheetApp.getUi().alert("Error al vincular tu cuenta. Verifica que el usuario y la contraseña estén correctos e intenta de nuevo. Si el error persiste, comunícate con soporte.");
   }
 }
@@ -709,7 +716,7 @@ function verificarCodigo(codigo, nombreHoja,inHoja) {
     }
   } else if (nombreHoja === "Productos") {
     try{
-      let columnaNumIdentificacionP = 1;
+      let columnaNumIdentificacionP = 2;
       let lastActiveRow = sheet.getLastRow();
       let rangeCodigoReferencia = sheet.getRange(2, columnaNumIdentificacionP, lastActiveRow - 1);
       let codigosReferencia = String(rangeCodigoReferencia.getValues());
@@ -1825,6 +1832,7 @@ function crearCarpetaConDriveAPI() {
   
   var id = folder.id;  // Obtenemos el ID de la nueva carpeta
   hojaDatosEmisor.getRange("B14").setValue(id);
+  Logger.log("Carpeta creada")
 }
 
 function eliminarCarpetaConDriveAPI() {
