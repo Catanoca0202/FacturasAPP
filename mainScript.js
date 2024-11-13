@@ -197,8 +197,8 @@ function processForm(data) {
     const codigoReferencia = data.codigoReferencia;
     const nombre = data.nombre;
     const valorUnitario = parseFloat(data.valorUnitario);
-    const retenciones=String(data.retenciones+"%")
-    const recargo=String(data.recargo+"%")
+    let retenciones=String(data.retenciones+"%")
+    let recargo=String(data.recargo+"%")
     Logger.log("retenciones"+retenciones)
     Logger.log("recargo"+recargo)
     const iva = parseFloat(data.iva) / 100;
@@ -232,13 +232,21 @@ function processForm(data) {
     sheet.getRange(newRow, 7).setValue("=F"+newRow+"-D"+newRow); // Guarda el valor de los impuestos
     sheet.getRange(newRow, 7).setHorizontalAlignment('normal');
     //sheet.getRange(newRow, 6).setBorder(true,true,true,true,null,null,null,null);
-
+    
+    if(retenciones=="Seleccione%"){
+      retenciones=""
+    }if(recargo=="Seleccione%"){
+      recargo=""
+    }
+    Logger.log("retenciones des"+retenciones)
+    Logger.log("recargo des"+recargo)
     sheet.getRange(newRow, 8).setValue(retenciones);
     sheet.getRange(newRow, 9).setValue(recargo);
 
     let referenciaUnica =nombre+"-"+codigoReferencia
     sheet.getRange(newRow,10).setValue(referenciaUnica)
     sheet.getRange(newRow, 10).setHorizontalAlignment('normal');
+    sheet.getRange(newRow,1).setValue("Valido")
     
     
     return "Datos guardados correctamente";
@@ -497,6 +505,7 @@ function onEdit(e) {
     }
   }else if (hojaActual.getName() === "Productos"){
     verificarDatosObligatoriosProductos(e)
+    agregarCodigoIdentificador(e)
   }
 }
 
@@ -573,18 +582,27 @@ function mensajeBorrarInfoError(){
 
 
 function agregarCodigoIdentificador(e){
-  hojaCliente=e.source.getActiveSheet();
+  hoja=e.source.getActiveSheet();
   let range = e.range;
   let rowEditada = range.getRow();
   let colEditada = range.getColumn();
-  let estadoActual=hojaCliente.getRange(rowEditada,1).getValue()
+  let estadoActual=hoja.getRange(rowEditada,1).getValue()
   Logger.log("entrado a codigo-identiicador")
   Logger.log("estado actual "+estadoActual)
-  if (estadoActual=="Valido"){
-    let nombre=hojaCliente.getRange(rowEditada,2).getValue()
-    let numeroIdentificacion=hojaCliente.getRange(rowEditada,6).getValue()
-    let identificadorUnico=nombre+"-"+numeroIdentificacion
-    hojaCliente.getRange(rowEditada,22).setValue(identificadorUnico)
+  if(hoja.getName()=="Clientes"){
+    if (estadoActual=="Valido"){
+      let nombre=hoja.getRange(rowEditada,2).getValue()
+      let numeroIdentificacion=hoja.getRange(rowEditada,6).getValue()
+      let identificadorUnico=nombre+"-"+numeroIdentificacion
+      hoja.getRange(rowEditada,22).setValue(identificadorUnico)
+    }
+  }else if (hoja.getName()=="Productos"){
+    if (estadoActual=="Valido"){
+      let nombre=hoja.getRange(rowEditada,3).getValue()
+      let numeroIdentificacion=hoja.getRange(rowEditada,2).getValue()
+      let identificadorUnico=nombre+"-"+numeroIdentificacion
+      hoja.getRange(rowEditada,10).setValue(identificadorUnico)
+    }
   }
 }
 
