@@ -248,7 +248,7 @@ function processForm(data) {
     sheet.getRange(newRow, 10).setHorizontalAlignment('normal');
     sheet.getRange(newRow,1).setValue("Valido")
     
-    
+    SpreadsheetApp.getUi().alert("Nuevo producto generado satisfactoriamente");
     return "Datos guardados correctamente";
   } catch (error) {
     return "Error al guardar los datos: " + error.message;

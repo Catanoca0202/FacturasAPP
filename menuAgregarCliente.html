@@ -50,7 +50,7 @@
     }
 
     function verificarDatosObligatorios() {
-      const form = document.getElementById('clienteForm');
+      const form = document.getElementById('clientForm');
       const tipoPersona = document.getElementById('tipoPersona').value;
       const columnasObligatorias = tipoPersona === 'Autonomo' ? 
         ['nombreCliente','tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion', 'codigoContacto','regimen',  'primerNombre', 'primerApellido', 'pais',  'direccion', 'codigoPostal','telefono',  'email'] :
@@ -98,10 +98,29 @@
           email: document.getElementById('email').value,
         };
 
-        google.script.run.saveClientData(formData);
+        google.script.run.withSuccessHandler(function(response) {
+          
+          resetForm();  // Llamar a resetForm para limpiar el formulario
+        }).saveClientData(formData);
       } else {
         alert('Por favor complete todos los campos obligatorios.');
       }
+    }
+    function resetForm() {
+      
+      const form = document.getElementById('clientForm');
+      form.reset(); // Restablece todos los valores del formulario
+
+      // Restablecer los colores de fondo en caso de haber campos resaltados
+      const campos = ['nombreCliente', 'tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion', 
+                      'codigoContacto', 'regimen', 'nombreComercial', 'primerNombre', 'primerApellido', 
+                      'pais', 'direccion', 'codigoPostal', 'telefono', 'email'];
+      campos.forEach(id => {
+        const field = document.getElementById(id);
+        if (field) {
+          field.style.backgroundColor = '';
+        }
+      });
     }
   </script>
   <body class="d-flex h-100">

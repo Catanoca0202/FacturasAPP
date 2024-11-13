@@ -57,7 +57,7 @@
         });
         
         google.script.run.withSuccessHandler(function (response) {
-          alert(response);
+          
           resetForm();  // Restablece el formulario a su estado predeterminado
         }).processForm(data);
       }
