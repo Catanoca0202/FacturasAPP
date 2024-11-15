@@ -504,15 +504,29 @@ function onEdit(e) {
       filtroHistorialFacturas(valor)
     }
   }else if (hojaActual.getName() === "Productos"){
+    let celdaEditada = e.range;
+    let rowEditada = celdaEditada.getRow();
+    let colEditada = celdaEditada.getColumn();
     verificarDatosObligatoriosProductos(e)
     agregarCodigoIdentificador(e)
+    if (colEditada==2 && rowEditada>1){
+      let codigoRerencia=hojaActual.getRange(rowEditada,colEditada).getValue()
+      let existe=verificarCodigo(codigoRerencia,"Productos",true)
+      if(existe){
+        SpreadsheetApp.getUi().alert("El Codigo de referencia ya existe, por favor elegir otro numero unico");
+        celdaEditada.setValue("");
+        verificarDatosObligatoriosProductos(e)
+        throw new Error('por favor poner un Numero de Identificacion unico');
+      }
+    }
   }
 }
 
 function DesvincularFacturasApp(){
   Logger.log("Desvincular")
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
-  hojaDatosEmisor.getRange("B15").setValue("")
+  hojaDatosEmisor.getRange("B15").setBackground('#FFC7C7')
+  hojaDatosEmisor.getRange("B15").setValue("Desvinculado")
   SpreadsheetApp.getUi().alert('Haz desvinculado exitosamente facturasApp ');
 }
 
@@ -682,7 +696,7 @@ function getLastProductRow(sheet, productStartRow, taxSectionStartRow) {
     let valorCeldaActual=sheet.getRange(row, 1).getValue() 
     Logger.log("'Valor celda "+valorCeldaActual)
 
-      if(valorCeldaActual==="Total productos"){
+      if(valorCeldaActual==="Total filas"){
         Logger.log("dentro de if+ lastProductRow"+lastProductRow)
         return lastProductRow
       }else{

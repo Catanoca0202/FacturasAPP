@@ -244,7 +244,7 @@ function verificarEstadoValidoFactura() {
 
   let totalProductos=hojaFactura.getRange("A16").getValue();
 
-  if (totalProductos==="Total productos"){
+  if (totalProductos==="Total filas"){
     // no hay necesidad de encontrar TOTAL PRODUCTOS si no esta, porque eso implica que si anadio asi sea 1 prodcuto
     let valorTotalProductos=hojaFactura.getRange("B16").getValue();
     if(valorTotalProductos===0 ||valorTotalProductos===""){
@@ -474,8 +474,8 @@ function convertPdfToBase64() {
 function enviarFactura(){
   let url ="https://facturasapp-qa.cenet.ws/ApiGateway/InvoiceSync/v2/LoadInvoice/LoadDocument"
   let json =convertPdfToBase64()
-  let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
-  let APIkey=hojaDatosEmisor.getRange("B15").getValue()
+  let hojaDatos = spreadsheet.getSheetByName('Datos');
+  let APIkey=hojaDatos.getRange("I21").getValue()
   let opciones={
     "method" : "post",
     "contentType": "application/json",
@@ -504,6 +504,7 @@ function jsonAPIkey(usuario,contra){
 }
 function obtenerAPIkey(usuario, contra) {
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
+  let hojaDatos=spreadsheet.getSheetByName("Datos")
   let url = "https://facturasapp-qa.cenet.ws/ApiGateway/AppSecurity/ApiKey";
   let json = jsonAPIkey(usuario, contra);
   let opciones = {
@@ -532,6 +533,7 @@ function obtenerAPIkey(usuario, contra) {
       SpreadsheetApp.getUi().alert("Se ha vinculado tu cuenta exitosamente");
       hojaDatosEmisor.getRange("B15").setBackground('#ccffc7')  // Almacena el API Key en la celda
       hojaDatosEmisor.getRange("B15").setValue("Vinculado")
+      hojaDatos.getRange("I21").setValue(apiKey)
     } else {
       hojaDatosEmisor.getRange("B15").setBackground('#FFC7C7')
       hojaDatosEmisor.getRange("B15").setValue("Desvinculado")
@@ -866,51 +868,30 @@ function generarPdfUrl(pdfBlob) {
 }
 
 
-function limpiarHojaFactura(){
-  let hojaFactura = spreadsheet.getSheetByName('Factura');
+function limpiarHojaFactura() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const hojaFactura = spreadsheet.getSheetByName('Factura');
+  const copiaFactura = spreadsheet.getSheetByName('Copia de Factura');
+  const hojaInicio=spreadsheet.getSheetByName('Inicio');
 
-  //total productos
-  hojaFactura.getRange("B2").setValue("")//Cliente
-  hojaFactura.getRange("B3").setValue("")//Codigo
-
-  hojaFactura.getRange("G7").setValue("")//hora
-  hojaFactura.getRange("G4").setValue("")//fecha
-  hojaFactura.getRange("G5").setValue("")//forma pago
-  hojaFactura.getRange("G6").setValue(0)//dias vencimiento
-  hojaFactura.getRange("G3").setValue("")
-
-  hojaFactura.getRange("B10").setValue("")//Osbervaciones
-  hojaFactura.getRange("B11").setValue("")//IBAN
-  hojaFactura.getRange("D11").setValue("")//Nota de pago 
-
-
-  //productos
-  let productStartRow = 15;
-  let taxSectionStartRow = getTaxSectionStartRow(hojaFactura);
-  let lastProductRow = getLastProductRow(hojaFactura, productStartRow, taxSectionStartRow);
-  Logger.log("limpiarHojaFactura")
-  Logger.log("lastProductRow "+lastProductRow)
-  Logger.log("productStartRow+1 "+(Number(productStartRow)+1))
-  for (let j = lastProductRow; j >= Number(productStartRow)+1; j--) {
-    hojaFactura.deleteRow(j);
-    Logger.log("J" + j);
+  if (!copiaFactura) {
+    Logger.log("No se encontró la hoja 'Copia facturas'.");
+    return;
   }
-  Logger.log("Salta if")
-  hojaFactura.getRange("B15").setValue("")//producto
-  hojaFactura.getRange("C15").setValue("")//cantidad
-  hojaFactura.getRange("A15").setValue("")//referncia
-  hojaFactura.getRange("H15").setValue("0")
-  hojaFactura.getRange("G15").setValue("")//IVA%
-  hojaFactura.getRange("G15").setNumberFormat("0.00%");
-  hojaFactura.getRange("D15").setValue("")//sinIva
-  hojaFactura.getRange("H15").setNumberFormat("0.00%")//descuento
-  hojaFactura.getRange("I15").setValue("")//retencion
-  hojaFactura.getRange("J15").setValue("")//recargo
-
-  hojaFactura.getRange("B16").setValue("0")//tptal producto
-  hojaFactura.getRange("B17").setValue(0)//carrgos
-  hojaFactura.getRange("B18").setValue(0)//descuentos
+  spreadsheet.setActiveSheet(hojaInicio)
+  // Si existe la hoja Factura, elimínala
+  if (hojaFactura) {
+    spreadsheet.deleteSheet(hojaFactura);
+  }
+  
+  // Copiar la hoja "Copia facturas" como nueva hoja llamada "Factura"
+  const nuevaHojaFactura = copiaFactura.copyTo(spreadsheet);
+  nuevaHojaFactura.setName('Factura');
+  const hojaFacturaPost = spreadsheet.getSheetByName('Factura');
+  spreadsheet.setActiveSheet(hojaFacturaPost)
+  Logger.log("La hoja 'Factura' ha sido reemplazada correctamente.");
 }
+
 
 
 function inicarFacturaNueva(){
@@ -1119,7 +1100,7 @@ function guardarYGenerarInvoice(){
 
   //obtener el total de prodcutos
   let posicionTotalProductos = prefactura_sheet.getRange("A16").getValue(); // para verificar donde esta el TOTAL
-  if (posicionTotalProductos==="Total productos"){
+  if (posicionTotalProductos==="Total filas"){
     Logger.log("entra al primer if de json")
     var cantidadProductos=prefactura_sheet.getRange("B16").getValue();// cantidad total de productos 
   }else{
