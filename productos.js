@@ -16,6 +16,7 @@ function obtenerInformacionProducto(producto) {
     let descunetos=datos_sheet.getRange("N11").getValue();
     let retencion=datos_sheet.getRange("O11").getValue();
     let RecgEquivalencia=datos_sheet.getRange("P11").getValue();
+    let estado=datos_sheet.getRange("Q11").getValue();
     // Logger.log("Dentro de funcion dict porcientoIva "+ porcientoIva)
     // Logger.log("Dentro de funcion dict porcientoIva sin string"+ datos_sheet.getRange("K11").getValue())
     
@@ -28,8 +29,8 @@ function obtenerInformacionProducto(producto) {
       "impuestos": impuestos,
       "descuentos": descunetos,
       "retencion":retencion,
-      "Recargo de equivalencia":RecgEquivalencia
-
+      "Recargo de equivalencia":RecgEquivalencia,
+      "Estado":estado
 
     };
   

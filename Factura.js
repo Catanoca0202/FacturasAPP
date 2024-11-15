@@ -683,78 +683,64 @@ function unirNombreYcodigo(hoja){
 }
 
 
-function verificarCodigo(codigo, nombreHoja,inHoja) {
-  Logger.log("Verificar codigos");
-  // Clientes o Productos
-  let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nombreHoja);
-  if (codigo==""){
-    return false
-  }else if (nombreHoja === "Clientes") {
-    try {
-      let columnaNumIdentificacionC = 6;
-      let lastActiveRow = sheet.getLastRow();
-      let rangeNumeroIdentificaciones;
-      if(inHoja){
-        rangeNumeroIdentificaciones = sheet.getRange(2, columnaNumIdentificacionC, lastActiveRow - 2);
-      }else{
-        rangeNumeroIdentificaciones = sheet.getRange(2, columnaNumIdentificacionC, lastActiveRow - 1);
-      }
-      let NumerosIdentificacion = String(rangeNumeroIdentificaciones.getValues()); 
-      NumerosIdentificacion=NumerosIdentificacion.split(",")
-      Logger.log("Numero identificacion");
-      Logger.log(NumerosIdentificacion);
-      Logger.log("codigo: " + codigo);
+function verificarCodigo(codigo, nombreHoja, inHoja) {
+  Logger.log("Verificar códigos");
 
-      // Verificar si el código ya existe
-      if (NumerosIdentificacion.includes(String(codigo))) {
-        Logger.log("El Num identificion ya existe.");
-        return true
-      } else {
-        Logger.log("El Num identificion no existe.");
-        return false
-      }
-    } catch (error) {
-      Logger.log("Error al verificar el Num identificion: " + error.message);
+  // Obtener la hoja por nombre
+  let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nombreHoja);
+
+  // Validar que el código no esté vacío y sea un número válido
+  if (codigo === "" || isNaN(Number(codigo))) {
+    Logger.log("El código es vacío o no es un número válido.");
+    return false;
+  }
+
+  try {
+    let columna;
+    let lastActiveRow = sheet.getLastRow();
+    let rangeDatos;
+
+    // Determinar la columna y el rango según el tipo de hoja
+    if (nombreHoja === "Clientes") {
+      columna = 6; // Columna para el identificador de clientes
+      rangeDatos = sheet.getRange(2, columna, lastActiveRow - (inHoja ? 2 : 1));
+    } else if (nombreHoja === "Productos") {
+      columna = 2; // Columna para el código de productos
+      rangeDatos = sheet.getRange(2, columna, lastActiveRow - 2);
+    } else if (nombreHoja === "Historial Facturas Data") {
+      columna = 1; // Columna para el número de factura
+      rangeDatos = sheet.getRange(2, columna, lastActiveRow - 2);
+    } else {
+      Logger.log("Nombre de hoja no válido.");
+      return false;
     }
-  } else if (nombreHoja === "Productos") {
-    try{
-      let columnaNumIdentificacionP = 2;
-      let lastActiveRow = sheet.getLastRow();
-      let rangeCodigoReferencia = sheet.getRange(2, columnaNumIdentificacionP, lastActiveRow - 1);
-      let codigosReferencia = String(rangeCodigoReferencia.getValues());
-      codigosReferencia=codigosReferencia.split(",")
-      if(codigosReferencia.includes(String(codigo))){
-        Logger.log("El código ya existe.");
-        return true
-      } else {
-        Logger.log("El código no existe.");
-        return false
+
+    // Obtener los valores del rango como una matriz de números
+    let datos = rangeDatos.getValues().flat().map(Number);
+    Logger.log("Datos obtenidos como números:");
+    Logger.log(datos);
+
+    // Convertir el código a número
+    let codigoNumero = Number(codigo);
+    Logger.log(codigoNumero)
+    // Verificar si algún valor en datos es exactamente igual al código
+    for (let i = 0; i < datos.length; i++) {
+      Logger.log("Datos i"+datos[i])
+      if (datos[i] === codigoNumero) {
+        Logger.log(`El código "${codigoNumero}" ya existe en la hoja "${nombreHoja}".`);
+        return true;
       }
-    }catch(error){
-      Logger.log("Error al verificar el codigo: " + error.message);
     }
-    
-  } else if(nombreHoja==="Historial Facturas Data") {
-    try{
-      let columnaNumFactura = 1;
-      let lastActiveRow = sheet.getLastRow();
-      let rangeNumeroFactura = sheet.getRange(2, columnaNumFactura, lastActiveRow - 1);
-      let numeroFacturas = String(rangeNumeroFactura.getValues());
-      numeroFacturas=numeroFacturas.split(",")
-      if(numeroFacturas.includes(String(codigo))){
-        Logger.log("El código ya existe.");
-        return true
-      } else {
-        Logger.log("El código no existe.");
-        return false
-      }
-    }catch(error){
-      Logger.log("Error al verificar el codigo: " + error.message);
-    }
-  }else{
-    Logger.log("No coindicden");
+
+    Logger.log(`El código "${codigoNumero}" no existe en la hoja "${nombreHoja}".`);
+    return false;
+  } catch (error) {
+    Logger.log("Error al verificar el código: " + error.message);
+    return false;
   }
 }
+
+
 
 
 function  insertarImagen(fila) {

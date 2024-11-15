@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en" class="h-100">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
+    <meta name="generator" content="Hugo 0.84.0">
+    <title>Crear Contacto · Bootstrap v5.0</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom styles for this template -->
+    <link href="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/css/custom.css" rel="stylesheet">
+    <link href="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/css/fontello-codes.css" rel="stylesheet">
+
+  </head>
+  <script>
+    function writeDocument(htmlOutput) {
+      document.open();
+      document.write(htmlOutput);
+      document.close();
+    }
+
+    function Back() {
+      google.script.run.showNuevaFactura();
+    }
+
+    function buscarPais() {
+      var input = document.getElementById('pais').value;
+      google.script.run.withSuccessHandler(mostrarResultados).buscarPaises(input);
+    }
+    function mostrarResultados(paises) {
+      var resultBox = document.querySelector('.result-box');
+      resultBox.innerHTML = '';
+      paises.forEach(function(pais) {
+        var div = document.createElement('div');
+        div.textContent = pais;
+        div.onclick = function() {
+          seleccionarPAIS(pais);
+        };
+        resultBox.appendChild(div);
+      });
+    }
+
+    function seleccionarPAIS(pais) {
+      document.getElementById('pais').value = pais;
+      var resultBox = document.querySelector('.result-box');
+      resultBox.innerHTML = ''; // Limpiar los resultados
+    }
+
+    function verificarDatosObligatorios() {
+      const form = document.getElementById('clientForm');
+      const tipoPersona = document.getElementById('tipoPersona').value;
+      const columnasObligatorias = tipoPersona === 'Autonomo' ? 
+        ['nombreCliente','tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion', 'codigoContacto','regimen',  'primerNombre', 'primerApellido', 'pais',  'direccion', 'codigoPostal','telefono',  'email'] :
+        tipoPersona === 'Empresa' ? 
+        ['nombreCliente','tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion',  'codigoContacto','regimen',  'nombreComercial', 'pais',  'direccion', 'codigoPostal', 'telefono',  'email'] : 
+        [];
+
+      let isValid = true;
+
+      columnasObligatorias.forEach(id => {
+        const field = document.getElementById(id);
+        if (!field.value.trim()) {
+          field.style.backgroundColor = '#FFC7C7';
+          isValid = false;
+        } else {
+          field.style.backgroundColor = '';
+        }
+      });
+
+      return isValid;
+    }
+
+    function saveData() {
+      if (verificarDatosObligatorios()) {
+        const formData = {
+          nombreCliente: document.getElementById('nombreCliente').value,
+          tipoContacto: document.getElementById('tipoContacto').value,
+          tipoPersona: document.getElementById('tipoPersona').value,
+          tipoDocumento: document.getElementById('tipoDocumento').value,
+          numeroIdentificacion: document.getElementById('numeroIdentificacion').value,
+          codigoContacto: document.getElementById('codigoContacto').value,
+          regimen: document.getElementById('regimen').value,
+          nombreComercial: document.getElementById('nombreComercial').value,
+          primerNombre: document.getElementById('primerNombre').value,
+          segundoNombre: document.getElementById('segundoNombre').value,
+          primerApellido: document.getElementById('primerApellido').value,
+          segundoApellido: document.getElementById('segundoApellido').value,
+          pais: document.getElementById('pais').value,
+          provincia: document.getElementById('provincia').value,
+          poblacion: document.getElementById('poblacion').value,
+          direccion: document.getElementById('direccion').value,
+          codigoPostal: document.getElementById('codigoPostal').value,
+          telefono: document.getElementById('telefono').value,
+          sitioWeb: document.getElementById('sitioWeb').value,
+          email: document.getElementById('email').value,
+        };
+
+        google.script.run.withSuccessHandler(function(response) {
+          
+          resetForm();  // Llamar a resetForm para limpiar el formulario
+        }).saveClientData(formData);
+      } else {
+        alert('Por favor complete todos los campos obligatorios.');
+      }
+    }
+    function resetForm() {
+      
+      const form = document.getElementById('clientForm');
+      form.reset(); // Restablece todos los valores del formulario
+
+      // Restablecer los colores de fondo en caso de haber campos resaltados
+      const campos = ['nombreCliente', 'tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion', 
+                      'codigoContacto', 'regimen', 'nombreComercial', 'primerNombre', 'primerApellido', 
+                      'pais', 'direccion', 'codigoPostal', 'telefono', 'email'];
+      campos.forEach(id => {
+        const field = document.getElementById(id);
+        if (field) {
+          field.style.backgroundColor = '';
+        }
+      });
+    }
+  </script>
+  <body class="d-flex h-100">
+    
+<div class="assistant-container d-flex w-100 h-100 mx-auto flex-column">
+
+   <header class="mb-auto">
+    <div id="logo" class="d-flex justify-content-center bg-primary">
+      <img src="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/images/logoAssistant.png" alt="">
+    </div>
+
+    <div class="row mt-4 px-5 gx-0">
+        <div class="col-1 p-0">
+            <a onclick="Back()"><i class="icon-left nav-icon"></i></a>
+          </div>
+          <div class="col-7 p-0 d-flex align-items-center">
+            <h2 class="mb-0 ms-4">Crear contacto</h2>
+          </div>
+
+    </div>
+  </header> 
+
+ <main>
+
+    <div class="row py-3 px-5 gx-0">
+        <div class="col-12 py-4">
+          <p>Ingresa la información de tu nuevo contacto.</p>
+        </div>
+
+        <div class="col-12 px-0">
+            <form class="row g-3" id="clientForm">
+                <div class="col-12">
+                    <label for="nombreCliente" class="form-label">Nombre cliente</label>
+                    <input type="text" class="form-control form-control-lg" id="nombreCliente" placeholder="Nombre Cliente">
+                </div>
+
+                <div class="col-md-12">
+                    <label for="tipoContacto" class="form-label">Tipo de contacto</label>
+                    <select id="tipoContacto" class="form-select form-select-lg">
+                      <option selected>Cliente</option>
+                      <option>Proveedor</option>
+                    </select>
+                </div>
+
+                <div class="col-md-12">
+                    <label for="tipoPersona" class="form-label">Tipo de persona</label>
+                    <select id="tipoPersona" class="form-select form-select-lg">
+                      <option selected>Autonomo</option>
+                      <option>Empresa</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="tipoDocumento" class="form-label">Tipo de documento</label>
+                    <select id="tipoDocumento" class="form-select form-select-lg">
+                      <option selected>NIF</option>
+                      <option>Pasaporte</option>
+                      <option>Documento oficial de identificación</option>
+                      <option>Certificado de residencia</option>
+                      <option>Otro documento</option>
+                      <option>No censado</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="numeroIdentificacion" class="form-label">Núm. de documento</label>
+                    <input type="text" class="form-control form-control-lg" id="numeroIdentificacion" placeholder="Número de identificación">
+                </div>
+
+                <div class="col-md-6">
+                    <label for="codigoContacto" class="form-label">Código contacto</label>
+                    <input type="text" class="form-control form-control-lg" id="codigoContacto" placeholder="Código contacto">
+                </div>
+
+                <div class="col-md-6">
+                    <label for="regimen" class="form-label">Régimen</label>
+                    <select id="regimen" class="form-select form-select-lg">
+                      <option selected>Operación de régimen general</option>
+                      <option>Exportación</option>
+                      <option>Operaciones a las que se aplique el régimen especial de bienes usados, objetos de arte, antigüedades y objetos de colección</option>
+                      <option>Régimen especial del oro de inversión</option>
+                      <option>Régimen especial de las agencias de viajes</option>
+                      <option>Régimen especial grupo de entidades en IVA (Nivel Avanzado)</option>
+                      <option>Régimen especial del criterio de caja</option>
+                      <option>Operaciones sujetas al IPSI / IGIC (Impuesto sobre la producción, los servicios y la importación / Impuesto general indirecto canario)</option>
+                      <option>Facturación de las prestaciones de servicios de agencias de viaje que actúan como mediadoras en nombre y por cuenta ajena</option>
+                      <option>Cobros por cuenta de terceros de honorarios profesionales o de derechos derivados de la propiedad industrial, de autor u otros por cuenta de sus socios, asociados o colegiados efectuados por sociedades, asociaciones, colegios profesionales u otras entidades que realicen estas funciones de cobro</option>
+                      <option>Operaciones de arrendamiento de local de negocio</option>
+                      <option>Factura con IVA pendiente de devengo en certificaciones de obra cuyo destinatario sea una Administración pública</option>
+                      <option>Factura con IVA pendiente de devengo en operaciones de tracto sucesivo</option>
+                      <option>Régimen simplificado</option>
+                      <option>Recargo de equivalencia</option>
+                      <option>Régimen especial de la agricultura</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="nombreComercial" class="form-label">Nombre comercial</label>
+                    <input type="text" class="form-control form-control-lg" id="nombreComercial" placeholder="Nombre comercial">
+                </div>
+
+                <div class="col-md-6">
+                    <label for="primerNombre" class="form-label">Primer nombre</label>
+                    <input type="text" class="form-control form-control-lg" id="primerNombre" placeholder="Primer nombre">
+                </div>
+
+                <div class="col-md-6">
+                    <label for="segundoNombre" class="form-label">Segundo nombre</label>
+                    <input type="text" class="form-control form-control-lg" id="segundoNombre" placeholder="Segundo nombre">
+                </div>
+
+                <div class="col-md-6">
+                    <label for="primerApellido" class="form-label">Primer apellido</label>
+                    <input type="text" class="form-control form-control-lg" id="primerApellido" placeholder="Primer apellido">
+                </div>
+
+                <div class="col-md-6">
+                    <label for="segundoApellido" class="form-label">Segundo apellido</label>
+                    <input type="text" class="form-control form-control-lg" id="segundoApellido" placeholder="Segundo apellido">
+                </div>
+
+                <div class="col-md-12">
+                    <label for="pais" class="form-label">Buscar país</label>
+                    <input type="text" id="pais" class="form-control form-control-lg" placeholder="Buscar país" autocomplete="off" onkeyup="buscarPais()">
+                    <div class="result-box">
+                      <!-- Los resultados se mostrarán aquí -->
+                    </div>
+                </div>
+
+                <div class="col-md-12">
+                    <label for="provincia" class="form-label">Provincia</label>
+                    <input type="text" class="form-control form-control-lg" id="provincia" placeholder="Provincia">
+                </div>
+
+                <div class="col-md-12">
+                    <label for="poblacion" class="form-label">Población</label>
+                    <input type="text" class="form-control form-control-lg" id="poblacion" placeholder="Población">
+                </div>
+
+                <div class="col-md-12">
+                    <label for="direccion" class="form-label">Dirección</label>
+                    <input type="text" class="form-control form-control-lg" id="direccion" placeholder="Dirección">
+                </div>
+
+                <div class="col-md-12">
+                    <label for="codigoPostal" class="form-label">Código Postal</label>
+                    <input type="text" class="form-control form-control-lg" id="codigoPostal" placeholder="Código Postal">
+                </div>
+
+                <div class="col-md-12">
+                    <label for="telefono" class="form-label">Teléfono</label>
+                    <input type="text" class="form-control form-control-lg" id="telefono" placeholder="Teléfono">
+                </div>
+
+                <div class="col-md-12">
+                    <label for="sitioWeb" class="form-label">Sitio web</label>
+                    <input type="text" class="form-control form-control-lg" id="sitioWeb" placeholder="Sitio web">
+                </div>
+
+                <div class="col-md-12">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" class="form-control form-control-lg" id="email" placeholder="Email">
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+  </main>
+  <footer class="mt-auto">
+    <div class="row p-4 gx-0">
+      <div class="col-6 pe-1">
+        <a onclick="Back()" class="btn btn-outline-primary btn-lg w-100 btn-menu d-flex justify-content-between align-items-center">
+            <span class="text-container pe-4">Regresar</span>
+            
+        </a>
+    </div>
+    <div class="col-6 ps-1">
+        <a onclick="saveData()" class="btn btn-primary btn-lg w-100 btn-menu d-flex justify-content-between align-items-center">
+            <span class="text-container pe-4">Agregar</span>
+            
+        </a>
+    </div>
+    
+    </div>
+  </footer>
+
+
+</div>
+
+
+  </body>
+</html>

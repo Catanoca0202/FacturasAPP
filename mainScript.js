@@ -354,7 +354,7 @@ function onEdit(e) {
     const productEndColumn = 8; //   procutos terminan en column H
     let taxSectionStartRow = getTaxSectionStartRow(hojaActual); // Assuming products end at column H
     let posRowTotalProductos=taxSectionStartRow-3//poscion (row) de Total productos
-    //Logger.log("taxSectionStartRow "+taxSectionStartRow)
+    Logger.log("taxSectionStartRow "+taxSectionStartRow)
 
     if (colEditada === columnaContactos && rowEditada === rowContactos) {
       //celda de elegir contacto en hoja factura
@@ -368,6 +368,18 @@ function onEdit(e) {
 
     }
     else if(rowEditada >= productStartRow && (colEditada == 2 || colEditada == 3) && rowEditada < posRowTotalProductos)  {//asegurar que si sea dentro del espacio permititdo(donde empieza el taxinfo)
+      if (colEditada == 2){
+        Logger.log("agg producto")
+        let valorok=celdaEditada.getValue()
+        Logger.log("valor+ "+valorok)
+        let dictInformacionProducto = obtenerInformacionProducto(productoFilaI);
+        let Estado=dictInformacionProducto["Estado"]
+        if(Estado==="No Valido"){
+          SpreadsheetApp.getUi().alert("El prodcuto elegido tiene un estado invalido. Verifica que el prodcuto posee los datos minimos para ser valido y vuelve a elegir");
+          celdaEditada.setValue("")
+        }
+
+      }
       const lastProductRow = getLastProductRow(hojaActual, productStartRow, taxSectionStartRow);//1 producto
       Logger.log("lastProductRow " + lastProductRow)
       Logger.log("taxSectionStartRow " + taxSectionStartRow)

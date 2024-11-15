@@ -7,6 +7,11 @@ function showNuevaCliente() {
   SpreadsheetApp.getUi()
     .showSidebar(html);
 }
+function showNuevaClienteV2() {
+  var html = HtmlService.createHtmlOutputFromFile('menuAgregarClienteV2').setTitle("Nuevo Cliente")
+  SpreadsheetApp.getUi()
+    .showSidebar(html);
+}
 
 function showInactivarCliente() {
   var html = HtmlService.createHtmlOutputFromFile('menuInactivarCliente').setTitle("Inactivar Cliente")
@@ -588,7 +593,7 @@ function verificarDatosObligatorios(e, tipoPersona) {
 
 function crearContacto(){
   Logger.log("imprima algo")
-  showNuevaCliente()
+  showNuevaClienteV2()
 
 }
 
