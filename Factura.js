@@ -220,6 +220,7 @@ var diccionarioCaluclarIva={
 
 function verificarEstadoValidoFactura() {
   // en esta funcion se debe de verificar si el numero de factura ya fue utiliazado en alguna otra factura
+  var spreadsheet = SpreadsheetApp.getActive();
   let hojaFactura = spreadsheet.getSheetByName('Factura');
   
   // función que verifica si una factura cumple con los requisitos mínimos para guardar
@@ -273,6 +274,7 @@ function guardarFactura(){
 
 }
 function agregarFilaNueva(){
+  var spreadsheet = SpreadsheetApp.getActive();
   let hojaFactura = spreadsheet.getSheetByName('Factura');
   let numeroFilasParaAgregar = hojaFactura.getRange("B13").getValue();
   
@@ -291,6 +293,7 @@ function agregarFilaNueva(){
 }
 
 function agregarProductoDesdeFactura(cantidad,producto){
+  var spreadsheet = SpreadsheetApp.getActive();
   let hojaFactura = spreadsheet.getSheetByName('Factura');
   let taxSectionStartRow = getTaxSectionStartRow(hojaFactura);//recordar este devuelve el lugar en donde deberian estar base imponible, toca restar -1
   const productStartRow = 15;
@@ -358,6 +361,7 @@ function probarInsertarImagen(){
   insertarImagenBorrarFila(15)
 }
 function insertarImagenBorrarFila(fila){
+  var spreadsheet = SpreadsheetApp.getActive();
   let hojaFcatura=spreadsheet.getSheetByName('Factura');
   let imagenURL="https://i.postimg.cc/RFZ45sgp/basura3.png"
   var cell = hojaFcatura.getRange('H'+fila);
@@ -372,6 +376,7 @@ function insertarImagenBorrarFila(fila){
 }
 
 function guardarFacturaHistorial() {
+  
   var hojaFactura = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Factura');
   var hojaListado = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Historial Facturas Data');
   var numeroFactura = hojaFactura.getRange("G2").getValue();
@@ -472,6 +477,7 @@ function convertPdfToBase64() {
 
 }
 function enviarFactura(){
+  var spreadsheet = SpreadsheetApp.getActive();
   let url ="https://facturasapp-qa.cenet.ws/ApiGateway/InvoiceSync/v2/LoadInvoice/LoadDocument"
   let json =convertPdfToBase64()
   let hojaDatos = spreadsheet.getSheetByName('Datos');
@@ -503,6 +509,7 @@ function jsonAPIkey(usuario,contra){
   return json
 }
 function obtenerAPIkey(usuario, contra) {
+  let spreadsheet = SpreadsheetApp.getActive();
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
   let hojaDatos=spreadsheet.getSheetByName("Datos")
   let url = "https://facturasapp-qa.cenet.ws/ApiGateway/AppSecurity/ApiKey";
@@ -881,6 +888,7 @@ function limpiarHojaFactura() {
 
 
 function inicarFacturaNueva(){
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   let hojaFactura = spreadsheet.getSheetByName('Factura');
   let hojaInfoUsuario= spreadsheet.getSheetByName('Datos de emisor');
   let IABN=hojaInfoUsuario.getRange("B9").getValue()
@@ -933,6 +941,7 @@ function verificarYCopiarContacto(e) {
 
 
 function generarNumeroFactura(){
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = spreadsheet.getSheetByName('Factura');
   let sheetHistorial=spreadsheet.getSheetByName("Historial Facturas Data")
   let columnaNumeroFactura=1
@@ -1035,7 +1044,8 @@ function updateprefacturaValue(column, row, value) {
 
 function getInvoiceGeneralInformation() {
   //Browser.msgBox('getInvoiceGeneralInformation()');
-
+  let spreadsheet = SpreadsheetApp.getActive();
+  let prefactura_sheet = spreadsheet.getSheetByName('Factura');
   var InvoiceAuthorizationNumber = "nulo"//Resolución Autorización
   //
   range = prefactura_sheet.getRange("G6");//dias de vencimiento
@@ -1061,6 +1071,8 @@ function getInvoiceGeneralInformation() {
   return InvoiceGeneralInformation;
 }
 function getPaymentSummary(startingRowTaxation) {
+  let spreadsheet = SpreadsheetApp.getActive();
+  let prefactura_sheet = spreadsheet.getSheetByName('Factura');
   let posTotalFactura=startingRowTaxation+7
   let posMontoNeto=startingRowTaxation+12
   var total_factura = prefactura_sheet.getRange("A"+String(posTotalFactura)).getValue();// por ahora esto no lo utilizamos ya que no hay descuentos
@@ -1083,7 +1095,9 @@ function getPaymentSummary(startingRowTaxation) {
 }
 
 function guardarYGenerarInvoice(){
-
+  let spreadsheet = SpreadsheetApp.getActive();
+  let listadoestado_sheet = spreadsheet.getSheetByName('ListadoEstado');
+  let prefactura_sheet = spreadsheet.getSheetByName('Factura');
   //obtener el total de prodcutos
   let posicionTotalProductos = prefactura_sheet.getRange("A16").getValue(); // para verificar donde esta el TOTAL
   if (posicionTotalProductos==="Total filas"){
@@ -1773,6 +1787,9 @@ function pruebaSacar(){
 }
 
 function subirFactura(nombre, pdfBlob) {
+  let spreadsheet = SpreadsheetApp.getActive();
+  let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
+  var folderId = hojaDatosEmisor.getRange("B14").getValue();
   var folder = DriveApp.getFolderById(folderId);
   var file = folder.createFile(pdfBlob.setName(`Factura ${nombre}.pdf`));
   var id = file.getId();
@@ -1780,14 +1797,18 @@ function subirFactura(nombre, pdfBlob) {
 }
 
 function crearCarpeta() {
-  var folder = DriveApp.createFolder("FacturasApp");
+  let spreadsheet = SpreadsheetApp.getActive();
+  let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
+  let folder = DriveApp.createFolder("FacturasApp");
   Logger.log('Folder created: ' + folder.getName() + ' (ID: ' + folder.getId() + ')');
-  var id = folder.getId();
+  let id = folder.getId();
   hojaDatosEmisor.getRange("B14").setValue(id);
 }
 
 
 function crearCarpetaConDriveAPI() {
+  let spreadsheet = SpreadsheetApp.getActive();
+  let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
   var nombreCarpeta = "FacturasApp";
   
   var folderMetadata = {
@@ -1803,7 +1824,9 @@ function crearCarpetaConDriveAPI() {
 }
 
 function eliminarCarpetaConDriveAPI() {
-  var idCarpeta = hojaDatosEmisor.getRange("B14").getValue();  // Obtenemos el ID de la carpeta desde una celda
+  let spreadsheet = SpreadsheetApp.getActive();
+  let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
+  let idCarpeta = hojaDatosEmisor.getRange("B14").getValue();  // Obtenemos el ID de la carpeta desde una celda
 
   try {
     Drive.Files.remove(idCarpeta);  // Elimina la carpeta usando el servicio avanzado de Drive

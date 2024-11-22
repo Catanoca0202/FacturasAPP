@@ -2,6 +2,8 @@
 
 // a cambiar cuando se pregunte y agg los otros porcinetos
 function obtenerInformacionProducto(producto) {
+    let spreadsheet = SpreadsheetApp.getActive();
+    let datos_sheet = spreadsheet.getSheetByName('Datos');
     let celdaProducto = datos_sheet.getRange("I11");
     Logger.log("producto dentro de obtener "+producto)
     celdaProducto.setValue(producto);

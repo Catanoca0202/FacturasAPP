@@ -26,8 +26,10 @@ function showActivarCliente() {
 }
 
 function inactivarCliente(cliente){
+  let spreadsheet = SpreadsheetApp.getActive();
   let hojaClientesInactivos=spreadsheet.getSheetByName('ClientesInvalidos');
   let hojaClietnes=spreadsheet.getSheetByName("Clientes")
+  let datos_sheet = spreadsheet.getSheetByName('Datos');
   Logger.log(cliente)
   datos_sheet.getRange("H2").setValue(cliente)
   
@@ -90,6 +92,8 @@ function inactivarCliente(cliente){
 }
 
 function activarCliente(cliente){
+  let spreadsheet = SpreadsheetApp.getActive();
+  let datos_sheet = spreadsheet.getSheetByName('Datos');
   let hojaClientesInactivos=spreadsheet.getSheetByName('ClientesInvalidos');
   let hojaClietnes=spreadsheet.getSheetByName("Clientes")
   Logger.log(cliente)
@@ -149,6 +153,7 @@ function activarCliente(cliente){
   hojaClientesInactivos.insertRowAfter(rowMaximaClientesInactivos)
 }
 function buscarClientes(terminoBusqueda,hojaA) {
+  let spreadsheet = SpreadsheetApp.getActive();
   var resultados = [];
 
   if(hojaA==="Inactivar"){
@@ -187,6 +192,8 @@ function buscarClientes(terminoBusqueda,hojaA) {
   return resultados;
 }
 function buscarPaises(terminoBusqueda){
+  let spreadsheet = SpreadsheetApp.getActive();
+  let datos_sheet = spreadsheet.getSheetByName('Datos');
   let paises=datos_sheet.getRange(25,1,169,1).getValues();
   var resultados = [];
   if(terminoBusqueda===""){
@@ -422,6 +429,7 @@ function obtenerTipoDePersona(e){
 }
 
 function saveClientData(formData) {
+  
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Clientes');
   if (!sheet) {
     throw new Error('La hoja "Clientes" no existe.');
@@ -600,7 +608,8 @@ function crearContacto(){
 function getCustomerInformation(customer) {
   /*esta funcion debe de cambiar para obtener son los datos directamente de la hoja cliente */
   // ojo de donde esta cogiendo el datosheet ?
-
+  let spreadsheet = SpreadsheetApp.getActive();
+  let datos_sheet = spreadsheet.getSheetByName('Datos');
   let celdaCliente = datos_sheet.getRange("H2");
   celdaCliente.setValue(customer);
 
@@ -690,6 +699,8 @@ function getCustomerInformation(customer) {
 }
 
 function obtenerInformacionCliente(cliente) {
+  let spreadsheet = SpreadsheetApp.getActive();
+  let datos_sheet = spreadsheet.getSheetByName('Datos');
   let celdaCliente = datos_sheet.getRange("H2");
   celdaCliente.setValue(cliente);
 

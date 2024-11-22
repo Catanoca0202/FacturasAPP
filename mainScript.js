@@ -8,16 +8,19 @@
 
 function onInstall(e) {
   onOpen(e); // Llama a onOpen durante la instalación
+  
 }
 
 function OnOpenVariablesGlobales(){
-  spreadsheet = SpreadsheetApp.getActive();
-  prefactura_sheet = spreadsheet.getSheetByName('Factura');
-  unidades_sheet = spreadsheet.getSheetByName('Unidades');
-  listadoestado_sheet = spreadsheet.getSheetByName('ListadoEstado');
-  hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
-  folderId = hojaDatosEmisor.getRange("B14").getValue();
-  datos_sheet = spreadsheet.getSheetByName('Datos');
+  var spreadsheet = SpreadsheetApp.getActive();
+  var hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
+  var listadoestado_sheet = spreadsheet.getSheetByName('ListadoEstado');
+  var prefactura_sheet = spreadsheet.getSheetByName('Factura');
+  var unidades_sheet = spreadsheet.getSheetByName('Unidades');
+  var listadoestado_sheet = spreadsheet.getSheetByName('ListadoEstado');
+  var hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
+  var folderId = hojaDatosEmisor.getRange("B14").getValue();
+  var datos_sheet = spreadsheet.getSheetByName('Datos');
 }
 
 function OnOpenSheetInicio(){
@@ -27,6 +30,31 @@ function OnOpenSheetInicio(){
   SpreadsheetApp.setActiveSheet(sheet);
 }
 
+function iniciarHojasFactura(){
+  const ss = SpreadsheetApp.getActiveSpreadsheet()
+  const plantillaID="1NZLLk6nC7WWMXre4fxz5fmgCCYKzGqBIslXwzXoYrB8"
+  const plantilla=SpreadsheetApp.openById(plantillaID)
+
+  const nombresHojas=["Inicio","Productos","Datos de emisor","Historial Facturas","Clientes","Factura","Historial Facturas Data","Facturas ID","Datos","Copia de Plantilla","ListadoEstado","Plantilla","Celdas plantilla","ClientesInvalidos","Copia de Plantilla","Copia de Factura"]
+  
+  nombresHojas.forEach(nombreHoja => {
+    let hoja = ss.getSheetByName(nombreHoja);
+    if (!hoja) {
+      const hojaPlantilla = plantilla.getSheetByName(nombreHoja);
+      if (hojaPlantilla) {
+        hojaPlantilla.copyTo(ss).setName(nombreHoja);
+      } else {
+        SpreadsheetApp.getUi().alert('La hoja "' + nombreHoja + '" no existe en la plantilla.');
+      }
+    }
+  });
+}
+
+function IniciarFacturasApp(){
+  iniciarHojasFactura()
+  //OnOpenVariablesGlobales()
+  OnOpenSheetInicio()
+}
 function onOpen(e) {
   //showSidebar()
   // let ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -41,8 +69,9 @@ function onOpen(e) {
   // }
   Logger.log("ScriptApp.AuthMode.NONE")
   ui.createAddonMenu()
-  .addItem('Inicio', 'showSidebar2')
-  .addToUi();
+  .addItem('Instalar', 'IniciarFacturasApp')
+  .addSeparator()
+  .addItem('Inicio', 'showSidebar2').addToUi();
 
   // https://developers.google.com/apps-script/guides/menus
 
@@ -103,6 +132,8 @@ function showSidebar2() {
   .setTitle('Menú');
 SpreadsheetApp.getUi()
   .showSidebar(html);
+
+ 
 console.log("showSidebar Exits"); 
 }
 
@@ -584,6 +615,7 @@ function onEdit(e) {
 
 function DesvincularFacturasApp(){
   Logger.log("Desvincular")
+  let spreadsheet = SpreadsheetApp.getActive();
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
   hojaDatosEmisor.getRange("B15").setBackground('#FFC7C7')
   hojaDatosEmisor.getRange("B15").setValue("Desvinculado")
@@ -598,6 +630,7 @@ function MensajeErrorDesvincularFacturasApp(){
 
 
 function eliminarTotalidadInformacion(){
+  let spreadsheet = SpreadsheetApp.getActive();
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
   let hojaHistorialFactura = spreadsheet.getSheetByName('Historial Facturas Data');
   let hojaProductos = spreadsheet.getSheetByName('Productos');
