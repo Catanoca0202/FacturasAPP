@@ -1,4 +1,4 @@
-var spreadsheet = SpreadsheetApp.getActive();
+// var spreadsheet = SpreadsheetApp.getActive();
 
 // a cambiar cuando se pregunte y agg los otros porcinetos
 function obtenerInformacionProducto(producto) {

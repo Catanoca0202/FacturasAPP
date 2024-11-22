@@ -1,6 +1,6 @@
-var spreadsheet = SpreadsheetApp.getActive();
-var datos_sheet = spreadsheet.getSheetByName('Datos');
-var factura_sheet= spreadsheet.getSheetByName("Factura")
+// var spreadsheet = SpreadsheetApp.getActive();
+// var datos_sheet = spreadsheet.getSheetByName('Datos');
+// var factura_sheet= spreadsheet.getSheetByName("Factura")
 
 function showNuevaCliente() {
   var html = HtmlService.createHtmlOutputFromFile('menuAgregarCliente').setTitle("Nuevo Cliente")

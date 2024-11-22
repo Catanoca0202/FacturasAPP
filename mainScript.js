@@ -1,4 +1,4 @@
-var spreadsheet = SpreadsheetApp.getActive();
+// spreadsheet = SpreadsheetApp.getActive();
 //let unidades_sheet = spreadsheet.getSheetByName('Unidades');
 //let datos_sheet = spreadsheet.getSheetByName('Datos2');
 
@@ -6,29 +6,62 @@ var spreadsheet = SpreadsheetApp.getActive();
 // directorio sebastian C:\\Users\\elfue\\Documents\\MisFacturasApp
 // directorio carlos /home/cley/src/MisFacturasApp
 
-function onOpen() {
-  //showSidebar()
-  console.log("onOpenEntering");
+function onInstall(e) {
+  onOpen(e); // Llama a onOpen durante la instalación
+}
+
+function OnOpenVariablesGlobales(){
+  spreadsheet = SpreadsheetApp.getActive();
+  prefactura_sheet = spreadsheet.getSheetByName('Factura');
+  unidades_sheet = spreadsheet.getSheetByName('Unidades');
+  listadoestado_sheet = spreadsheet.getSheetByName('ListadoEstado');
+  hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
+  folderId = hojaDatosEmisor.getRange("B14").getValue();
+  datos_sheet = spreadsheet.getSheetByName('Datos');
+}
+
+function OnOpenSheetInicio(){
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var ui = SpreadsheetApp.getUi();
-  // https://developers.google.com/apps-script/guides/menus
-
-  ui.createAddonMenu()
-    .addItem('Inicio', 'showSidebar')
-    .addToUi();
-
-  //showSidebar()
-
-  console.log("setActiveSheet Inicio");
-  //var ss = SpreadsheetApp.getActiveSpreadsheet();
   
   var sheet = ss.getSheetByName("Inicio");
   SpreadsheetApp.setActiveSheet(sheet);
-  
-  console.log("onOpenReturning");
-  return;
-  
 }
+
+function onOpen(e) {
+  //showSidebar()
+  // let ss = SpreadsheetApp.getActiveSpreadsheet();
+  let ui = SpreadsheetApp.getUi();
+  // if(e && e.authMode ==ScriptApp.AuthMode.NONE){
+  //   Logger.log("ScriptApp.AuthMode.NONE")
+  //   ui.createAddonMenu()
+  //   .addItem('Inicio', 'showSidebar2')
+  //   .addToUi();
+  // }else{
+
+  // }
+  Logger.log("ScriptApp.AuthMode.NONE")
+  ui.createAddonMenu()
+  .addItem('Inicio', 'showSidebar2')
+  .addToUi();
+
+  // https://developers.google.com/apps-script/guides/menus
+
+
+
+  //showSidebar()
+
+  Logger.log("no entra a ")
+  //var ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // var sheet = ss.getSheetByName("Inicio");
+  // SpreadsheetApp.setActiveSheet(sheet);
+  
+  // OnOpenVariablesGlobales()
+  // OnOpenSheetInicio()
+  return;
+}
+
+
 
 function pruebaLogo(){
   var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Datos de emisor");
@@ -56,6 +89,21 @@ function showSidebar() {
   SpreadsheetApp.getUi()
     .showSidebar(html);
   console.log("showSidebar Exits");    
+}
+
+function showSidebar2() {
+  console.log("showSidebar2 Enters");
+ 
+  console.log("setActiveSheet2 Inicio");
+  // var sheet =  SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Inicio");
+  // SpreadsheetApp.setActiveSheet(sheet);
+
+
+  var html = HtmlService.createHtmlOutputFromFile('main')
+  .setTitle('Menú');
+SpreadsheetApp.getUi()
+  .showSidebar(html);
+console.log("showSidebar Exits"); 
 }
 
 function showVincularCuenta() {
