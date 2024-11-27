@@ -6,10 +6,10 @@
 // directorio sebastian C:\\Users\\elfue\\Documents\\MisFacturasApp
 // directorio carlos /home/cley/src/MisFacturasApp
 
-function onInstall(e) {
-  onOpen(e); // Llama a onOpen durante la instalación
+// function onInstall(e) {
+//   onOpen(e); // Llama a onOpen durante la instalación
   
-}
+// }
 
 function OnOpenVariablesGlobales(){
   var spreadsheet = SpreadsheetApp.getActive();
@@ -90,7 +90,23 @@ function onOpen(e) {
   return;
 }
 
+// function installableOnOpen(e) {
+//   // Esta función actúa como el disparador
+//   var ui = SpreadsheetApp.getUi();
+//   ui.createAddonMenu()
+//     .addItem('Instalar', 'IniciarFacturasApp')
+//     .addSeparator()
+//     .addItem('Inicio', 'showSidebar2')
+//     .addToUi();
+// }
 
+// function createInstallableTrigger() {
+//   var ss = SpreadsheetApp.getActiveSpreadsheet();
+//   ScriptApp.newTrigger('installableOnOpen')  // Aquí ponemos la función con permisos adecuados
+//     .forSpreadsheet(ss)
+//     .onOpen()  // El evento que activará el trigger
+//     .create();
+// }
 
 function pruebaLogo(){
   var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Datos de emisor");
@@ -417,7 +433,9 @@ function convertToPercentage(value) {
 }
 
 function onEdit(e) {
+  let spreadsheet = SpreadsheetApp.getActive();
   let hojaActual = e.source.getActiveSheet();
+  let factura_sheet = spreadsheet.getSheetByName('Factura');
   //verificarTipoDeDatos(e);
 
   if (hojaActual.getName() === "Factura") {

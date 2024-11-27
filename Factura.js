@@ -295,6 +295,7 @@ function agregarFilaNueva(){
 function agregarProductoDesdeFactura(cantidad,producto){
   var spreadsheet = SpreadsheetApp.getActive();
   let hojaFactura = spreadsheet.getSheetByName('Factura');
+  let factura_sheet = spreadsheet.getSheetByName('Factura');
   let taxSectionStartRow = getTaxSectionStartRow(hojaFactura);//recordar este devuelve el lugar en donde deberian estar base imponible, toca restar -1
   const productStartRow = 15;
   const lastProductRow = getLastProductRow(hojaFactura, productStartRow, taxSectionStartRow);
@@ -946,6 +947,9 @@ function generarNumeroFactura(){
   let sheetHistorial=spreadsheet.getSheetByName("Historial Facturas Data")
   let columnaNumeroFactura=1
   let lastActiveRow=sheetHistorial.getLastRow()
+  if (lastActiveRow==1 || lastActiveRow==2){
+    lastActiveRow=2
+  }
   let rangeNumeroFactura = sheetHistorial.getRange(2, columnaNumeroFactura, lastActiveRow - 1);
   let numeroFacturas = rangeNumeroFactura.getValues();
 
@@ -969,6 +973,7 @@ function generarNumeroFactura(){
 }
 
 function obtenerFechaYHoraActual(){ 
+  let spreadsheet = SpreadsheetApp.getActive();
   let sheet = spreadsheet.getSheetByName('Factura');
 
   let fecha = Utilities.formatDate(new Date(), "UTC+1", "dd/MM/yyyy");
@@ -990,6 +995,7 @@ function obtenerFechaYHoraActual(){
 }
 
 function ObtenerFecha(opcion){
+  let spreadsheet = SpreadsheetApp.getActive();
   let fechaFormateada
   if(opcion=="pago"){
     let sheet = spreadsheet.getSheetByName('Factura');
@@ -1856,6 +1862,7 @@ function subirFactura2(nombre, pdfBlob) {
 
 
 function filtroHistorialFacturas(tipoFiltro){
+  
   Logger.log("debtro de fitrlo historial")
   Logger.log("tipoFiltro "+tipoFiltro)
   let Formula=''

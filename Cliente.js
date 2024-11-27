@@ -411,6 +411,8 @@ function agregarPaises(){
     "Zambia",
     "Zimbabue"
   ];
+  let spreadsheet = SpreadsheetApp.getActive();
+  let datos_sheet = spreadsheet.getSheetByName('Datos');
   let Paragg=0
   for(let i=25;i<paises.length;i++){
     datos_sheet.getRange("A"+String(i)).setValue(paises[Paragg])
