@@ -69,9 +69,8 @@ function onOpen(e) {
   // }
   Logger.log("ScriptApp.AuthMode.NONE")
   ui.createAddonMenu()
-  .addItem('Instalar', 'IniciarFacturasApp')
-  .addSeparator()
-  .addItem('Inicio', 'showSidebar2').addToUi();
+  .addItem('Inicio', 'showSidebar2')
+  .addItem('Instalar', 'IniciarFacturasApp').addToUi();
 
   // https://developers.google.com/apps-script/guides/menus
 
