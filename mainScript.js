@@ -32,7 +32,7 @@ function OnOpenSheetInicio(){
 
 function iniciarHojasFactura(){
   const ss = SpreadsheetApp.getActiveSpreadsheet()
-  const plantillaID="1NZLLk6nC7WWMXre4fxz5fmgCCYKzGqBIslXwzXoYrB8"
+  const plantillaID="1qxbXlhH4RpCOsObk91wsuu4k8jarVK34XXRUlKaKS1U"
   const plantilla=SpreadsheetApp.openById(plantillaID)
 
   const nombresHojas=["Inicio","Productos","Datos de emisor","Historial Facturas","Clientes","Factura","Historial Facturas Data","Facturas ID","Datos","Copia de Plantilla","ListadoEstado","Plantilla","Celdas plantilla","ClientesInvalidos","Copia de Plantilla","Copia de Factura"]

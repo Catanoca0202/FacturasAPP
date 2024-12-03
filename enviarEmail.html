@@ -30,7 +30,7 @@
     }
   </script>
   <body class="d-flex h-100">
-    
+
 <div class="assistant-container d-flex w-100 h-100 mx-auto flex-column">
 
    <header class="mb-auto">
@@ -38,25 +38,22 @@
       <img src="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/images/logoAssistant.png" alt="">
     </div>
 
-    <div class="row mt-4 px-5 gx-0">
-        <div class="col-1 p-0">
-            <a onclick="openFactura()"><i class="icon-left nav-icon"></i></a>
-          </div>
-          <div class="col-7 p-0 d-flex align-items-center">
-            <h2 class="mb-0 ms-4">Generar y enviar</h2>
-          </div>
+    <div class="mt-4 px-4 gx-0 d-flex flex-column">
+              <a onclick="openFactura()" href="#" class="btn btn-outline-secondary btn-fluid"><i class="icon-left"></i> <span>Regresar</span></a>
+            <h2 class="mt-4">Generar y enviar</h2>
     </div>
-  </header> 
+
+  </header>
 
 
 
    <main>
 
-    <div class="row py-3 px-5 mt-3 gx-0">
+    <div class="row py-3 px-4 mt-3 gx-0">
       <div class="col-12 py-4">
       <p>Envía tus facturas creadas en Google Sheets a quien quiereas o descárgala.</p>
       </div>
-      
+
 
       <form class="row g-3">
         <div class="col-10">
@@ -83,30 +80,27 @@
 
 
   <footer class="mt-auto">
-    <div class="row p-5 gx-0">
-        <div class="col-6 pe-1">
-            <a onclick="showMenuPrincipal()" class="btn btn-outline-primary btn-lg w-100">
-              <div class="row w-100">
-                <div class="col-2"></div>
-                <div class="col-8 text-center d-flex align-items-center justify-content-center">Inicio</div>
-                <div class="col-2 text-end d-flex align-items-center justify-content-end p-0"><i class="icon-24-outlined-other-location-home me-0"></i></div>
-              </div>
-            </a>
-        </div>
-        <div class="col-6 ps-1">
-          <a href="#" class="btn btn-primary btn-lg w-100">
-            <div class="row w-100">
-              <div class="col-4"></div>
-              <div class="col-4 text-center d-flex align-items-center justify-content-center">Descargar</div>
-              <div class="col-4 text-end d-flex align-items-center justify-content-end p-0"><i class="icon-24-outlined-action-download-upload-download me-0"></i></div>
-            </div>
-            </a>
+    <div class="row p-4 gx-0">
+      <div class="col-6 pe-1">
+        <a href="#" onclick="showMenuPrincipal()" class="btn btn-outline-primary btn-lg w-100 btn-menu">
+          <span class="pe-4">Inicio</span>
+          <i class="icon-24-outlined-other-location-home"></i>
+        </a>
+      </div>
+      <div class="col-6 ps-1">
+        <a href="#" class="btn btn-primary btn-lg w-100 btn-menu">
+          <span class="pe-4">Descargar</span>
+          <i class="icon-24-outlined-action-download-upload-download"></i>
+        </a>
       </div>
     </div>
   </footer>
+
+
+
 </div>
 
 
-    
+
   </body>
 </html>

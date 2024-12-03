@@ -50,12 +50,12 @@
     }
 
     function verificarDatosObligatorios() {
-      const form = document.getElementById('clientForm');
+      const form = document.getElementById('clienteForm');
       const tipoPersona = document.getElementById('tipoPersona').value;
-      const columnasObligatorias = tipoPersona === 'Autonomo' ? 
+      const columnasObligatorias = tipoPersona === 'Autonomo' ?
         ['nombreCliente','tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion', 'codigoContacto','regimen',  'primerNombre', 'primerApellido', 'pais',  'direccion', 'codigoPostal','telefono',  'email'] :
-        tipoPersona === 'Empresa' ? 
-        ['nombreCliente','tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion',  'codigoContacto','regimen',  'nombreComercial', 'pais',  'direccion', 'codigoPostal', 'telefono',  'email'] : 
+        tipoPersona === 'Empresa' ?
+        ['nombreCliente','tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion',  'codigoContacto','regimen',  'nombreComercial', 'pais',  'direccion', 'codigoPostal', 'telefono',  'email'] :
         [];
 
       let isValid = true;
@@ -98,33 +98,14 @@
           email: document.getElementById('email').value,
         };
 
-        google.script.run.withSuccessHandler(function(response) {
-          
-          resetForm();  // Llamar a resetForm para limpiar el formulario
-        }).saveClientData(formData);
+        google.script.run.saveClientData(formData);
       } else {
         alert('Por favor complete todos los campos obligatorios.');
       }
     }
-    function resetForm() {
-      
-      const form = document.getElementById('clientForm');
-      form.reset(); // Restablece todos los valores del formulario
-
-      // Restablecer los colores de fondo en caso de haber campos resaltados
-      const campos = ['nombreCliente', 'tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion', 
-                      'codigoContacto', 'regimen', 'nombreComercial', 'primerNombre', 'primerApellido', 
-                      'pais', 'direccion', 'codigoPostal', 'telefono', 'email'];
-      campos.forEach(id => {
-        const field = document.getElementById(id);
-        if (field) {
-          field.style.backgroundColor = '';
-        }
-      });
-    }
   </script>
   <body class="d-flex h-100">
-    
+
 <div class="assistant-container d-flex w-100 h-100 mx-auto flex-column">
 
    <header class="mb-auto">
@@ -132,20 +113,15 @@
       <img src="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/images/logoAssistant.png" alt="">
     </div>
 
-    <div class="row mt-4 px-5 gx-0">
-        <div class="col-1 p-0">
-            <a onclick="Back()"><i class="icon-left nav-icon"></i></a>
-          </div>
-          <div class="col-7 p-0 d-flex align-items-center">
-            <h2 class="mb-0 ms-4">Crear contacto</h2>
-          </div>
-
+    <div class="mt-4 px-4 gx-0 d-flex flex-column">
+              <a href="#"  onclick="Back()" class="btn btn-outline-secondary btn-fluid"><i class="icon-left"></i> <span>Regresar</span></a>
+            <h2 class="mt-4">Crear contacto</h2>
     </div>
-  </header> 
+  </header>
 
  <main>
 
-    <div class="row py-3 px-5 gx-0">
+    <div class="row py-3 px-4 gx-0">
         <div class="col-12 py-4">
           <p>Ingresa la información de tu nuevo contacto.</p>
         </div>
@@ -289,24 +265,27 @@
         </div>
     </div>
 
+
   </main>
+
+
   <footer class="mt-auto">
     <div class="row p-4 gx-0">
       <div class="col-6 pe-1">
-        <a onclick="Back()" class="btn btn-outline-primary btn-lg w-100 btn-menu d-flex justify-content-between align-items-center">
-            <span class="text-container pe-4">Inicio</span>
-            
+        <a href="#" onclick="showMenuPrincipal()" class="btn btn-outline-primary btn-lg w-100 btn-menu">
+          <span class="pe-4">Inicio</span>
+          <i class="icon-24-outlined-other-location-home"></i>
         </a>
-    </div>
-    <div class="col-6 ps-1">
-        <a onclick="saveData()" class="btn btn-primary btn-lg w-100 btn-menu d-flex justify-content-between align-items-center">
-            <span class="text-container pe-4">Agregar</span>
-            
+      </div>
+      <div class="col-6 ps-1">
+        <a href="#" onclick="saveData()" class="btn btn-primary btn-lg w-100 btn-menu">
+          <span class="pe-4">Agregar</span>
+          <i class="icon-24-outlined-suggested-symbol"></i>
         </a>
-    </div>
-    
+      </div>
     </div>
   </footer>
+
 
 
 </div>

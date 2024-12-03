@@ -16,35 +16,27 @@
 
   </head>
   <script>
-    function toggleButton() {
-      const inputText = document.getElementById('confirmacionTexto').value;
-      const botonEliminar = document.getElementById('botonEliminar');
-
-      // Habilita el botón solo si el texto es exactamente "ELIMINAR"
-      if (inputText === "ELIMINAR") {
-        botonEliminar.removeAttribute('disabled');
-        botonEliminar.classList.add('btn-danger');  // Cambia a color rojo
-        botonEliminar.classList.remove('btn-secondary'); // Remueve color deshabilitado
-      } else {
-        botonEliminar.setAttribute('disabled', 'disabled');
-        botonEliminar.classList.remove('btn-danger');
-        botonEliminar.classList.add('btn-secondary');  // Añade color deshabilitado
-      }
-    }
-
-    function showMenuPrincipal() {
-      google.script.run.showSidebar();
-    }
-
-    function borrarInformacion() {
-      const inputText = document.getElementById('confirmacionTexto').value;
-      if(inputText==="ELIMINAR"){
-          google.script.run.eliminarTotalidadInformacion();
-      }else{
-          google.script.run.MensajeErrorDesvincularFacturasApp();
+      function handleSubmit(event) {
+          event.preventDefault();
+          const form = event.target;
+          const formData = new FormData(form);
+          const data = {};
+          formData.forEach((value, key) => {
+              data[key] = value;
+          });
+          google.script.run.withSuccessHandler(function (url) {
+              if (url === 'Factura no encontrada') {
+                  alert(url);
+              } else {
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = 'Factura_' + data.numFactura + '.pdf';
+                  link.click();
+              }
+          }).ProcesarFormularioFactura(data);
       }
 
-    }
+
   </script>
   <body class="d-flex h-100">
 
@@ -57,7 +49,7 @@
 
     <div class="mt-4 px-4 gx-0 d-flex flex-column">
               <a href="#"  onclick="showMenuPrincipal()" class="btn btn-outline-secondary btn-fluid"><i class="icon-left"></i> <span>Regresar</span></a>
-            <h2 class="mt-4">Eliminar información</h2>
+            <h2 class="mt-4">Descargar</h2>
     </div>
   </header>
 
@@ -65,14 +57,14 @@
 
     <div class="row py-3 px-4 gx-0">
         <div class="col-12 py-4">
-          <p class="fs-6">Si estás seguro de borrar la totalidad de la información actual, incluyendo contactos, productos, datos del emisor, etc., por favor escribe <strong>"ELIMINAR"</strong> en el campo a continuación y luego haz clic en el botón.</p>
+          <p class="fs-6">Ingresa la informacion de la factura.</p>
         </div>
 
         <div class="col-12 px-0">
             <form class="row g-3" id="clientForm">
                 <div class="col-12">
-                  <label for="confirmacionTexto" class="form-label">Confirma:</label>
-                  <input type="text" id="confirmacionTexto" class="form-control" placeholder="Escribe ELIMINAR" oninput="toggleButton()">
+                  <label for="numFactura" class="form-label">Código de Factura</label>
+                  <input type="text" id="numFactura" class="form-control"  name="numFactura" required>
                 </div>
 
             </form>
@@ -86,15 +78,15 @@
   <footer class="mt-auto">
     <div class="row p-4 gx-0">
       <div class="col-6 pe-1">
-        <a href="#" onclick="showMenuPrincipal()" class="btn btn-outline-primary btn-lg w-100 btn-menu">
-          <span class="pe-4">Inicio</span>
-          <i class="icon-24-outlined-other-location-home"></i>
+        <a href="#" onclick="" class="btn btn-primary btn-lg w-100 btn-menu">
+          <span class="pe-4">Descargar</span>
+          <i class="icon-24-outlined-action-download-upload-download"></i>
         </a>
       </div>
       <div class="col-6 ps-1">
         <a href="#" onclick="borrarInformacion()" id="botonEliminar" class="btn btn-primary btn-lg w-100 btn-menu" disabled="disabled">
-          <span class="pe-4">Eliminar</span>
-          <i class="icon-24-outlined-action-main-delete-2"></i>
+          <span class="pe-4">Enviar PDF</span>
+          <i class="icon-send"></i>
         </a>
       </div>
     </div>

@@ -15,7 +15,7 @@
     <link href="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/css/fontello-codes.css" rel="stylesheet">
   </head>
   <body class="d-flex h-100">
-    
+
 <div class="assistant-container d-flex w-100 h-100 mx-auto flex-column">
 
    <header class="mb-auto">
@@ -23,20 +23,16 @@
       <img src="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/images/logoAssistant.png" alt="Logo">
     </div>
 
-    <div class="row mt-4 px-5 gx-0">
-        <div class="col-1 p-0">
-            <a onclick="Back()"><i class="icon-left nav-icon"></i></a>
-        </div>
-        <div class="col-7 p-0 d-flex align-items-center">
-            <h2 class="mb-0 ms-4">Activar Cliente</h2>
-        </div>
+    <div class="mt-4 px-4 gx-0 d-flex flex-column">
+              <a href="#"  onclick="Back()" class="btn btn-outline-secondary btn-fluid"><i class="icon-left"></i> <span>Regresar</span></a>
+            <h2 class="mt-4">Activar cliente</h2>
     </div>
-  </header> 
+  </header>
 
 
  <main>
 
-    <div class="row py-3 px-5 mt-3 gx-0">
+    <div class="row py-3 px-4 mt-3 gx-0">
       <div class="col-12 py-4">
         <p>Selecciona un cliente de tu lista para activarlo.</p>
       </div>
@@ -44,7 +40,7 @@
       <div class="col-12 px-0">
         <form class="row g-3" id="productForm">
             <div class="col-10">
-                <label for="clientesInactivos" class="form-label">Buscar Cliente</label> 
+                <label for="clientesInactivos" class="form-label">Buscar Cliente</label>
                 <select id="clientesInactivos" class="form-control form-control-lg">
                   <option value="">Seleccione un cliente</option>
                   <!-- Las opciones de clientes se agregarán aquí -->
@@ -57,27 +53,28 @@
       </div>
 
     </div>
-      
-  </main> 
+
+  </main>
+
 
   <footer class="mt-auto">
     <div class="row p-4 gx-0">
-        <div class="col-6 pe-1">
-            <a onclick="Back()" class="btn btn-outline-primary btn-lg w-100 btn-menu d-flex justify-content-between align-items-center">
-                <span>Inicio</span>
-                <i class="icon-24-outlined-other-location-home"></i>
-            </a>
-        </div>
-        <div class="col-6 ps-1">
-            <a onclick="activar()" class="btn btn-primary btn-lg w-100 btn-menu d-flex justify-content-between align-items-center">
-                <span>Activar</span>
-                <i class="icon-24-outlined-suggested-symbol-check"></i>
-            </a>
-        </div>
+      <div class="col-6 pe-1">
+        <a href="#" onclick="showMenuPrincipal()" class="btn btn-outline-primary btn-lg w-100 btn-menu">
+          <span class="pe-4">Inicio</span>
+          <i class="icon-24-outlined-other-location-home"></i>
+        </a>
+      </div>
+      <div class="col-6 ps-1">
+        <a href="#" onclick="activar()" class="btn btn-primary btn-lg w-100 btn-menu">
+          <span class="pe-4">Activar</span>
+          <i class="icon-24-outlined-suggested-symbol-check"></i>
+        </a>
+      </div>
     </div>
-</footer>
+  </footer>
 
-  
+
 </div>
 
 <script>
@@ -95,7 +92,7 @@
     function cargarClientesInactivos() {
       google.script.run.withSuccessHandler(mostrarClientesInactivos).buscarClientes("", "Activar");
     }
-    
+
     function mostrarClientesInactivos(clientes) {
       var select = document.getElementById('clientesInactivos');
       select.innerHTML = '<option value="">Seleccione un cliente</option>';
