@@ -31,6 +31,7 @@ function OnOpenSheetInicio(){
 }
 
 function iniciarHojasFactura(){
+  Logger.log("Inicio instalacion deh hojas")
   const ss = SpreadsheetApp.getActiveSpreadsheet()
   const plantillaID="1qxbXlhH4RpCOsObk91wsuu4k8jarVK34XXRUlKaKS1U"
   const plantilla=SpreadsheetApp.openById(plantillaID)
@@ -48,12 +49,27 @@ function iniciarHojasFactura(){
       }
     }
   });
+  SpreadsheetApp.getUi().alert("Hojas instaladas satisfactoriamente")
 }
 
 function IniciarFacturasApp(){
-  iniciarHojasFactura()
+  let ui = SpreadsheetApp.getUi();
+  
+  let hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Datos de emisor");
+  if (hoja==null){
+    iniciarHojasFactura()
+    OnOpenSheetInicio()
+  }else{
+    let respuesta = ui.alert('Si vuelves a instalar, solo se instalaran las hojas no existan o que hayan sido eliminadas?', ui.ButtonSet.YES_NO);
+    if (respuesta == ui.Button.YES) {
+      iniciarHojasFactura()
+      OnOpenSheetInicio()
+    } else {
+      return
+    }
+  }
   //OnOpenVariablesGlobales()
-  OnOpenSheetInicio()
+  
 }
 function onOpen(e) {
   //showSidebar()
@@ -137,12 +153,21 @@ function showSidebar() {
 
 function showSidebar2() {
   console.log("showSidebar2 Enters");
- 
+  let ui = SpreadsheetApp.getUi();
   console.log("setActiveSheet2 Inicio");
   // var sheet =  SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Inicio");
   // SpreadsheetApp.setActiveSheet(sheet);
-
-
+  let hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Datos de emisor");
+  Logger.log("hoja "+hoja)
+  Logger.log(typeof(hoja))
+  if(hoja==null){
+    let respuesta = ui.alert('Primero debes de instalar las hojas necesarias ¿Deseas instalarlas ya?', ui.ButtonSet.YES_NO);
+    if (respuesta == ui.Button.YES) {
+      iniciarHojasFactura()
+    } else {
+      return
+    }
+  }else{
   var html = HtmlService.createHtmlOutputFromFile('main')
   .setTitle('Menú');
 SpreadsheetApp.getUi()
@@ -150,6 +175,14 @@ SpreadsheetApp.getUi()
 
  
 console.log("showSidebar Exits"); 
+  }
+}
+
+function showInstalarHojas() {
+  var html = HtmlService.createHtmlOutputFromFile('instalarHojas')
+      .setWidth(400)
+      .setHeight(400);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Instala las hojas');
 }
 
 function showVincularCuenta() {
