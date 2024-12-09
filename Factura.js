@@ -258,14 +258,37 @@ function verificarEstadoValidoFactura() {
   return estaValido;  
 }
 
+function verificarEstadoCarpeta(){
+  let spreadsheet = SpreadsheetApp.getActive();
+  let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
+  let idCarpeta = hojaDatosEmisor.getRange("B14").getValue();  // Obtenemos el ID de la carpeta desde una celda
+  Logger.log("idCarpeta "+idCarpeta)
+  if (idCarpeta==""){
+    //hoja toca ver si es la misma que esta en la google drive 
+    SpreadsheetApp.getUi().alert("Necesitas primero crear la carpeta en donde se guardaran las facutras, dirigete a la hoja Datos de emisor y crea la carpeta dandole click al boton crear carpeta")
+    return false
+  }else{
+    Logger.log("la carpeta si existe");
+    return true
+  }
+
+}
+
 function guardarFactura(){
   let estadoFactura=verificarEstadoValidoFactura();
   if(estadoFactura){
     //factura valida
     // generar json
-    guardarYGenerarInvoice()
-    guardarFacturaHistorial()
-    limpiarHojaFactura()
+    
+    let respuesta = verificarEstadoCarpeta()
+    if(respuesta){
+      guardarYGenerarInvoice()
+      guardarFacturaHistorial()
+      limpiarHojaFactura()
+    }else{
+      return
+    }
+
     
   }else{
     SpreadsheetApp.getUi().alert("Factura no es valida")
@@ -1840,6 +1863,7 @@ function eliminarCarpetaConDriveAPI() {
     hojaDatosEmisor.getRange("B14").setValue("");
   } catch (e) {
     Logger.log("Error al eliminar la carpeta: " + e.message);
+    hojaDatosEmisor.getRange("B14").setValue("");
   }
 }
 

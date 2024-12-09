@@ -8,7 +8,7 @@ function showNuevaCliente() {
     .showSidebar(html);
 }
 function showNuevaClienteV2() {
-  var html = HtmlService.createHtmlOutputFromFile('menuAgregarClienteV2').setTitle("Nuevo Cliente")
+  var html = HtmlService.createHtmlOutputFromFile('menuAgregarCliente').setTitle("Nuevo Cliente")
   SpreadsheetApp.getUi()
     .showSidebar(html);
 }

@@ -50,6 +50,7 @@ function iniciarHojasFactura(){
     }
   });
   SpreadsheetApp.getUi().alert("Hojas instaladas satisfactoriamente")
+  SpreadsheetApp.getUi().alert("Recuerda que antes de utilizar facturasApp debes de crear la carpeta donde se guardaran las facutras, dirigete a la hoja datos de emisor y dale click en el boton crear carpeta")
 }
 
 function IniciarFacturasApp(){
@@ -689,7 +690,7 @@ function eliminarTotalidadInformacion(){
   let hojaListadoEstado=spreadsheet.getSheetByName('ListadoEstado');
   let ClientesInvalidos=spreadsheet.getSheetByName('ClientesInvalidos');
   
-  
+  limpiarHojaFactura()
   borrarInfoHoja(hojaHistorialFactura)
   borrarInfoHoja(hojaProductos)
   borrarInfoHoja(hojaCodigosFatura)
