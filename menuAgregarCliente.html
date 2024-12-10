@@ -74,35 +74,44 @@
     }
 
     function saveData() {
-      if (verificarDatosObligatorios()) {
-        const formData = {
-          nombreCliente: document.getElementById('nombreCliente').value,
-          tipoContacto: document.getElementById('tipoContacto').value,
-          tipoPersona: document.getElementById('tipoPersona').value,
-          tipoDocumento: document.getElementById('tipoDocumento').value,
-          numeroIdentificacion: document.getElementById('numeroIdentificacion').value,
-          codigoContacto: document.getElementById('codigoContacto').value,
-          regimen: document.getElementById('regimen').value,
-          nombreComercial: document.getElementById('nombreComercial').value,
-          primerNombre: document.getElementById('primerNombre').value,
-          segundoNombre: document.getElementById('segundoNombre').value,
-          primerApellido: document.getElementById('primerApellido').value,
-          segundoApellido: document.getElementById('segundoApellido').value,
-          pais: document.getElementById('pais').value,
-          provincia: document.getElementById('provincia').value,
-          poblacion: document.getElementById('poblacion').value,
-          direccion: document.getElementById('direccion').value,
-          codigoPostal: document.getElementById('codigoPostal').value,
-          telefono: document.getElementById('telefono').value,
-          sitioWeb: document.getElementById('sitioWeb').value,
-          email: document.getElementById('email').value,
-        };
+  if (verificarDatosObligatorios()) {
+    const formData = {
+      nombreCliente: document.getElementById('nombreCliente').value,
+      tipoContacto: document.getElementById('tipoContacto').value,
+      tipoPersona: document.getElementById('tipoPersona').value,
+      tipoDocumento: document.getElementById('tipoDocumento').value,
+      numeroIdentificacion: document.getElementById('numeroIdentificacion').value,
+      codigoContacto: document.getElementById('codigoContacto').value,
+      regimen: document.getElementById('regimen').value,
+      nombreComercial: document.getElementById('nombreComercial').value,
+      primerNombre: document.getElementById('primerNombre').value,
+      segundoNombre: document.getElementById('segundoNombre').value,
+      primerApellido: document.getElementById('primerApellido').value,
+      segundoApellido: document.getElementById('segundoApellido').value,
+      pais: document.getElementById('pais').value,
+      provincia: document.getElementById('provincia').value,
+      poblacion: document.getElementById('poblacion').value,
+      direccion: document.getElementById('direccion').value,
+      codigoPostal: document.getElementById('codigoPostal').value,
+      telefono: document.getElementById('telefono').value,
+      sitioWeb: document.getElementById('sitioWeb').value,
+      email: document.getElementById('email').value,
+    };
 
-        google.script.run.saveClientData(formData);
+    google.script.run.withSuccessHandler(function(response) {
+      if (response.success) {
+        alert(response.message);
+        // Limpiar el formulario
+        document.getElementById('clientForm').reset();
       } else {
-        alert('Por favor complete todos los campos obligatorios.');
+        alert(response.message);
       }
-    }
+    }).saveClientData(formData);
+  } else {
+    alert('Por favor complete todos los campos obligatorios.');
+  }
+}
+
   </script>
   <body class="d-flex h-100">
 

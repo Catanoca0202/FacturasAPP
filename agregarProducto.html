@@ -15,30 +15,72 @@
     <link href="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/css/fontello-codes.css" rel="stylesheet">
 
     <script>
-    function submitForm() {
-      const form = document.getElementById('productForm');
-      form.dispatchEvent(new Event('submit'));  // Manually trigger form submission
-    }
+      function verificarDatosObligatoriosProducto() {
+        const camposObligatorios = [
+          'nombre',
+          'valorUnitario',
+          'codigoReferencia',
+          'iva'
+        ];
 
-    function handleSubmit(event) {
-      event.preventDefault();
-      const form = event.target;
-      const formData = new FormData(form);
-      const data = {};
-      formData.forEach((value, key) => {
-        data[key] = value;
-      });
-      google.script.run.withSuccessHandler(function (response) {
-        alert(response);
-      }).processForm(data);
-    }
-        function showPreProducto(){
-            google.script.run.showPreProductos();
+        let isValid = true;
+
+        camposObligatorios.forEach(id => {
+          const campo = document.getElementById(id);
+          if (!campo.value.trim()) {
+            campo.style.backgroundColor = '#FFC7C7';  // Marca en rojo si está vacío
+            isValid = false;
+          } else {
+            campo.style.backgroundColor = '';  // Limpia el color si está lleno
+          }
+        });
+
+        return isValid;
+      }
+
+      function submitForm() {
+        if (verificarDatosObligatoriosProducto()) {
+          const form = document.getElementById('productForm');
+          form.dispatchEvent(new Event('submit'));
+        } else {
+          alert('Por favor complete todos los campos obligatorios.');
         }
+      }
 
-    function showMenuPrincipal() {
-          google.script.run.showSidebar();
-    }
+      function handleSubmit(event) {
+        event.preventDefault();
+        const form = event.target;
+        const formData = new FormData(form);
+        const data = {};
+        formData.forEach((value, key) => {
+          data[key] = value;
+        });
+        
+        google.script.run.withSuccessHandler(function (response) {
+          
+          resetForm();  // Restablece el formulario a su estado predeterminado
+        }).processForm(data);
+      }
+
+      // Función para limpiar el formulario y devolver los campos a su estado inicial
+      function resetForm() {
+        const form = document.getElementById('productForm');
+        form.reset();  // Restablece los campos del formulario
+
+        // Asegura que los campos personalizados vuelvan a su estado predeterminado
+        document.getElementById('nombre').style.backgroundColor = '';
+        document.getElementById('valorUnitario').style.backgroundColor = '';
+        document.getElementById('codigoReferencia').style.backgroundColor = '';
+        document.getElementById('iva').style.backgroundColor = '';
+      }
+
+      function showPreProducto() {
+        google.script.run.showPreProductos();
+      }
+
+      function showMenuPrincipal() {
+        google.script.run.showSidebar();
+      }
     </script>
   </head>
 

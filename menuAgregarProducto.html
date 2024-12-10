@@ -15,31 +15,42 @@
     <link href="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/css/fontello-codes.css" rel="stylesheet">
 
     <script>
-    function submitForm() {
-      const form = document.getElementById('productForm');
-      form.dispatchEvent(new Event('submit'));  // Manually trigger form submission
-    }
+      function Back() {
+        google.script.run.showNuevaFactura();
+      }
 
-    function handleSubmit(event) {
-      event.preventDefault();
-      const form = event.target;
-      const formData = new FormData(form);
-      const data = {};
-      formData.forEach((value, key) => {
-        data[key] = value;
-      });
-      google.script.run.withSuccessHandler(function (response) {
-        alert(response);
-      }).processForm(data);
-    }
-        function showPreProducto(){
-            google.script.run.showPreProductos();
-        }
+      function agregarProducto() {
+        var cantidad = document.getElementById('cantidad').value;
+        var producto = document.getElementById('buscarProducto').value;
 
-    function showMenuPrincipal() {
-          google.script.run.showSidebar();
-    }
-    </script>
+        console.log("Producto:", producto, "Cantidad:", cantidad);
+        google.script.run.agregarProductoDesdeFactura(cantidad, producto);
+      }
+
+      function buscarProductos() {
+        var input = document.getElementById('buscarProducto').value;
+        google.script.run.withSuccessHandler(mostrarResultados).buscarProductos(input);
+      }
+      
+      function mostrarResultados(productos) {
+        var resultBox = document.querySelector('.result-box');
+        resultBox.innerHTML = '';
+        productos.forEach(function(producto) {
+          var div = document.createElement('div');
+          div.textContent = producto;
+          div.onclick = function() {
+            seleccionarProducto(producto);
+          };
+          resultBox.appendChild(div);
+        });
+      }
+
+      function seleccionarProducto(producto) {
+        document.getElementById('buscarProducto').value = producto;
+        var resultBox = document.querySelector('.result-box');
+        resultBox.innerHTML = ''; // Limpiar los resultados
+      }
+  </script>
   </head>
 
   <body class="d-flex h-100">
