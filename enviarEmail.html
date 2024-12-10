@@ -16,13 +16,17 @@
     <link href="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/css/fontello-codes.css" rel="stylesheet">
   </head>
   <script>
+          function mostrarAlerta(mensaje) {
+        google.script.run.mostrarAlertaDesdeServidor(mensaje);
+      }
     function openFactura() {
         google.script.run.showMenuFactura();
       }
     function sendPdfByEmail() {
       var email = document.getElementById('email').value;
       google.script.run.withSuccessHandler(function(response) {
-        alert(response);
+        mostrarAlerta("respuesta: "+response)
+        
       }).sendPdfByEmail(email);
     }
     function showMenuPrincipal() {

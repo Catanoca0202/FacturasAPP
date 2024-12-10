@@ -16,6 +16,9 @@
 
   </head>
   <script>
+      function mostrarAlerta(mensaje) {
+        google.script.run.mostrarAlertaDesdeServidor(mensaje);
+      }
       function handleSubmit(event) {
           event.preventDefault();
           const form = event.target;
@@ -26,7 +29,8 @@
           });
           google.script.run.withSuccessHandler(function (url) {
               if (url === 'Factura no encontrada') {
-                  alert(url);
+                mostrarAlerta("Facutra no encontrada, error: "+url)
+                  
               } else {
                   const link = document.createElement('a');
                   link.href = url;

@@ -100,18 +100,23 @@
 
     google.script.run.withSuccessHandler(function(response) {
       if (response.success) {
-        alert(response.message);
+        
+        mostrarAlerta(response.message)
         // Limpiar el formulario
         document.getElementById('clientForm').reset();
       } else {
-        alert(response.message);
+        mostrarAlerta(response.message)
+        
       }
     }).saveClientData(formData);
   } else {
-    alert('Por favor complete todos los campos obligatorios.');
+    mostrarAlerta("Por favor complete todos los campos obligatorios.")
+    
   }
 }
-
+function mostrarAlerta(mensaje) {
+        google.script.run.mostrarAlertaDesdeServidor(mensaje);
+      }
   </script>
   <body class="d-flex h-100">
 

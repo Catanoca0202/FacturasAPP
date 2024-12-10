@@ -16,10 +16,14 @@
     <link href="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/css/fontello-codes.css" rel="stylesheet">
 
     <script>
+                function mostrarAlerta(mensaje) {
+        google.script.run.mostrarAlertaDesdeServidor(mensaje);
+      }
       function sendPdfByEmail() {
         var email = document.getElementById('inputEmail4').value;
         google.script.run.withSuccessHandler(function(response) {
-          alert(response);
+          
+          mostrarAlerta("Respuesta: "+response)
         }).enviarEmailPostFactura(email);
       }
       function openFactura() {

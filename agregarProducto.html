@@ -15,6 +15,10 @@
     <link href="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/css/fontello-codes.css" rel="stylesheet">
 
     <script>
+
+      function mostrarAlerta(mensaje) {
+        google.script.run.mostrarAlertaDesdeServidor(mensaje);
+      }
       function verificarDatosObligatoriosProducto() {
         const camposObligatorios = [
           'nombre',
@@ -43,7 +47,8 @@
           const form = document.getElementById('productForm');
           form.dispatchEvent(new Event('submit'));
         } else {
-          alert('Por favor complete todos los campos obligatorios.');
+          mostrarAlerta("Por favor complete todos los campos obligatorios.")
+          
         }
       }
 

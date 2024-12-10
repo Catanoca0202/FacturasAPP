@@ -465,6 +465,11 @@ function convertToPercentage(value) {
   return (value * 100).toFixed(2).replace('.', ',') + '%';
 }
 
+function mostrarAlertaDesdeServidor(mensaje) {
+  SpreadsheetApp.getUi().alert(mensaje);
+}
+
+
 function onEdit(e) {
   let spreadsheet = SpreadsheetApp.getActive();
   let hojaActual = e.source.getActiveSheet();
