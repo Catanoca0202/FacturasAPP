@@ -46,20 +46,40 @@ function iniciarHojasFactura() {
     if (!hoja) {
       const hojaPlantilla = plantilla.getSheetByName(nombreHoja);
       if (hojaPlantilla) {
-        hojaPlantilla.copyTo(ss).setName(nombreHoja);
+        // Copiar hoja y replicar protecciones
+        const hojaCopia = hojaPlantilla.copyTo(ss).setName(nombreHoja);
+
+        // Obtener las protecciones de la hoja original
+        const protecciones = hojaPlantilla.getProtections(SpreadsheetApp.ProtectionType.RANGE);
+
+        // Replicar las protecciones en la copia
+        protecciones.forEach(proteccion => {
+          const rango = proteccion.getRange();
+          const rangoEnCopia = hojaCopia.getRange(rango.getA1Notation());
+
+          const nuevaProteccion = rangoEnCopia.protect();
+          nuevaProteccion.setDescription(proteccion.getDescription());
+          nuevaProteccion.setWarningOnly(proteccion.isWarningOnly());
+
+          // Transferir permisos de edición
+          if (!proteccion.isWarningOnly()) {
+            nuevaProteccion.addEditors(proteccion.getEditors());
+            if (proteccion.canDomainEdit()) {
+              nuevaProteccion.setDomainEdit(true);
+            }
+          }
+        });
+
+        // Bloquear la hoja completa si está en la lista de bloqueadas e invisibles
+        if (hojasBloqueadasEInvisibles.includes(nombreHoja)) {
+          hojaCopia.hideSheet(); // Hacer la hoja invisible
+          const protection = hojaCopia.protect();
+          protection.removeEditors(protection.getEditors()); // Bloquear completamente
+          protection.addEditor(Session.getEffectiveUser()); // Solo el propietario tiene acceso
+        }
       } else {
         SpreadsheetApp.getUi().alert('La hoja "' + nombreHoja + '" no existe en la plantilla.');
       }
-    }
-  });
-
-  // Configurar las hojas bloqueadas e invisibles
-  hojasBloqueadasEInvisibles.forEach(nombreHoja => {
-    let hoja = ss.getSheetByName(nombreHoja);
-    if (hoja) {
-      hoja.hideSheet(); // Hacer la hoja invisible
-      const protection = hoja.protect(); // Bloquear la hoja
-      protection.setWarningOnly(true); // Configurar solo advertencia al intentar editar
     }
   });
 
@@ -72,8 +92,9 @@ function iniciarHojasFactura() {
   });
 
   SpreadsheetApp.getUi().alert("Hojas instaladas satisfactoriamente.");
-  SpreadsheetApp.getUi().alert("Recuerda que antes de utilizar facturasApp debes de llenar los datos de emisor como tambien crear la carpeta donde se guardarán las facturas. Dirígete a la hoja Datos de emisor y dale clic en el botón crear carpeta.");
+  SpreadsheetApp.getUi().alert("Recuerda que antes de utilizar facturasApp debes de crear la carpeta donde se guardarán las facturas. Dirígete a la hoja Datos de emisor y dale clic en el botón crear carpeta.");
 }
+
 
 
 function IniciarFacturasApp(){
