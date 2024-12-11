@@ -79,8 +79,11 @@
 
 <script>
   function Back() {
-    google.script.run.showSidebar();
+    google.script.run.showClientes();
   }
+  function showMenuPrincipal() {
+          google.script.run.showSidebar();
+    }
 
   function mostrarAlerta(mensaje) {
         google.script.run.mostrarAlertaDesdeServidor(mensaje);

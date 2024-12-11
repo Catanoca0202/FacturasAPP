@@ -23,9 +23,7 @@
     }
 
     function Back() {
-      google.script.run
-        .withSuccessHandler(writeDocument)
-        .showMenuFactura();
+      google.script.run.showMenuFactura();
     }
 
     function addNewProduct() {
@@ -43,6 +41,7 @@
     function showMenuPrincipal() {
           google.script.run.showSidebar();
         }
+    
   </script>
   <body class="d-flex h-100">
 

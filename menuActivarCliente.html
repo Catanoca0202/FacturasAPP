@@ -82,8 +82,12 @@
         google.script.run.mostrarAlertaDesdeServidor(mensaje);
       }
     function Back() {
-      google.script.run.showSidebar();
+      google.script.run.showAjustes();
     }
+
+    function showMenuPrincipal() {
+        google.script.run.showSidebar();
+      }
 
     function activar() {
       var cliente = document.getElementById('clientesInactivos').value;
