@@ -38,7 +38,7 @@ function iniciarHojasFactura() {
   const plantilla = SpreadsheetApp.openById(plantillaID);
 
   const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Historial Facturas", "Clientes", "Factura", "Historial Facturas Data", "Facturas ID", "Datos", "Copia de Plantilla", "ListadoEstado", "Plantilla", "Celdas plantilla", "ClientesInvalidos", "Copia de Plantilla", "Copia de Factura"];
-  const hojasBloqueadasEInvisibles = ["ListadoEstado", "Plantilla", "Celdas plantilla", "Historial Facturas", "Facturas ID", "Datos", "ClientesInvalidos", "Copia de Plantilla"];
+  const hojasBloqueadasEInvisibles = ["ListadoEstado", "Plantilla", "Celdas plantilla", "Historial Facturas Data", "Facturas ID", "Datos", "ClientesInvalidos", "Copia de Plantilla","Copia de Factura"];
 
   // Instalar hojas desde la plantilla si no existen
   nombresHojas.forEach(nombreHoja => {
@@ -356,8 +356,9 @@ function showEnviarEmailPost() {
 }
 
 function eliminarHojasFactura() {
+  let ui = SpreadsheetApp.getUi();
   Logger.log("Inicio de eliminación de hojas");
-  let respuesta = ui.alert('Recuerda que al desinstalar las hojas se eliminara todas las hojas con su respectiva informacion, estas seguro de continuar ?', ui.ButtonSet.YES_NO);
+  let respuesta = ui.alert('Recuerda que al desinstalar las hojas se eliminara todas las hojas con su respectiva informacion, esta funcion solo la debes de ejecutar si tienes algun problema irreparable con las hojas, estas seguro de continuar ?', ui.ButtonSet.YES_NO);
   if (respuesta == ui.Button.YES) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Historial Facturas", "Clientes", "Factura", "Historial Facturas Data", "Facturas ID", "Datos", "Copia de Plantilla", "ListadoEstado", "Plantilla", "Celdas plantilla", "ClientesInvalidos", "Copia de Plantilla", "Copia de Factura"];
@@ -831,11 +832,20 @@ function agregarCodigoIdentificador(e){
   Logger.log("entrado a codigo-identiicador")
   Logger.log("estado actual "+estadoActual)
   if(hoja.getName()=="Clientes"){
+    let tipoPersona=obtenerTipoDePersona(e)
     if (estadoActual=="Valido"){
-      let nombre=hoja.getRange(rowEditada,2).getValue()
+      let nombre=""
+      if(tipoPersona=="Autonomo"){
+        let primerNombre=hoja.getRange(rowEditada,10).getValue()
+        let apellido=hoja.getRange(rowEditada,12).getValue()
+        nombre =primerNombre+" "+apellido
+      }else{
+        nombre=hoja.getRange(rowEditada,9).getValue()
+      }
+      
       let numeroIdentificacion=hoja.getRange(rowEditada,6).getValue()
       let identificadorUnico=nombre+"-"+numeroIdentificacion
-      hoja.getRange(rowEditada,22).setValue(identificadorUnico)
+      hoja.getRange(rowEditada,2).setValue(identificadorUnico)
     }
   }else if (hoja.getName()=="Productos"){
     if (estadoActual=="Valido"){

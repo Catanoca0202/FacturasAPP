@@ -57,9 +57,9 @@
       const form = document.getElementById('clienteForm');
       const tipoPersona = document.getElementById('tipoPersona').value;
       const columnasObligatorias = tipoPersona === 'Autonomo' ?
-        ['nombreCliente','tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion', 'codigoContacto','regimen',  'primerNombre', 'primerApellido', 'pais',  'direccion', 'codigoPostal','telefono',  'email'] :
+        ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion', 'codigoContacto','regimen',  'primerNombre', 'primerApellido', 'pais',  'direccion', 'codigoPostal','telefono',  'email'] :
         tipoPersona === 'Empresa' ?
-        ['nombreCliente','tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion',  'codigoContacto','regimen',  'nombreComercial', 'pais',  'direccion', 'codigoPostal', 'telefono',  'email'] :
+        ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion',  'codigoContacto','regimen',  'nombreComercial', 'pais',  'direccion', 'codigoPostal', 'telefono',  'email'] :
         [];
 
       let isValid = true;
@@ -80,7 +80,7 @@
     function saveData() {
   if (verificarDatosObligatorios()) {
     const formData = {
-      nombreCliente: document.getElementById('nombreCliente').value,
+    
       tipoContacto: document.getElementById('tipoContacto').value,
       tipoPersona: document.getElementById('tipoPersona').value,
       tipoDocumento: document.getElementById('tipoDocumento').value,
@@ -146,10 +146,6 @@ function mostrarAlerta(mensaje) {
 
         <div class="col-12 px-0">
             <form class="row g-3" id="clientForm">
-                <div class="col-12">
-                    <label for="nombreCliente" class="form-label">Nombre cliente</label>
-                    <input type="text" class="form-control form-control-lg" id="nombreCliente" placeholder="Nombre Cliente">
-                </div>
 
                 <div class="col-md-12">
                     <label for="tipoContacto" class="form-label">Tipo de contacto</label>

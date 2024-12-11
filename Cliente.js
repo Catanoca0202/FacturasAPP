@@ -188,7 +188,7 @@ function buscarClientes(terminoBusqueda,hojaA) {
 
     var sheet = spreadsheet.getSheetByName('ClientesInvalidos');
     var ultimaFila = sheet.getLastRow(); 
-    var valores = sheet.getRange(2, 22, ultimaFila - 1, 1).getValues();
+    var valores = sheet.getRange(2, 2, ultimaFila - 1, 1).getValues();
 
     for (var i = 0; i < valores.length; i++) {
       var valor = valores[i][0]; // Accede al primer (y único) valor de cada fila
@@ -198,7 +198,7 @@ function buscarClientes(terminoBusqueda,hojaA) {
 }
   
   var ultimaFila = sheet.getLastRow(); 
-  var valores = sheet.getRange(2, 22, ultimaFila - 1, 1).getValues(); // `ultimaFila - 1` porque empieza en la fila 2
+  var valores = sheet.getRange(2, 2, ultimaFila - 1, 1).getValues(); // `ultimaFila - 1` porque empieza en la fila 2
 
 
   if(terminoBusqueda===""){
@@ -496,7 +496,6 @@ function saveClientData(formData) {
   }
 
   const values = [
-    formData.nombreCliente,
     formData.tipoContacto,
     formData.tipoPersona,
     formData.tipoDocumento,
@@ -517,10 +516,18 @@ function saveClientData(formData) {
     formData.sitioWeb,
     formData.email,
   ];
+  let nombre=""
+  if(formData.tipoPersona=="Autonomo"){
+    let primerNombre=formData.primerNombre
+    let apellido=formData.primerApellido
+    nombre =primerNombre+" "+apellido
+  }else{
+    nombre=formData.nombreComercial
+  }
 
-  sheet.getRange(emptyRow, 2, 1, values.length).setValues([values]);
-  let referenciaUnica = formData.nombreCliente + "-" + formData.numeroIdentificacion;
-  sheet.getRange(emptyRow, 22).setValue(referenciaUnica);
+  sheet.getRange(emptyRow, 3, 1, values.length).setValues([values]);
+  let referenciaUnica = nombre + "-" + formData.numeroIdentificacion;
+  sheet.getRange(emptyRow, 2).setValue(referenciaUnica);
   sheet.getRange(emptyRow, 1).setValue("Valido");
 
   return { success: true, message: 'Nuevo cliente generado satisfactoriamente.' };
@@ -596,9 +603,9 @@ function verificarDatosObligatorios(e, tipoPersona) {
   }
 
   if (tipoPersona === "Autonomo") {
-    columnasObligatorias = [2,3, 4, 5, 6,7, 8, 10, 12, 14, 17, 18,19, 21]; // Incluyendo "Nombre cliente" (columna 2)
+    columnasObligatorias = [3, 4, 5, 6,7, 8, 10, 12, 14, 17, 18,19, 21]; // Incluyendo "Nombre cliente" (columna 2)
   } else if (tipoPersona === "Empresa") {
-    columnasObligatorias = [2,3, 4, 5, 6, 7,8,9, 14, 17, 18,19, 21]; // Incluyendo "Nombre cliente" (columna 2)
+    columnasObligatorias = [3, 4, 5, 6, 7,8,9, 14, 17, 18,19, 21]; // Incluyendo "Nombre cliente" (columna 2)
   } else {
     Logger.log("Vacio tipo de persona");
   }
