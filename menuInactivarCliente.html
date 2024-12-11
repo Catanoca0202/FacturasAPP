@@ -82,11 +82,14 @@
     google.script.run.showSidebar();
   }
 
-
+  function mostrarAlerta(mensaje) {
+        google.script.run.mostrarAlertaDesdeServidor(mensaje);
+      }
   function inactivar() {
     var cliente = document.getElementById('buscarCliente').value;
     console.log("cliente:", cliente);
     google.script.run.inactivarCliente(cliente);
+    mostrarAlerta("Cliente inactivado satisfacotriamente")
   }
 
   function buscarClientes() {

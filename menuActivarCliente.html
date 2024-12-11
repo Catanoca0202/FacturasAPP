@@ -78,6 +78,9 @@
 </div>
 
 <script>
+    function mostrarAlerta(mensaje) {
+        google.script.run.mostrarAlertaDesdeServidor(mensaje);
+      }
     function Back() {
       google.script.run.showSidebar();
     }
@@ -87,6 +90,7 @@
 
       console.log("cliente:", cliente);
       google.script.run.activarCliente(cliente);
+      mostrarAlerta("Cliente activado satisfacotriamente")
     }
 
     function cargarClientesInactivos() {
