@@ -333,6 +333,7 @@ function guardarFactura(){
       guardarYGenerarInvoice()
       guardarFacturaHistorial()
       limpiarHojaFactura()
+      
     }else{
       return
     }
@@ -486,7 +487,7 @@ function guardarFacturaHistorial() {
   celdaEstado.setBorder(true, true, true, true, null, null, null, null);
 
   var celdaImagen = hojaListado.getRange("F" + newRow);
-  insertarImagen(newRow);
+  //insertarImagen(newRow);
   celdaImagen.setHorizontalAlignment('center');
   celdaImagen.setBorder(true, true, true, true, null, null, null, null);
 
@@ -785,7 +786,7 @@ function verificarCodigo(codigo, nombreHoja, inHoja) {
       rangeDatos = sheet.getRange(2, columna, lastActiveRow - (inHoja ? 2 : 1));
     } else if (nombreHoja === "Productos") {
       columna = 2; // Columna para el código de productos
-      rangeDatos = sheet.getRange(2, columna, lastActiveRow - 2);
+      rangeDatos = sheet.getRange(2, columna, lastActiveRow - (inHoja? 2: 1));
     } else if (nombreHoja === "Historial Facturas Data") {
       columna = 1; // Columna para el número de factura
       rangeDatos = sheet.getRange(2, columna, lastActiveRow - 2);
@@ -955,6 +956,7 @@ function limpiarHojaFactura() {
   const hojaFacturaPost = spreadsheet.getSheetByName('Factura');
   spreadsheet.setActiveSheet(hojaFacturaPost)
   Logger.log("La hoja 'Factura' ha sido reemplazada correctamente.");
+  generarNumeroFactura()
 }
 
 
