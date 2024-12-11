@@ -219,44 +219,86 @@ var diccionarioCaluclarIva={
 }
 
 function verificarEstadoValidoFactura() {
-  // en esta funcion se debe de verificar si el numero de factura ya fue utiliazado en alguna otra factura
-  var spreadsheet = SpreadsheetApp.getActive();
-  let hojaFactura = spreadsheet.getSheetByName('Factura');
-  
-  // función que verifica si una factura cumple con los requisitos mínimos para guardar
-  let estaValido = true;
+  const spreadsheet = SpreadsheetApp.getActive();
+  const hojaFactura = spreadsheet.getSheetByName('Factura');
 
-  let clienteActual = hojaFactura.getRange("B2").getValue();
-  let informacionFactura = hojaFactura.getRange(2, 7, 5, 1).getValues();
+  let estaValido = { success: true, message: "" };
 
-  // Crear una lista combinada
-  let listaCombinada = [clienteActual];  // Añadir clienteActual al array
-  for (let i = 0; i < informacionFactura.length; i++) {
-    listaCombinada.push(informacionFactura[i][0]);  // Añadir cada valor de informacionFactura
+  // Campos a verificar
+  const clienteActual = hojaFactura.getRange("B2").getValue();
+  const numFactura = hojaFactura.getRange("G2").getValue();
+  const fechaPago = hojaFactura.getRange("G3").getValue();
+  const fechaEmision = hojaFactura.getRange("G4").getValue();
+  const formaPago = hojaFactura.getRange("G5").getValue();
+  const diasVencimiento = hojaFactura.getRange("G6").getValue();
+
+  // Verificar cliente
+  if (!clienteActual || clienteActual.trim() === "") {
+    estaValido.success = false;
+    estaValido.message = "El cliente actual no está definido.";
+    return estaValido;
   }
 
-  // Recorrer 
-  for (let i = 0; i < listaCombinada.length; i++) {
-    Logger.log("listaCombinada"+listaCombinada[i])
-    if(listaCombinada[i]===""){
-      estaValido=false
+  // Verificar número de factura
+  if (!numFactura || numFactura.trim() === "") {
+    estaValido.success = false;
+    estaValido.message = "El número de factura no está definido.";
+    return estaValido;
+  }
+
+  // Verificar fecha de pago
+  if (!fechaPago || fechaPago === "") {
+    estaValido.success = false;
+    estaValido.message = "La fecha de pago no está definida.";
+    return estaValido;
+  }
+
+  // Verificar fecha de emisión
+  if (!fechaEmision || fechaEmision === "") {
+    estaValido.success = false;
+    estaValido.message = "La fecha de emisión no está definida.";
+    return estaValido;
+  }
+
+  // Verificar que la fecha de emisión no sea posterior a la fecha de pago
+  if (new Date(fechaEmision) > new Date(fechaPago)) {
+    estaValido.success = false;
+    estaValido.message = "La fecha de emisión no puede ser posterior a la fecha de pago.";
+    return estaValido;
+  }
+
+  // Verificar forma de pago
+  if (!formaPago || formaPago.trim() === "") {
+    estaValido.success = false;
+    estaValido.message = "La forma de pago no está definida.";
+    return estaValido;
+  }
+
+  // Verificar días de vencimiento
+  if (!diasVencimiento || diasVencimiento === "") {
+    estaValido.success = false;
+    estaValido.message = "Los días de vencimiento no están definidos.";
+    return estaValido;
+  }
+
+  // Verificar productos
+  const totalProductos = hojaFactura.getRange("A16").getValue();
+  if (totalProductos === "Total filas") {
+    const valorTotalProductos = hojaFactura.getRange("B16").getValue();
+    if (valorTotalProductos === 0 || valorTotalProductos === "") {
+      estaValido.success = false;
+      estaValido.message = "No se han agregado productos a la factura.";
+      return estaValido;
     }
   }
 
-  let totalProductos=hojaFactura.getRange("A16").getValue();
-
-  if (totalProductos==="Total filas"){
-    // no hay necesidad de encontrar TOTAL PRODUCTOS si no esta, porque eso implica que si anadio asi sea 1 prodcuto
-    let valorTotalProductos=hojaFactura.getRange("B16").getValue();
-    if(valorTotalProductos===0 ||valorTotalProductos===""){
-      // no agrego producto
-      estaValido=false
-    }
-  }
-
-
-  return estaValido;  
+  // Si pasa todas las validaciones, está válido
+  estaValido.success = true;
+  estaValido.message = "Factura válida para guardar.";
+  return estaValido;
 }
+
+
 
 function verificarEstadoCarpeta(){
   let spreadsheet = SpreadsheetApp.getActive();
@@ -282,7 +324,7 @@ function guardarFactura(){
   if(estadoVinculacion=="Desvinculado"){
     SpreadsheetApp.getUi().alert("Recuerda que antes de poder generar una factura es necesario haber vinculado tu cuenta de FacturasApp")
   }
-  else if(estadoFactura){
+  else if(estadoFactura.success){
     //factura valida
     // generar json
     
@@ -297,7 +339,7 @@ function guardarFactura(){
 
     
   }else{
-    SpreadsheetApp.getUi().alert("Factura no es valida")
+    SpreadsheetApp.getUi().alert("Error al generar facutra. "+estadoFactura.message)
   }
   
 
@@ -795,7 +837,7 @@ function  insertarImagen(fila) {
 
 function descargarFactura() {
   var html = HtmlService.createHtmlOutputFromFile('descargaFacturaHistorial')
-    .setTitle('Menú');
+    .setTitle('Historial facutras');
   SpreadsheetApp.getUi()
     .showSidebar(html);
 }
