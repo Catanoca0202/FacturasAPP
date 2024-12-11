@@ -30,14 +30,17 @@ function OnOpenSheetInicio(){
   SpreadsheetApp.setActiveSheet(sheet);
 }
 
-function iniciarHojasFactura(){
-  Logger.log("Inicio instalacion deh hojas")
-  const ss = SpreadsheetApp.getActiveSpreadsheet()
-  const plantillaID="1qxbXlhH4RpCOsObk91wsuu4k8jarVK34XXRUlKaKS1U"
-  const plantilla=SpreadsheetApp.openById(plantillaID)
-
-  const nombresHojas=["Inicio","Productos","Datos de emisor","Historial Facturas","Clientes","Factura","Historial Facturas Data","Facturas ID","Datos","Copia de Plantilla","ListadoEstado","Plantilla","Celdas plantilla","ClientesInvalidos","Copia de Plantilla","Copia de Factura"]
+function iniciarHojasFactura() {
+  Logger.log("Inicio instalación de hojas");
   
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const plantillaID = "1qxbXlhH4RpCOsObk91wsuu4k8jarVK34XXRUlKaKS1U";
+  const plantilla = SpreadsheetApp.openById(plantillaID);
+
+  const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Historial Facturas", "Clientes", "Factura", "Historial Facturas Data", "Facturas ID", "Datos", "Copia de Plantilla", "ListadoEstado", "Plantilla", "Celdas plantilla", "ClientesInvalidos", "Copia de Plantilla", "Copia de Factura"];
+  const hojasBloqueadasEInvisibles = ["ListadoEstado", "Plantilla", "Celdas plantilla", "Historial Facturas", "Facturas ID", "Datos", "ClientesInvalidos", "Copia de Plantilla"];
+
+  // Instalar hojas desde la plantilla si no existen
   nombresHojas.forEach(nombreHoja => {
     let hoja = ss.getSheetByName(nombreHoja);
     if (!hoja) {
@@ -49,9 +52,29 @@ function iniciarHojasFactura(){
       }
     }
   });
-  SpreadsheetApp.getUi().alert("Hojas instaladas satisfactoriamente")
-  SpreadsheetApp.getUi().alert("Recuerda que antes de utilizar facturasApp debes de crear la carpeta donde se guardaran las facutras, dirigete a la hoja datos de emisor y dale click en el boton crear carpeta")
+
+  // Configurar las hojas bloqueadas e invisibles
+  hojasBloqueadasEInvisibles.forEach(nombreHoja => {
+    let hoja = ss.getSheetByName(nombreHoja);
+    if (hoja) {
+      hoja.hideSheet(); // Hacer la hoja invisible
+      const protection = hoja.protect(); // Bloquear la hoja
+      protection.setWarningOnly(true); // Configurar solo advertencia al intentar editar
+    }
+  });
+
+  // Eliminar hojas que no pertenezcan a la lista de hojas instaladas
+  ss.getSheets().forEach(hoja => {
+    const nombreHoja = hoja.getName();
+    if (!nombresHojas.includes(nombreHoja)) {
+      ss.deleteSheet(hoja);
+    }
+  });
+
+  SpreadsheetApp.getUi().alert("Hojas instaladas satisfactoriamente.");
+  SpreadsheetApp.getUi().alert("Recuerda que antes de utilizar facturasApp debes de llenar los datos de emisor como tambien crear la carpeta donde se guardarán las facturas. Dirígete a la hoja Datos de emisor y dale clic en el botón crear carpeta.");
 }
+
 
 function IniciarFacturasApp(){
   let ui = SpreadsheetApp.getUi();
