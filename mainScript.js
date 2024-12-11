@@ -556,7 +556,7 @@ function onEdit(e) {
         let dictInformacionProducto = obtenerInformacionProducto(productoFilaI);
         let Estado=dictInformacionProducto["Estado"]
         if(Estado==="No Valido"){
-          SpreadsheetApp.getUi().alert("El prodcuto elegido tiene un estado invalido. Verifica que el prodcuto posee los datos minimos para ser valido y vuelve a elegir");
+          SpreadsheetApp.getUi().alert("El prodcuto elegido tiene un estado invalido. Verifica que el prodcuto posea los datos minimos para ser valido y vuelve a elegir");
           celdaEditada.setValue("")
         }
 
@@ -584,7 +584,7 @@ function onEdit(e) {
     
         let verifcadorFecha=verificarDescuentoValido(valorFechaActual,ivaProductoActual)
         if (verifcadorFecha===false){
-          SpreadsheetApp.getUi().alert("Posee un producto con un IVA de 5%, en un rango de fechas invalido")
+          SpreadsheetApp.getUi().alert("Alguno de tus productos posee un iva del 5%, este porcentaje solo es valido en el rango de fechas del 1/1/2022 hasta el 12/31/2023")
           //poner rangos en 0
           continue
         }
@@ -719,14 +719,25 @@ function DesvincularFacturasApp(){
   Logger.log("Desvincular")
   let spreadsheet = SpreadsheetApp.getActive();
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
+  let estadoVinculacion=hojaDatosEmisor.getRange("B15").getValue();
+  if(estadoVinculacion=="Desvinculado"){
+    SpreadsheetApp.getUi().alert('Tu estado ya es Desvinculado');
+  }else{
   hojaDatosEmisor.getRange("B15").setBackground('#FFC7C7')
   hojaDatosEmisor.getRange("B15").setValue("Desvinculado")
   SpreadsheetApp.getUi().alert('Haz desvinculado exitosamente facturasApp ');
+  }
 }
 
 function MensajeErrorDesvincularFacturasApp(){
   Logger.log("Error Desvincular")
   SpreadsheetApp.getUi().alert('Si deseas desvincular facturasApp asegurate de escribir DESVINCULAR en el campo');
+  
+}
+
+function MensajeErrorEliminarFacturasApp(){
+  Logger.log("eliminar mensaje error")
+  SpreadsheetApp.getUi().alert('Si deseas eliminar toda la informacion de facturasApp asegurate de escribir ELIMINAR en el campo');
   
 }
 
