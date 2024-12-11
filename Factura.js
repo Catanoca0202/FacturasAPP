@@ -275,8 +275,14 @@ function verificarEstadoCarpeta(){
 }
 
 function guardarFactura(){
+  let spreadsheet = SpreadsheetApp.getActive();
+  let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
+  let estadoVinculacion=hojaDatosEmisor.getRange("B15").getValue();
   let estadoFactura=verificarEstadoValidoFactura();
-  if(estadoFactura){
+  if(estadoVinculacion=="Desvinculado"){
+    SpreadsheetApp.getUi().alert("Recuerda que antes de poder generar una factura es necesario haber vinculado tu cuenta de FacturasApp")
+  }
+  else if(estadoFactura){
     //factura valida
     // generar json
     

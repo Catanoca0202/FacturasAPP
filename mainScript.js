@@ -110,7 +110,8 @@ function onOpen(e) {
   Logger.log("ScriptApp.AuthMode.NONE")
   ui.createAddonMenu()
   .addItem('Inicio', 'showSidebar2')
-  .addItem('Instalar', 'IniciarFacturasApp').addToUi();
+  .addItem('Instalar', 'IniciarFacturasApp')
+  .addItem("Desinstalar","eliminarHojasFactura").addToUi();
 
   // https://developers.google.com/apps-script/guides/menus
 
@@ -333,6 +334,28 @@ function showEnviarEmailPost() {
     .showModalDialog(html,"Digite el email a enviar");
 }
 
+function eliminarHojasFactura() {
+  Logger.log("Inicio de eliminación de hojas");
+  let respuesta = ui.alert('Recuerda que al desinstalar las hojas se eliminara todas las hojas con su respectiva informacion, estas seguro de continuar ?', ui.ButtonSet.YES_NO);
+  if (respuesta == ui.Button.YES) {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Historial Facturas", "Clientes", "Factura", "Historial Facturas Data", "Facturas ID", "Datos", "Copia de Plantilla", "ListadoEstado", "Plantilla", "Celdas plantilla", "ClientesInvalidos", "Copia de Plantilla", "Copia de Factura"];
+  
+    // Recorrer todas las hojas del archivo
+    ss.getSheets().forEach(hoja => {
+      const nombreHoja = hoja.getName();
+      if (nombresHojas.includes(nombreHoja)) {
+        ss.deleteSheet(hoja);
+        Logger.log(`Hoja eliminada: ${nombreHoja}`);
+      }
+    });
+  
+    SpreadsheetApp.getUi().alert("Hojas eliminadas satisfactoriamente.");
+  } else {
+    return
+  }
+
+}
 
 function processForm(data) {
   let existe=verificarCodigo(data.codigoReferencia,"Productos",false)
