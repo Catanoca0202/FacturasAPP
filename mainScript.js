@@ -37,7 +37,7 @@ function iniciarHojasFactura() {
   const plantillaID = "1qxbXlhH4RpCOsObk91wsuu4k8jarVK34XXRUlKaKS1U";
   const plantilla = SpreadsheetApp.openById(plantillaID);
 
-  const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Historial Facturas", "Clientes", "Factura", "Historial Facturas Data", "Facturas ID", "Datos", "Copia de Plantilla", "ListadoEstado", "Plantilla", "Celdas plantilla", "ClientesInvalidos", "Copia de Plantilla", "Copia de Factura"];
+  const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Historial Facturas", "Clientes", "Factura", "Historial Facturas Data", "ClientesInvalidos","Facturas ID", "Datos", "Copia de Plantilla", "ListadoEstado", "Plantilla", "Celdas plantilla", "Copia de Plantilla", "Copia de Factura"];
   const hojasBloqueadasEInvisibles = ["ListadoEstado", "Plantilla", "Celdas plantilla", "Historial Facturas Data", "Facturas ID", "Datos", "ClientesInvalidos", "Copia de Plantilla","Copia de Factura"];
 
   // Instalar hojas desde la plantilla si no existen
@@ -104,11 +104,13 @@ function IniciarFacturasApp(){
   if (hoja==null){
     iniciarHojasFactura()
     OnOpenSheetInicio()
+    agregarDataValidations()
   }else{
     let respuesta = ui.alert('Si vuelves a instalar, solo se instalaran las hojas no existan o que hayan sido eliminadas?', ui.ButtonSet.YES_NO);
     if (respuesta == ui.Button.YES) {
       iniciarHojasFactura()
       OnOpenSheetInicio()
+      agregarDataValidations()
     } else {
       return
     }
@@ -358,11 +360,18 @@ function showEnviarEmailPost() {
 function eliminarHojasFactura() {
   let ui = SpreadsheetApp.getUi();
   Logger.log("Inicio de eliminación de hojas");
-  let respuesta = ui.alert('Recuerda que al desinstalar las hojas se eliminara todas las hojas con su respectiva informacion, esta funcion solo la debes de ejecutar si tienes algun problema irreparable con las hojas, estas seguro de continuar ?', ui.ButtonSet.YES_NO);
+  let respuesta = ui.alert('Recuerda que al desinstalar las hojas se eliminará toda la información de las mismas. Esta función solo debe ejecutarse si tienes un problema irreparable con las hojas. ¿Estás seguro de continuar?', ui.ButtonSet.YES_NO);
   if (respuesta == ui.Button.YES) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Historial Facturas", "Clientes", "Factura", "Historial Facturas Data", "Facturas ID", "Datos", "Copia de Plantilla", "ListadoEstado", "Plantilla", "Celdas plantilla", "ClientesInvalidos", "Copia de Plantilla", "Copia de Factura"];
-  
+
+    // Crear una hoja nueva en blanco
+    let nuevaHoja = ss.getSheetByName("Hoja en blanco");
+    if (!nuevaHoja) {
+      nuevaHoja = ss.insertSheet("Hoja en blanco");
+      Logger.log("Se creó una nueva hoja en blanco");
+    }
+
     // Recorrer todas las hojas del archivo
     ss.getSheets().forEach(hoja => {
       const nombreHoja = hoja.getName();
@@ -371,13 +380,71 @@ function eliminarHojasFactura() {
         Logger.log(`Hoja eliminada: ${nombreHoja}`);
       }
     });
-  
+
     SpreadsheetApp.getUi().alert("Hojas eliminadas satisfactoriamente.");
   } else {
-    return
+    return;
   }
-
 }
+
+function agregarDataValidations() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const hojaDatos = ss.getSheetByName("Datos");
+  const hojaFacturas = ss.getSheetByName("Factura");
+  const hojaValoresC = ss.getSheetByName("Clientes");
+  const hojaValoresP = ss.getSheetByName("Productos");
+  const hojaValoresCInvalidos = ss.getSheetByName("ClientesInvalidos");
+
+  // Rango donde aplicar los dropdowns
+  const rangoDropdownCliente = hojaDatos.getRange("H2");
+  const rangoDropdownClienteInvalido = hojaDatos.getRange("I6");
+  const rangoDropdownProductos = hojaDatos.getRange("I11");
+  const rangoDropdownClienteF = hojaFacturas.getRange("B2:C2");
+  const rangoDropdownProductoF = hojaFacturas.getRange("B15");
+
+  // Rango de valores para los dropdowns
+  const rangoValoresClienteInvalido = hojaValoresCInvalidos.getRange("V2:V1000");
+  const rangoValoresClienteDatos = hojaValoresC.getRange("B2:B1000");
+  const rangoValoresProductosDatos = hojaValoresP.getRange("J2:J1000");
+  const rangoValoresClienteFactura = hojaValoresC.getRange("$B$2:$B$1000");
+  const rangoValoresProductosFactura = hojaValoresP.getRange("$J$2:$J$1000");
+
+  // Crear y aplicar validaciones
+  const reglas = [
+    {
+      rango: rangoDropdownCliente,
+      valores: rangoValoresClienteDatos
+    },
+    {
+      rango: rangoDropdownClienteInvalido,
+      valores: rangoValoresClienteInvalido
+    },
+    {
+      rango: rangoDropdownProductos,
+      valores: rangoValoresProductosDatos
+    },
+    {
+      rango: rangoDropdownClienteF,
+      valores: rangoValoresClienteFactura
+    },
+    {
+      rango: rangoDropdownProductoF,
+      valores: rangoValoresProductosFactura
+    }
+  ];
+
+  reglas.forEach(({ rango, valores }) => {
+    const regla = SpreadsheetApp.newDataValidation()
+      .requireValueInRange(valores, true) // Usar valores del rango especificado
+      .setAllowInvalid(false) // No permitir valores fuera del rango
+      .build();
+    rango.setDataValidation(regla); // Aplicar la regla
+  });
+
+  SpreadsheetApp.getUi().alert("Validaciones de datos aplicadas correctamente.");
+}
+
+
 
 function processForm(data) {
   let existe=verificarCodigo(data.codigoReferencia,"Productos",false)

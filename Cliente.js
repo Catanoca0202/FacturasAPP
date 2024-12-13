@@ -63,7 +63,7 @@ function inactivarCliente(cliente){
 
   // Proceso para agregar a la hoja de clientes inactivos
   hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 1).setValue(estado);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 2).setValue(nombreOriginal);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 2).setValue(cliente);
   hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 3).setValue(tipoContacto);
   hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 4).setValue(tipoPersona);
   hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 5).setValue(tipoDoc);
@@ -108,7 +108,7 @@ function activarCliente(cliente) {
   let tipoPersona = datos_sheet.getRange('K6').getValue(); // Determina si es 'Autonomo' o 'Empresa'
   let values = [
     estado,
-    datos_sheet.getRange('AC6').getValue(), // nombreOriginal
+    cliente, // nombreOriginal
     datos_sheet.getRange('J6').getValue(), // tipoContacto
     tipoPersona,
     datos_sheet.getRange('L6').getValue(), // tipoDoc
@@ -128,7 +128,7 @@ function activarCliente(cliente) {
     datos_sheet.getRange('Z6').getValue(), // telefono
     datos_sheet.getRange('AA6').getValue(), // sitioWeb
     datos_sheet.getRange('AB6').getValue(), // email
-    cliente
+    
   ];
 
   // Agregar cliente a la hoja 'Clientes'
