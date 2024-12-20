@@ -1524,13 +1524,24 @@ function obtenerDatosFactura(factura){
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ListadoEstado');
   var dataRange = sheet.getDataRange();
   var data = dataRange.getValues();
-  
+  var targetSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Copia de Plantilla');
   var invoiceColIndex = 5; // Columna F (indexada desde 0)
   var jsonColIndex = 12; // Columna M (indexada desde 0)
+  if (!targetSheet) throw new Error("La hoja 'Copia de Plantilla' no existe.");
+  var wasHidden = targetSheet.isSheetHidden();
+
+  if (wasHidden) {
+    targetSheet.showSheet(); // Mostrar la hoja temporalmente
+  }
+  
   Logger.log("factura "+factura)
   Logger.log("data length "+data.length)
   Logger.log(typeof(factura))
   //Logger.log("data +"+data)
+  Logger.log(wasHidden)
+
+  
+
   for (var i = 1; i < data.length; i++) { // Comienza en 1 para saltar la fila de encabezado
     //Logger.log(data[i][invoiceColIndex])
     //Logger.log(typeof(data[i][invoiceColIndex]))
@@ -1789,7 +1800,11 @@ function obtenerDatosFactura(factura){
             var pdfFactura = generatePdfFromPlantilla();
             resetPlantilla();
             var id = subirFactura2(facturaNumero, pdfFactura);
-    
+            
+            if (wasHidden) {
+              targetSheet.hideSheet();
+            }
+
             return id;
           }
           
@@ -1801,6 +1816,9 @@ function obtenerDatosFactura(factura){
       break//ojo esto debo de quitarlo
     }
   }
+
+
+
   Logger.log('Invoice number ' + factura + ' not found.');
 }
 

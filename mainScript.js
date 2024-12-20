@@ -32,16 +32,27 @@ function OnOpenSheetInicio(){
 
 function iniciarHojasFactura() {
   Logger.log("Inicio instalación de hojas");
-  
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const plantillaID = "1qxbXlhH4RpCOsObk91wsuu4k8jarVK34XXRUlKaKS1U";
   const plantilla = SpreadsheetApp.openById(plantillaID);
 
-  const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Historial Facturas", "Clientes", "Factura", "Historial Facturas Data", "ClientesInvalidos","Facturas ID", "Datos", "Copia de Plantilla", "ListadoEstado", "Plantilla", "Celdas plantilla", "Copia de Plantilla", "Copia de Factura"];
-  const hojasBloqueadasEInvisibles = ["ListadoEstado", "Plantilla", "Celdas plantilla", "Historial Facturas Data", "Facturas ID", "Datos", "ClientesInvalidos", "Copia de Plantilla","Copia de Factura"];
+  const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Historial Facturas", "Clientes", "Factura", "Historial Facturas Data", "ClientesInvalidos", "Facturas ID", "Copia de Plantilla", "ListadoEstado", "Plantilla", "Celdas plantilla", "Copia de Plantilla", "Copia de Factura","Datos"];
+  const hojasBloqueadasEInvisibles = ["ListadoEstado", "Plantilla", "Celdas plantilla", "Historial Facturas Data", "Facturas ID", "Datos", "ClientesInvalidos", "Copia de Plantilla", "Copia de Factura"];
+
+  // Eliminar hojas que no pertenezcan a la lista de hojas instaladas
+  const hojasExistentes = ss.getSheets();
+  hojasExistentes.forEach(hoja => {
+    if (!nombresHojas.includes(hoja.getName())) {
+      ss.deleteSheet(hoja);
+      Logger.log("Hoja eliminada: " + hoja.getName());
+    }
+  });
 
   // Instalar hojas desde la plantilla si no existen
   nombresHojas.forEach(nombreHoja => {
+    if (nombreHoja === "Datos") return; // Saltar "Datos" para instalarla al final
+
     let hoja = ss.getSheetByName(nombreHoja);
     if (!hoja) {
       const hojaPlantilla = plantilla.getSheetByName(nombreHoja);
@@ -83,17 +94,38 @@ function iniciarHojasFactura() {
     }
   });
 
-  // Eliminar hojas que no pertenezcan a la lista de hojas instaladas
-  ss.getSheets().forEach(hoja => {
-    const nombreHoja = hoja.getName();
-    if (!nombresHojas.includes(nombreHoja)) {
-      ss.deleteSheet(hoja);
-    }
-  });
-
+  // Siempre instalar o reinstalar la hoja "Datos" al final
+  reinstalarHojaDatos(ss, plantilla);
   SpreadsheetApp.getUi().alert("Hojas instaladas satisfactoriamente.");
   SpreadsheetApp.getUi().alert("Recuerda que antes de utilizar facturasApp debes de crear la carpeta donde se guardarán las facturas. Dirígete a la hoja Datos de emisor y dale clic en el botón crear carpeta.");
 }
+
+function reinstalarHojaDatos(ss, plantilla) {
+  Logger.log("Reinstalando hoja Datos...");
+
+  const nombreHoja = "Datos";
+  let hojaDatos = ss.getSheetByName(nombreHoja);
+
+  // Eliminar la hoja "Datos" si ya existe
+  if (hojaDatos) {
+    ss.deleteSheet(hojaDatos);
+  }
+
+  // Copiar la hoja "Datos" desde la plantilla
+  const hojaPlantilla = plantilla.getSheetByName(nombreHoja);
+  if (hojaPlantilla) {
+    const hojaCopia = hojaPlantilla.copyTo(ss).setName(nombreHoja);
+
+    // Bloquear la hoja "Datos"
+    const protection = hojaCopia.protect();
+    protection.removeEditors(protection.getEditors());
+    protection.addEditor(Session.getEffectiveUser());
+    hojaCopia.hideSheet(); // Hacer la hoja invisible
+  } else {
+    SpreadsheetApp.getUi().alert('La hoja "Datos" no existe en la plantilla.');
+  }
+}
+
 
 
 
