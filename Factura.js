@@ -233,14 +233,14 @@ function verificarEstadoValidoFactura() {
   const diasVencimiento = hojaFactura.getRange("G6").getValue();
 
   // Verificar cliente
-  if (!clienteActual || clienteActual.trim() === "") {
+  if (!clienteActual || clienteActual === "") {
     estaValido.success = false;
     estaValido.message = "El cliente actual no está definido.";
     return estaValido;
   }
 
   // Verificar número de factura
-  if (!numFactura || numFactura.trim() === "") {
+  if (!numFactura || numFactura === "") {
     estaValido.success = false;
     estaValido.message = "El número de factura no está definido.";
     return estaValido;
@@ -268,7 +268,7 @@ function verificarEstadoValidoFactura() {
   }
 
   // Verificar forma de pago
-  if (!formaPago || formaPago.trim() === "") {
+  if (!formaPago || formaPago === "") {
     estaValido.success = false;
     estaValido.message = "La forma de pago no está definida.";
     return estaValido;
@@ -678,21 +678,37 @@ function linkDescargaFactura() {
   var lastRow = hoja.getLastRow();
   var idArchivo = hoja.getRange("B" + lastRow).getValue();
   var numFactura = hoja.getRange("A" + lastRow).getValue();
-  
-  
-  var file = Drive.Files.get(idArchivo);
 
-  
+  if (!idArchivo) {
+    throw new Error("El ID del archivo está vacío o no es válido.");
+  }
+
+  // Verificar el archivo y asignar permisos públicos usando Advanced Drive Service
+  var permisos = {
+    role: "reader",
+    type: "anyone"
+  };
+
+  try {
+    Drive.Permissions.create(permisos, idArchivo, {sendNotificationEmails: false});
+  } catch (e) {
+    throw new Error("Error al configurar permisos públicos: " + e.message);
+  }
+
+  // Generar la URL de descarga
   var url = "https://drive.google.com/uc?export=download&id=" + idArchivo;
-  
+
   return {
     numFactura: numFactura,
     url: url
   };
 }
 
+
+
 function getDownloadLink() {
   var data = linkDescargaFactura();
+  Logger.log("sale de linkdescargar")
   return data;
 }
 
@@ -869,7 +885,7 @@ function generarPDFfactura() {
   // Crear un archivo temporal en el Drive para proporcionar un enlace de descarga
   var tempFile = DriveApp.createFile(pdfBlob);
   var tempFileUrl = tempFile.getDownloadUrl();
-
+  Logger.log("generar pdf despues de getlinkdownload")
   // Enviar un enlace de descarga al usuario
   var html = '<html><body><a href="' + tempFileUrl + '">Descargar PDF de la Factura ' + numeroFactura + '</a></body></html>';
   var ui = HtmlService.createHtmlOutput(html)
@@ -1112,7 +1128,8 @@ function getprefacturaValueA1(column, row) {
   return getsheetValueA1(prefactura_sheet, column, row);
 }
 
-function getprefacturaValue(column, row) {
+function getprefacturaValue(prefactura_sheet,column, row) {
+
   return getsheetValue(prefactura_sheet, column, row);
 }
 
@@ -1129,8 +1146,8 @@ function getInvoiceGeneralInformation() {
   //
   range = prefactura_sheet.getRange("G6");//dias de vencimiento
   var DaysOff = range.getValue();
-
-  var invoice_number = getprefacturaValue(2, 7);//cambiamos los valores para llamar el numero de factura
+  
+  var invoice_number = getprefacturaValue(prefactura_sheet,2, 7);//cambiamos los valores para llamar el numero de factura
   var InvoiceGeneralInformation = {
     "InvoiceAuthorizationNumber": InvoiceAuthorizationNumber,
     "PreinvoiceNumber": invoice_number,
@@ -1141,7 +1158,7 @@ function getInvoiceGeneralInformation() {
     "ExchangeRateDate": "",
     "SalesPerson": "",
     //"InvoiceDueDate": null,
-    "Note": getprefacturaValue(10, 2), //cambia los valores para llamar la nota de la factura
+    "Note": getprefacturaValue(prefactura_sheet,10, 2), //cambia los valores para llamar la nota de la factura
     "ExternalGR": false
     //"AdditionalProperty": AdditionalProperty
   }
@@ -1422,7 +1439,7 @@ function guardarYGenerarInvoice(){
   let invoice = JSON.stringify({
     CustomerInformation: CustomerInformation,
     InvoiceGeneralInformation: InvoiceGeneralInformation,
-    Delivery: getDelivery(),
+    Delivery: "",
     AdditionalDocuments: getAdditionalDocuments(),
     AdditionalProperty: getAdditionalProperty(),
     PaymentSummary: PaymentSummary, //por ahora esto leugo se cambia la funcion getPaymentSummary para que cumpla los parametros
@@ -1762,7 +1779,8 @@ function obtenerDatosFactura(factura){
           var itemCellPrueba = targetSheet.getRange('A19')
           var hojaEnBlanco = clienteCell.isBlank() || formaPagoCell.isBlank() || itemCellPrueba.isBlank() || celdaBaseImponible.isBlank();
           while (hojaEnBlanco) {
-            sleep(1000);
+            sleep(2000);
+            Logger.log("dentro de while")
             hojaEnBlanco = clienteCell.isBlank() || formaPagoCell.isBlank() || itemCellPrueba.isBlank() || celdaBaseImponible.isBlank();
           }
 

@@ -394,6 +394,7 @@ function agregarDataValidations() {
   const hojaValoresC = ss.getSheetByName("Clientes");
   const hojaValoresP = ss.getSheetByName("Productos");
   const hojaValoresCInvalidos = ss.getSheetByName("ClientesInvalidos");
+  const HojaValorescopiaFactura=ss.getSheetByName("Copia de Factura");
 
   // Rango donde aplicar los dropdowns
   const rangoDropdownCliente = hojaDatos.getRange("H2");
@@ -401,6 +402,8 @@ function agregarDataValidations() {
   const rangoDropdownProductos = hojaDatos.getRange("I11");
   const rangoDropdownClienteF = hojaFacturas.getRange("B2:C2");
   const rangoDropdownProductoF = hojaFacturas.getRange("B15");
+  const rangoDropdownCopiaFacturaCliente=HojaValorescopiaFactura.getRange("B2:C2")
+  const rangoDropdownCopiaFacturaProducto=HojaValorescopiaFactura.getRange("B15")
 
   // Rango de valores para los dropdowns
   const rangoValoresClienteInvalido = hojaValoresCInvalidos.getRange("V2:V1000");
@@ -430,6 +433,14 @@ function agregarDataValidations() {
     {
       rango: rangoDropdownProductoF,
       valores: rangoValoresProductosFactura
+    },
+    {
+      rango:rangoDropdownCopiaFacturaCliente,
+      valores:rangoValoresClienteFactura
+    },
+    {
+      rango:rangoDropdownCopiaFacturaProducto,
+      valores:rangoValoresProductosFactura
     }
   ];
 
@@ -1325,7 +1336,7 @@ function getAdditionalProperty() {
   return AdditionalProperty;
 }
 
-function getdatosValueA1(range) {
+function getdatosValueA1(datos_sheet,range) {
   var range = datos_sheet.getRange(range);
   return range.getValue();
 }

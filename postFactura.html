@@ -23,7 +23,7 @@
             google.script.run.withSuccessHandler(function(data) {
                 var numFactura = data.numFactura;
                 var url = data.url;
-
+                console.log("entraa")
                 var link = document.createElement('a');
                 link.href = url;
                 link.download = 'Factura ' + numFactura + '.pdf';
