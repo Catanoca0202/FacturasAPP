@@ -514,10 +514,11 @@ function processForm(data) {
     let recargo=String(data.recargo+"%")
     Logger.log("retenciones"+retenciones)
     Logger.log("recargo"+recargo)
-    const iva = parseFloat(data.iva) / 100;
+    const iva = String(data.iva+"%");
     const precioConIva = valorUnitario * (1 + iva);
     const impuestos = valorUnitario * iva;
-
+    Logger.log(data.iva+ "iva before")
+    Logger.log(iva+"iva after")
     sheet.getRange(newRow, 2).setValue(codigoReferencia);
     sheet.getRange(newRow, 2).setHorizontalAlignment('center');
     //sheet.getRange(newRow, 1).setBorder(true,true,true,true,null,null,null,null);
@@ -536,7 +537,7 @@ function processForm(data) {
     //ivaCell.setBorder(true,true,true,true,null,null,null,null);
     ivaCell.setHorizontalAlignment('center');
     ivaCell.setValue(iva); // Establece el valor del IVA como decimal
-    ivaCell.setNumberFormat('0.00%'); // Formatea la celda como porcentaje con dos decimales
+     // Formatea la celda como porcentaje con dos decimales
 
     sheet.getRange(newRow, 6).setValue("=D"+newRow+"*E"+newRow+"+D"+newRow); // Guarda el precio con IVA
     sheet.getRange(newRow, 6).setHorizontalAlignment('normal');
@@ -813,7 +814,7 @@ function onEdit(e) {
       Logger.log("entro a ver si el edit es en numero")
       let numeroIdentificacion=hojaCliente.getRange(rowEditada,colEditada).getValue()
       Logger.log("num i"+numeroIdentificacion )
-      let existe=verificarCodigo(numeroIdentificacion,"Clientes",true)
+      let existe=verificarCodigo(numeroIdentificacion,"Clientes",true,rowEditada)
       if(existe){
         SpreadsheetApp.getUi().alert("El numero de identificacion ya existe, por favor elegir otro numero unico");
         celdaEditada.setValue("");
@@ -843,7 +844,7 @@ function onEdit(e) {
     agregarCodigoIdentificador(e)
     if (colEditada==2 && rowEditada>1){
       let codigoRerencia=hojaActual.getRange(rowEditada,colEditada).getValue()
-      let existe=verificarCodigo(codigoRerencia,"Productos",true)
+      let existe=verificarCodigo(codigoRerencia,"Productos",true,rowEditada)
       if(existe){
         SpreadsheetApp.getUi().alert("El Codigo de referencia ya existe, por favor elegir otro numero unico");
         celdaEditada.setValue("");

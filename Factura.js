@@ -779,9 +779,9 @@ function unirNombreYcodigo(hoja){
 }
 
 
-function verificarCodigo(codigo, nombreHoja, inHoja) {
+function verificarCodigo(codigo, nombreHoja, inHoja,lineEditada=null) {
   Logger.log("Verificar códigos");
-
+  Logger.log("linea editada: "+lineEditada)
   // Obtener la hoja por nombre
   let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nombreHoja);
 
@@ -795,13 +795,15 @@ function verificarCodigo(codigo, nombreHoja, inHoja) {
     let columna;
     let lastActiveRow = sheet.getLastRow();
     let rangeDatos;
-
+    let pruebaPostRow=0
+    Logger.log(lastActiveRow+"last acitrive row")
     // Determinar la columna y el rango según el tipo de hoja
     if (nombreHoja === "Clientes") {
       columna = 6; // Columna para el identificador de clientes
       rangeDatos = sheet.getRange(2, columna, lastActiveRow - (inHoja ? 2 : 1));
     } else if (nombreHoja === "Productos") {
       columna = 2; // Columna para el código de productos
+      pruebaPostRow=lastActiveRow - (inHoja? 2: 1)
       rangeDatos = sheet.getRange(2, columna, lastActiveRow - (inHoja? 2: 1));
     } else if (nombreHoja === "Historial Facturas Data") {
       columna = 1; // Columna para el número de factura
@@ -810,7 +812,7 @@ function verificarCodigo(codigo, nombreHoja, inHoja) {
       Logger.log("Nombre de hoja no válido.");
       return false;
     }
-
+    Logger.log("last active ro post"+pruebaPostRow)
     // Obtener los valores del rango como una matriz de números
     let datos = rangeDatos.getValues().flat().map(Number);
     Logger.log("Datos obtenidos como números:");
@@ -821,10 +823,17 @@ function verificarCodigo(codigo, nombreHoja, inHoja) {
     Logger.log(codigoNumero)
     // Verificar si algún valor en datos es exactamente igual al código
     for (let i = 0; i < datos.length; i++) {
-      Logger.log("Datos i"+datos[i])
+      Logger.log("Datos i; "+"i:"+i+"datos: "+datos[i])
+      
       if (datos[i] === codigoNumero) {
+        if(i===lineEditada-2){
+          Logger.log("dentro de continue")
+          continue
+        }else{
+
         Logger.log(`El código "${codigoNumero}" ya existe en la hoja "${nombreHoja}".`);
         return true;
+        }
       }
     }
 
@@ -1672,9 +1681,12 @@ function obtenerDatosFactura(factura){
           var contador = 0;
           var auxiliarFilasInsertadas = filasInsertadas;
           for (var key in grupoIva) {
+            Logger.log("grupo iva")
             if (grupoIva.hasOwnProperty(key)) {
+              Logger.log("dentro del primer if grupo iva")
               var numeroCelda = 30 + auxiliarFilasInsertadas;
               if (contador > 0) {
+                Logger.log("dentro del segundo if grupo iva")
                 targetSheet.insertRowAfter(numeroCelda);
                 targetSheet.getRange('A'+(numeroCelda+1)+':D'+(numeroCelda+1)).merge();
                 targetSheet.getRange('F'+(numeroCelda+1)+':H'+(numeroCelda+1)).merge();
@@ -1684,6 +1696,8 @@ function obtenerDatosFactura(factura){
               } else {
                 auxiliarFilasInsertadas += 1;
               }
+              Logger.log("auxiliarfilasinseretadas after: "+auxiliarFilasInsertadas)
+              Logger.log("pasando el segundo if")
               var celdaBaseImponible = targetSheet.getRange('A'+numeroCelda);
               celdaBaseImponible.setBorder(true,true,true,true,null,null,null,null);
               celdaBaseImponible.setValue(grupoIva[key]);
