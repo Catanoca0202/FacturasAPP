@@ -1786,6 +1786,7 @@ function obtenerDatosFactura(factura){
           notaPagoCell.setValue(notaPago);
           observacionesCell.setValue(observaciones);
           totalItemsCell.setValue(numeroProductos);
+          Logger.log("descuentoGeneralesFactura: "+descuentoGeneralesFactura)
           descuentosCell.setValue(descuentoGeneralesFactura);
           cargosCell.setValue(cargosFactura);
           sumaBaseImponible.setFormula('=SUM(A'+(30+numeroProductos-1)+':A'+(31+filasInsertadas-1)+')');
@@ -1794,6 +1795,7 @@ function obtenerDatosFactura(factura){
           totalRetenciones.setFormula('=SUMPRODUCT(H19:H'+(19+numeroProductos-1)+';K19:K'+(19+numeroProductos-1)+')');
           totalCrgEquivalencia.setFormula('=SUMPRODUCT(H19:H'+(19+numeroProductos-1)+';L19:L'+(19+numeroProductos-1)+')');
           totalCargos.setValue(cargosFactura);
+          Logger.log("descuentosFactura: "+descuentosFactura)
           totalDescuentos.setFormula(descuentosFactura);
   
           totalDeFactura.setFormula('=SUM(M19:M'+(19+numeroProductos-1)+')+G'+(36+filasInsertadas)+'-A'+(24+filasInsertadasPorProductos));
