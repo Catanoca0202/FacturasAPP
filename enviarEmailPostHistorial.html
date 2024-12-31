@@ -21,10 +21,16 @@
       }
       function sendPdfByEmail() {
         var email = document.getElementById('inputEmail4').value;
+        const numFactura = localStorage.getItem("numFactura"); 
+        
+        if (!numFactura) {
+          mostrarAlerta("No se encontró el número de factura.");
+            return;
+        }
         google.script.run.withSuccessHandler(function(response) {
           
           mostrarAlerta("Respuesta: "+response)
-        }).enviarEmailPostFactura(email);
+        }).enviarEmailPostFactura(email,true,numFactura);
       }
       function openFactura() {
         google.script.run.showPostFactura();

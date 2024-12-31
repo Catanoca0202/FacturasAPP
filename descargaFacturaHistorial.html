@@ -11,6 +11,16 @@
     <link href="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/css/fontello-codes.css" rel="stylesheet">
   </head>
   <script>
+    function OpenEnviarEmail(){
+      const numFacutra=document.getElementById("numFactura").value
+      if (!numFacutra) {
+              mostrarAlerta("Por favor, ingresa un código de factura válido.");
+              return;
+          }
+      localStorage.setItem("numFactura", numFacutra);
+      google.script.run.showEnviarEmailPostHistorial();
+    }
+    // y que pasa si  no existe el numero de la factura ?
       function mostrarAlerta(mensaje) {
           google.script.run.mostrarAlertaDesdeServidor(mensaje);
       }
@@ -41,6 +51,17 @@
       }
       function back(){
         google.script.run.showSidebar()
+      }
+
+      function enviarFacturasApp(){
+        const numFactura = document.getElementById('numFactura').value;
+        if (!numFactura) {
+              mostrarAlerta("Por favor, ingresa un código de factura válido.");
+              return;
+          }else{
+            google.script.run.enviarFacturaHistorial(numFactura)
+          }
+        
       }
   </script>
   <body class="d-flex h-100">
@@ -73,13 +94,13 @@
                 </button>
               </div>
               <div class="col-12 ">
-                <button type="button" class="btn btn-primary btn-lg w-100 btn-menu">
+                <button type="button" class="btn btn-primary btn-lg w-100 btn-menu" onclick="OpenEnviarEmail()">
                   <span class="pe-4">Envio por email</span>
                   
                 </button>
               </div>
               <div class="col-12">
-                <button type="button" class="btn btn-primary btn-lg w-100 btn-menu">
+                <button type="button" class="btn btn-primary btn-lg w-100 btn-menu" onclick="enviarFacturasApp()">
                   <span class="pe-4">Envio a FacturasApp</span>
                   
                 </button>

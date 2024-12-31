@@ -22,14 +22,14 @@
 
       // Habilita el botón solo si el texto es exactamente "ELIMINAR"
       if (inputText === "ELIMINAR") {
-        botonEliminar.removeAttribute('disabled');
-        botonEliminar.classList.add('btn-danger');  // Cambia a color rojo
-        botonEliminar.classList.remove('btn-secondary'); // Remueve color deshabilitado
-      } else {
-        botonEliminar.setAttribute('disabled', 'disabled');
-        botonEliminar.classList.remove('btn-danger');
-        botonEliminar.classList.add('btn-secondary');  // Añade color deshabilitado
-      }
+      botonEliminar.removeAttribute('disabled');
+      botonEliminar.style.backgroundColor = 'red'; // Cambia el color a rojo
+      botonEliminar.style.borderColor = 'red';     // Cambia el color del borde
+    } else {
+      botonEliminar.setAttribute('disabled', 'disabled');
+      botonEliminar.style.backgroundColor = '';    // Restaura el color por defecto
+      botonEliminar.style.borderColor = '';        // Restaura el color del borde
+    }
     }
 
     function back() {
@@ -47,6 +47,9 @@
       }else{
           google.script.run.MensajeErrorEliminarFacturasApp();
       }
+
+    }
+    function opcionElegida(opciones){
 
     }
   </script>
@@ -70,6 +73,17 @@
     <div class="row py-3 px-4 gx-0">
         <div class="col-12 py-4">
           <p class="fs-6">Si estás seguro de borrar la totalidad de la información actual, incluyendo contactos, productos, datos del emisor, etc., por favor escribe <strong>"ELIMINAR"</strong> en el campo a continuación y luego haz clic en el botón.</p>
+        </div>
+        <div class="col-12">
+          <label for="opcionesMenu" class="form-label">Selecciona opciones:</label>
+          <select id="opcionesMenu" class="form-select" multiple>
+            <option value="opcion1">Toda la informacion</option>
+            <option value="opcion2">Clientes</option>
+            <option value="opcion3">Prodcutos</option>
+            <option value="opcion4">Datos emisor</option>
+            <option value="opcion5">Historial facturas</option>
+          </select>
+          <small class="text-muted">Usa Ctrl (Windows) o Cmd (Mac) para seleccionar múltiples opciones.</small>
         </div>
 
         <div class="col-12 px-0">
@@ -96,7 +110,7 @@
         </a>
       </div>
       <div class="col-6 ps-1">
-        <a href="#" onclick="borrarInformacion()" id="botonEliminar" class="btn btn-primary btn-lg w-100 btn-menu" disabled="disabled">
+        <a href="#" onclick="opcionElegida()" id="botonEliminar" class="btn btn-primary btn-lg w-100 btn-menu" disabled="disabled">
           <span class="pe-4">Eliminar</span>
           <i class="icon-24-outlined-action-main-delete-2"></i>
         </a>

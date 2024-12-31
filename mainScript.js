@@ -309,7 +309,7 @@ function openFacturaSheet() {
 
 function openHistorialSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName("Historial Facturas Data");
+  var sheet = ss.getSheetByName("Historial Facturas");
   SpreadsheetApp.setActiveSheet(sheet);
 }
 
@@ -391,9 +391,17 @@ function showEnviarEmailHistorial(data){
 function showEnviarEmailPost() {
   var html = HtmlService.createHtmlOutputFromFile('enviarEmailPost')
     .setWidth(400)
-    .setHeight(300)
+    .setHeight(400)
   SpreadsheetApp.getUi()
     .showModalDialog(html,"Digite el email a enviar");
+}
+
+function showEnviarEmailPostHistorial(){
+  var html =HtmlService.createHtmlOutputFromFile('enviarEmailPostHistorial')
+    .setWidth(400)
+    .setHeight(400)
+  SpreadsheetApp.getUi()
+    .showModalDialog(html,"Digite el email a enviar")
 }
 
 function eliminarHojasFactura() {

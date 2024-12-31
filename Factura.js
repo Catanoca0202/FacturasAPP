@@ -511,23 +511,39 @@ function guardarIdArchivo(idArchivo, numeroFactura) {
   hoja.getRange("B" + newRow).setValue(idArchivo).setBorder(true, true, true, true, null, null, null, null);
 
 }
-function convertPdfToBase64() {
-  let hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Facturas ID');
+
+function convertPdfToBase64Historial(){
+
+}
+
+function convertPdfToBase64(historial=false,row=null) {
+  let hojaFacturasID = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Facturas ID');
   let hojaListadoEstao=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ListadoEstado');
   let dataRange=hojaListadoEstao.getDataRange()
   let data=dataRange.getValues()
+  let lastRowFacturasId;
+  let lastRowListadoEstado;
+  if (historial){
+    lastRowFacturasId=row
+    lastRowListadoEstado=row
+    lastRowListadoEstado=lastRowListadoEstado-1
+  }else{
+    lastRowFacturasId=hojaFacturasID.getLastRow()
+    lastRowListadoEstado=hojaListadoEstao.getLastRow()
+    lastRowListadoEstado=lastRowListadoEstado-1
+  }
 
+
+  Logger.log("data: "+data)
   let jsonNuevoCol=13;
-  let lastRow = hojaListadoEstao.getLastRow();
-  let jsonData=data[lastRow-1][jsonNuevoCol]
+  let jsonData=data[lastRowListadoEstado][jsonNuevoCol]
   Logger.log("json"+jsonData)
   let invoiceData=JSON.parse(jsonData)
   let infoACambiar=invoiceData.file;
   Logger.log("infoACambiar "+infoACambiar)
 
-
-  let lastRowFacturasId=hoja.getLastRow()
-  var idArchivo = hoja.getRange("B" + lastRowFacturasId).getValue();
+  Logger.log("lastRowFacturasId: "+lastRowFacturasId)
+  var idArchivo = hojaFacturasID.getRange("B" + lastRowFacturasId).getValue();
   // usa la API avanzada de Drive
   var file = Drive.Files.get(idArchivo);
   const url = `https://www.googleapis.com/drive/v3/files/${idArchivo}?alt=media`;
@@ -572,6 +588,52 @@ function enviarFactura(){
     SpreadsheetApp.getUi().alert("Error al enviar la factura a FacturasApp. Intente de nuevo si el error presiste comuniquese con soporte");
   }
 }
+
+function enviarFacturaHistorial(numeroFactura){
+  let spreadsheet = SpreadsheetApp.getActive()
+  let url="https://facturasapp-qa.cenet.ws/ApiGateway/InvoiceSync/v2/LoadInvoice/LoadDocument"
+  let hojafFacturasID = spreadsheet.getSheetByName('Facturas ID');
+  let lastRow=hojafFacturasID.getLastRow()
+  let rangeFacturasID=hojafFacturasID.getRange(2,1,lastRow-1)
+  let facturasIDList = rangeFacturasID.getValues().map(row => row[0]);
+  Logger.log(facturasIDList)
+  
+  Logger.log(numeroFactura)
+  let resultadoBusqueda=busquedaLineal(facturasIDList,numeroFactura)
+  resultadoBusqueda=resultadoBusqueda+2 //se le suma 2 debido al desface de la hoja de calculo, ojo con el retorno de -1
+  let json=convertPdfToBase64(true,resultadoBusqueda)
+  //verificar si exite la el apikey
+  Logger.log("resultadoBusqueda:"+resultadoBusqueda)
+  let hojaDatos = spreadsheet.getSheetByName('Datos');
+  let APIkey=hojaDatos.getRange("I21").getValue()
+  let opciones={
+    "method" : "post",
+    "contentType": "application/json",
+    "payload" : json,
+    "headers": {"X-API-KEY": APIkey},
+    'muteHttpExceptions': true
+  };
+
+
+  try {
+    var respuesta = UrlFetchApp.fetch(url, opciones);
+    Logger.log(respuesta.status); // Muestra la respuesta de la API en los logs
+    SpreadsheetApp.getUi().alert("Factura enviada correctamente a FacturasApp. Si desea verla ingrese a https://facturasapp-qa.cenet.ws/Aplicacion/");
+  } catch (error) {
+    Logger.log("Error al enviar el JSON a la API: " + error.message);
+    SpreadsheetApp.getUi().alert("Error al enviar la factura a FacturasApp. Intente de nuevo si el error presiste comuniquese con soporte");
+  }
+}
+
+function busquedaLineal(lista, objetivo) {
+  for (let i = 0; i < lista.length; i++) {
+    if (lista[i] == objetivo) {
+      return i; // Índice encontrado
+    }
+  }
+  return -1; // No encontrado
+}
+
 
 function jsonAPIkey(usuario,contra){
   let json={
@@ -712,11 +774,26 @@ function getDownloadLink() {
   return data;
 }
 
-function enviarEmailPostFactura(email) {
+function enviarEmailPostFactura(email,historial=false,numFacturaAbuscar=null) {
   var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Facturas ID');
   var lastRow = hoja.getLastRow();
-  var idArchivo = hoja.getRange("B" + lastRow).getValue();
-  var numFactura = hoja.getRange("A" + lastRow).getValue();
+  let idArchivo ;
+  let numFactura;
+  let lastRowfacturasID;
+  if(historial){
+    let rangeFacturasID=hoja.getRange(2,1,lastRow-1)
+    let facturasIDList = rangeFacturasID.getValues().map(row => row[0]);
+
+    lastRowfacturasID= busquedaLineal(facturasIDList,numFacturaAbuscar)//que pasa cuando retorne -1 ?
+    lastRowfacturasID=lastRowfacturasID+2
+    idArchivo = hoja.getRange("B" + lastRowfacturasID).getValue();
+    numFactura = hoja.getRange("A" + lastRowfacturasID).getValue();
+  }else{
+
+    idArchivo = hoja.getRange("B" + lastRow).getValue();
+    numFactura = hoja.getRange("A" + lastRow).getValue();
+  } 
+  Logger.log("lastRowfacturasID " +lastRowfacturasID)
 
   Logger.log("email "+email)
   Logger.log("idArchivo "+idArchivo)
