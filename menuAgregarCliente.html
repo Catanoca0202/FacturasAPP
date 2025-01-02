@@ -57,9 +57,9 @@
       const form = document.getElementById('clientForm');
       const tipoPersona = document.getElementById('tipoPersona').value;
       const columnasObligatorias = tipoPersona === 'Autonomo' ?
-        ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion', 'codigoContacto','regimen',  'primerNombre', 'primerApellido', 'pais',  'direccion', 'codigoPostal','telefono',  'email'] :
+        ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion', 'codigoContacto','regimen',  'primerNombre', 'primerApellido', 'pais',  'email'] :
         tipoPersona === 'Empresa' ?
-        ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion',  'codigoContacto','regimen',  'nombreComercial', 'pais',  'direccion', 'codigoPostal', 'telefono',  'email'] :
+        ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion',  'codigoContacto','regimen',  'nombreComercial', 'pais',  'email'] :
         [];
 
       let isValid = true;
@@ -77,7 +77,7 @@
       return isValid;
     }
 
-    function saveData() {
+  function saveData() {
   if (verificarDatosObligatorios()) {
     const formData = {
     
@@ -105,9 +105,10 @@
     google.script.run.withSuccessHandler(function(response) {
       if (response.success) {
         
-        mostrarAlerta(response.message)
+        
         // Limpiar el formulario
         resetearFormulario();
+        document.getElementById('numeroIdentificacion').focus();
       } else {
         mostrarAlerta(response.message)
         
@@ -136,6 +137,8 @@ function resetearFormulario() {
   if (resultBox) {
     resultBox.innerHTML = '';
   }
+
+  
 }
   </script>
   <body class="d-flex h-100">

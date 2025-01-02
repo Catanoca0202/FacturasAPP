@@ -230,7 +230,7 @@ function verificarEstadoValidoFactura() {
   const fechaPago = hojaFactura.getRange("G3").getValue();
   const fechaEmision = hojaFactura.getRange("G4").getValue();
   const formaPago = hojaFactura.getRange("G5").getValue();
-  const diasVencimiento = hojaFactura.getRange("G6").getValue();
+
 
   // Verificar cliente
   if (!clienteActual || clienteActual === "") {
@@ -274,12 +274,7 @@ function verificarEstadoValidoFactura() {
     return estaValido;
   }
 
-  // Verificar días de vencimiento
-  if (!diasVencimiento || diasVencimiento === "") {
-    estaValido.success = false;
-    estaValido.message = "Los días de vencimiento no están definidos.";
-    return estaValido;
-  }
+
 
   // Verificar productos
   const totalProductos = hojaFactura.getRange("A16").getValue();

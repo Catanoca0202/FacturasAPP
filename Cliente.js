@@ -529,6 +529,7 @@ function saveClientData(formData) {
   let referenciaUnica = nombre + "-" + formData.numeroIdentificacion;
   sheet.getRange(emptyRow, 2).setValue(referenciaUnica);
   sheet.getRange(emptyRow, 1).setValue("Valido");
+  SpreadsheetApp.getUi().alert("Nuevo producto generado satisfactoriamente");
 
   return { success: true, message: 'Nuevo cliente generado satisfactoriamente.' };
 }
@@ -603,9 +604,9 @@ function verificarDatosObligatorios(e, tipoPersona) {
   }
 
   if (tipoPersona === "Autonomo") {
-    columnasObligatorias = [3, 4, 5, 6,7, 8, 10, 12, 14, 17, 18,19, 21]; // Incluyendo "Nombre cliente" (columna 2)
+    columnasObligatorias = [3, 4, 5, 6,7, 8, 10, 12, 14, 21]; // Incluyendo "Nombre cliente" (columna 2)
   } else if (tipoPersona === "Empresa") {
-    columnasObligatorias = [3, 4, 5, 6, 7,8,9, 14, 17, 18,19, 21]; // Incluyendo "Nombre cliente" (columna 2)
+    columnasObligatorias = [3, 4, 5, 6, 7,8,9, 14, 21]; // Incluyendo "Nombre cliente" (columna 2)
   } else {
     Logger.log("Vacio tipo de persona");
   }
