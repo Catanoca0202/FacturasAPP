@@ -817,7 +817,7 @@ function onEdit(e) {
     let colEditada = celdaEditada.getColumn();
     let colTipoDePersona=2
     let tipoPersona= obtenerTipoDePersona(e);
-
+    let A1notationRange=celdaEditada.getA1Notation()
     if (colEditada ==6 && rowEditada>1){
       Logger.log("entro a ver si el edit es en numero")
       let numeroIdentificacion=hojaCliente.getRange(rowEditada,colEditada).getValue()
@@ -829,6 +829,9 @@ function onEdit(e) {
         verificarDatosObligatorios(e,tipoPersona)
         throw new Error('por favor poner un Numero de Identificacion unico');
       }
+    }else if(A1notationRange=="O8"){
+      Logger.log("dentro de A1 notation")
+      obtenerPaisElegidoPrueba()
     }
 
     verificarDatosObligatorios(e,tipoPersona)
@@ -1512,3 +1515,62 @@ function updatesheetValueA1(sheet, column, row, value) {
   return
 }
 
+
+function filtrarProvinciaPoblacionPrueba(){
+    // ID de Spreadsheet1
+    const sourceSpreadsheetId = "1qxbXlhH4RpCOsObk91wsuu4k8jarVK34XXRUlKaKS1U"; // Reemplaza con el ID de Spreadsheet1
+    const sourceSheetName = "ProvinicasPoblaciones"; // Nombre de la hoja en Spreadsheet1
+    const sourceRangeA1 = "E3:E200"; // Rango de datos a usar para validación
+  
+    // Hoja y rango en Spreadsheet2 donde aplicar la validación
+    const targetSheetName = "Clientes"; // Nombre de la hoja en Spreadsheet2
+    const targetRangeA1 = "O8"; // Rango donde aplicar la validación
+  
+    // Accede a Spreadsheet1 y obtiene los datos
+    const sourceSpreadsheet = SpreadsheetApp.openById(sourceSpreadsheetId);
+    const sourceSheet = sourceSpreadsheet.getSheetByName(sourceSheetName);
+    const sourceValues = sourceSheet.getRange(sourceRangeA1).getValues().flat().filter(String); // Aplana y filtra vacíos
+  
+    // Configura la hoja de destino y el rango
+    const targetSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(targetSheetName);
+    const targetRange = targetSheet.getRange(targetRangeA1);
+  
+    // Configura la validación de datos
+    const rule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(sourceValues, true)
+      .build();
+    targetRange.setDataValidation(rule);
+}
+
+function obtenerPaisElegidoPrueba(){
+  //proceso para poner los datos en la datavalidation
+  const targetSpreadsheetId = "1qxbXlhH4RpCOsObk91wsuu4k8jarVK34XXRUlKaKS1U"; // Reemplaza con el ID de Spreadsheet1
+  const targetSheetName = "ProvinicasPoblaciones"; // Nombre de la hoja en Spreadsheet1
+  const targetRangeA1 = "F3"; // Rango de datos a usar para validación
+
+  const sourceSheetName="Clientes"
+  const sourceRangeA1="O8"
+
+  
+  const sourceSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sourceSheetName);
+  const sourceValues = sourceSheet.getRange(sourceRangeA1).getValues().flat().filter(String); 
+
+  const targetSpreadsheet = SpreadsheetApp.openById(targetSpreadsheetId);
+  const targetsheet=targetSpreadsheet.getSheetByName(targetSheetName)
+  const targetRange = targetsheet.getRange(targetRangeA1);
+  targetRange.setValue(sourceValues)
+
+  //prueba para cambiar el data validation
+
+  const provinicaRange="G3:G"
+  const sourceValuesProvinica = targetsheet.getRange(provinicaRange).getValues().flat().filter(String); 
+
+  const rangoClientePoblacion="P8"
+  const targetRangeCliente=sourceSheet.getRange(rangoClientePoblacion)
+
+    const rule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(sourceValuesProvinica, true)
+      .build();
+      targetRangeCliente.setDataValidation(rule);
+
+}
