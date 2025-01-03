@@ -1263,10 +1263,11 @@ function getPaymentSummary(startingRowTaxation) {
   Logger.log("monto_neto"+monto_neto)
   var PaymentTypeTxt = prefactura_sheet.getRange("G5").getValue();
   var PaymentMeansTxt = prefactura_sheet.getRange("E4").getValue();
+  let PaymentNote=prefactura_sheet.getRange("D11").getValue();
   var PaymentSummary = {
     "PaymentType": PaymentTypeTxt,
     "PaymentMeans": "PaymentMeansTxt: No hay medio de pago",//a qui habia getPaymentMeans(PaymentMeansTxt)
-    "PaymentNote": `Total Factura: $${numeros_total} \r Neto a Pagar  $${numeros_neto}: ${int2word(monto_neto)}`
+    "PaymentNote": PaymentNote
   }
   return PaymentSummary;
 }
@@ -1635,7 +1636,7 @@ function obtenerDatosFactura(factura){
           var facturaNumero = invoiceData.InvoiceGeneralInformation.InvoiceNumber;
           var cliente = invoiceData.CustomerInformation.RegistrationName;
           var nif = invoiceData.CustomerInformation.Identification;
-          var codigo = invoiceData.CustomerInformation.AdditionalAccountID;
+          var codigo = invoiceData.CustomerInformation.CustomerCode;
           var direccion = invoiceData.CustomerInformation.AddressLine;
           var telefono = invoiceData.CustomerInformation.Telephone;
           var poblacion = invoiceData.CustomerInformation.CityName;
@@ -1809,6 +1810,7 @@ function obtenerDatosFactura(factura){
           var poblacionCeldaHoja = hojaCeldas.getRange('E6').getValue();
           var fechaEmisionCeldaHoja = hojaCeldas.getRange('E9').getValue();
           var formaPagoCeldaHoja = hojaCeldas.getRange('E10').getValue();
+          let contactoCeldaHoja=hojaCeldas.getRange("E11").getValue();
 
           //factura
           var celdaNumFactura = targetSheet.getRange('A9');
@@ -1821,6 +1823,7 @@ function obtenerDatosFactura(factura){
           var poblacionCell = targetSheet.getRange(poblacionCeldaHoja);
           var fechaEmisionCell = targetSheet.getRange(fechaEmisionCeldaHoja);
           var formaPagoCell = targetSheet.getRange(formaPagoCeldaHoja);
+          let contactoCell=targetSheet.getRange(contactoCeldaHoja);
           var valorPagarCell = targetSheet.getRange('B'+(41+filasInsertadas));
           var notaPagoCell = targetSheet.getRange('A'+(45+filasInsertadas));
           var observacionesCell = targetSheet.getRange('A'+(50+filasInsertadas));
@@ -1838,12 +1841,15 @@ function obtenerDatosFactura(factura){
 
           var totalDeFactura = targetSheet.getRange('H'+(38+filasInsertadas));
 
+
+          const resultado = dividirString(cliente)
           celdaNumFactura.setValue("FACTURA DE VENTA NO. "+facturaNumero);
-          clienteCell.setValue(cliente);
+          clienteCell.setValue(resultado[0]);
           nifCell.setValue(nif);
           codigoCell.setValue(codigo);
           direccionCell.setValue(direccion);
           telefonoCell.setValue(telefono);
+          contactoCell.setValue(cliente)
           // Ajustar la forma en que se ve el pais - IMPORTANTE
           if (poblacion == "" || provincia == "" || pais == "") {
             var columnaPoblacion = poblacionCell.getColumn();
@@ -1852,6 +1858,8 @@ function obtenerDatosFactura(factura){
           } else {
             poblacionCell.setValue(poblacion+', '+provincia+', '+pais);
           }
+
+          
           fechaEmisionCell.setValue(fechaEmision);
           formaPagoCell.setValue(formaPago);
           valorPagarCell.setValue(valorPagar);
@@ -1868,7 +1876,7 @@ function obtenerDatosFactura(factura){
           totalCrgEquivalencia.setFormula('=SUMPRODUCT(H19:H'+(19+numeroProductos-1)+';L19:L'+(19+numeroProductos-1)+')');
           totalCargos.setValue(cargosFactura);
           Logger.log("descuentosFactura: "+descuentosFactura)
-          totalDescuentos.setFormula(descuentosFactura);
+          totalDescuentos.setValue(descuentosFactura);
   
           totalDeFactura.setFormula('=SUM(M19:M'+(19+numeroProductos-1)+')+G'+(36+filasInsertadas)+'-A'+(24+filasInsertadasPorProductos));
           
@@ -1908,6 +1916,13 @@ function obtenerDatosFactura(factura){
 
 
   Logger.log('Invoice number ' + factura + ' not found.');
+}
+
+function dividirString(string) {
+  if (!string || typeof string !== "string") return ["", ""];
+  const partes = string.match(/^(.*?)([-+]?\d+.*)$/); // Divide texto y número
+  if (!partes) return [string, ""];
+  return [partes[1].trim(), partes[2].trim()];
 }
 
 function testWriteNIFToPlantilla() {
