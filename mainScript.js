@@ -91,15 +91,14 @@ function iniciarHojasFactura() {
   reinstalarHojaDatos(ss, plantilla);
 
     // Eliminar hojas que no pertenezcan a la lista de hojas instaladas
-    // const hojasExistentes = ss.getSheets();
-    // hojasExistentes.forEach(hoja => {
-    //   if (!nombresHojas.includes(hoja.getName())) {
-    //     Logger.log(hoja.getName())
-    //     Logger.log("hojaname")
-    //     ss.deleteSheet(hoja);
-    //     Logger.log("Hoja eliminada: " + hoja.getName());
-    //   }
-    // });
+    ss.getSheets().forEach(hoja => {
+      const nombreHoja = hoja.getName();
+      if (!nombresHojas.includes(nombreHoja)) {
+        Logger.log(hoja.getName())
+        Logger.log("hojaname")
+        ss.deleteSheet(hoja);
+      }
+    });
 
   SpreadsheetApp.getUi().alert("Hojas instaladas satisfactoriamente.");
   SpreadsheetApp.getUi().alert("Recuerda que antes de utilizar facturasApp debes de crear la carpeta donde se guardarán las facturas. Dirígete a la hoja Datos de emisor y dale clic en el botón crear carpeta.");
@@ -123,9 +122,9 @@ function reinstalarHojaDatos(ss, plantilla) {
     const hojaCopia = hojaPlantilla.copyTo(ss).setName(nombreHoja);
     Logger.log("dentro if")
     // Bloquear la hoja "Datos"
-    // const protection = hojaCopia.protect();
-    // protection.removeEditors(protection.getEditors());
-    // protection.addEditor(Session.getEffectiveUser());
+    const protection = hojaCopia.protect();
+    protection.removeEditors(protection.getEditors());
+    protection.addEditor(Session.getEffectiveUser());
     hojaCopia.hideSheet(); // Hacer la hoja invisible
     Logger.log("hoja aca")
   } else {
@@ -251,6 +250,8 @@ function showSidebar2() {
     let respuesta = ui.alert('Primero debes de instalar las hojas necesarias ¿Deseas instalarlas ya?', ui.ButtonSet.YES_NO);
     if (respuesta == ui.Button.YES) {
       iniciarHojasFactura()
+      OnOpenSheetInicio()
+      agregarDataValidations()
     } else {
       return
     }
