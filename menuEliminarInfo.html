@@ -43,15 +43,26 @@
     function borrarInformacion() {
       const inputText = document.getElementById('confirmacionTexto').value;
       if(inputText==="ELIMINAR"){
-          google.script.run.eliminarTotalidadInformacion();
+          const opcionesMenu = document.getElementById('opcionesMenu');
+          const opcionesSeleccionadas = [];
+          for (const opcion of opcionesMenu.options) {
+            if (opcion.selected) {
+                opcionesSeleccionadas.push(opcion.value);
+            }
+          }
+          if(opcionesSeleccionadas.includes("Toda la informacion")){
+            google.script.run.eliminarHojasFactura("Toda la informacion",true);
+          }else{
+            google.script.run.eliminarHojasFactura(opcionesSeleccionadas,true);
+          }
+
+          
       }else{
           google.script.run.MensajeErrorEliminarFacturasApp();
       }
 
     }
-    function opcionElegida(opciones){
 
-    }
   </script>
   <body class="d-flex h-100">
 
@@ -77,11 +88,11 @@
         <div class="col-12">
           <label for="opcionesMenu" class="form-label">Selecciona opciones:</label>
           <select id="opcionesMenu" class="form-select" multiple>
-            <option value="opcion1">Toda la informacion</option>
-            <option value="opcion2">Clientes</option>
-            <option value="opcion3">Prodcutos</option>
-            <option value="opcion4">Datos emisor</option>
-            <option value="opcion5">Historial facturas</option>
+            <option value="Toda la informacion">Toda la informacion</option>
+            <option value="Clientes">Clientes</option>
+            <option value="Prodcutos">Prodcutos</option>
+            <option value="Datos emisor">Datos emisor</option>
+            <option value="Historial facturas">Historial facturas</option>
           </select>
           <small class="text-muted">Usa Ctrl (Windows) o Cmd (Mac) para seleccionar múltiples opciones.</small>
         </div>
@@ -110,7 +121,7 @@
         </a>
       </div>
       <div class="col-6 ps-1">
-        <a href="#" onclick="opcionElegida()" id="botonEliminar" class="btn btn-primary btn-lg w-100 btn-menu" disabled="disabled">
+        <a href="#" onclick="borrarInformacion()" id="botonEliminar" class="btn btn-primary btn-lg w-100 btn-menu" disabled="disabled">
           <span class="">Eliminar</span>
           <i class="icon-24-outlined-action-main-delete-2"style="font-size: 20px;"></i>
         </a>

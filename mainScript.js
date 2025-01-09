@@ -405,13 +405,19 @@ function showEnviarEmailPostHistorial(){
     .showModalDialog(html,"Digite el email a enviar")
 }
 
-function eliminarHojasFactura() {
+function eliminarHojasFactura(opciones="Toda la informacion",FromSideBar=false) {
   let ui = SpreadsheetApp.getUi();
   Logger.log("Inicio de eliminación de hojas");
   let respuesta = ui.alert('Recuerda que al desinstalar las hojas se eliminará toda la información de las mismas. Esta función solo debe ejecutarse si tienes un problema irreparable con las hojas. ¿Estás seguro de continuar?', ui.ButtonSet.YES_NO);
   if (respuesta == ui.Button.YES) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Historial Facturas", "Clientes", "Factura", "Historial Facturas Data", "Facturas ID", "Datos", "Copia de Plantilla", "ListadoEstado", "Plantilla", "Celdas plantilla", "ClientesInvalidos", "Copia de Plantilla", "Copia de Factura"];
+    let nombresHojas;
+    if(opciones==="Toda la informacion"){
+      nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Historial Facturas", "Clientes", "Factura", "Historial Facturas Data", "Facturas ID", "Datos", "Copia de Plantilla", "ListadoEstado", "Plantilla", "Celdas plantilla", "ClientesInvalidos", "Copia de Plantilla", "Copia de Factura"];
+      Logger.log("Toda la informacion")
+    }else{
+      Logger.log("opciones "+opciones)
+    }
 
     // Crear una hoja nueva en blanco
     let nuevaHoja = ss.getSheetByName("Hoja en blanco");
@@ -892,6 +898,7 @@ function MensajeErrorEliminarFacturasApp(){
 
 
 function eliminarTotalidadInformacion(){
+  
   let spreadsheet = SpreadsheetApp.getActive();
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
   let hojaHistorialFactura = spreadsheet.getSheetByName('Historial Facturas Data');
