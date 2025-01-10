@@ -37,7 +37,7 @@ function iniciarHojasFactura() {
   const plantillaID = "1qxbXlhH4RpCOsObk91wsuu4k8jarVK34XXRUlKaKS1U";
   const plantilla = SpreadsheetApp.openById(plantillaID);
 
-  const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Historial Facturas", "Clientes", "Factura", "Historial Facturas Data", "ClientesInvalidos", "Facturas ID", "Copia de Plantilla", "ListadoEstado", "Plantilla", "Celdas plantilla", "Copia de Plantilla", "Copia de Factura","Datos"];
+  const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Clientes", "Factura", "Historial Facturas Data", "ClientesInvalidos", "Historial Facturas","Facturas ID", "Copia de Plantilla", "ListadoEstado", "Plantilla", "Celdas plantilla", "Copia de Plantilla", "Copia de Factura","Datos"];
   const hojasBloqueadasEInvisibles = ["ListadoEstado", "Plantilla", "Celdas plantilla", "Historial Facturas Data", "Facturas ID", "Datos", "ClientesInvalidos", "Copia de Plantilla", "Copia de Factura"];
 
 
@@ -81,6 +81,7 @@ function iniciarHojasFactura() {
           protection.removeEditors(protection.getEditors()); // Bloquear completamente
           protection.addEditor(Session.getEffectiveUser()); // Solo el propietario tiene acceso
         }
+
       } else {
         SpreadsheetApp.getUi().alert('La hoja "' + nombreHoja + '" no existe en la plantilla.');
       }
@@ -755,14 +756,14 @@ function onEdit(e) {
           factura_sheet.getRange("J"+String(i)).setValue(dictInformacionProducto["Recargo de equivalencia"])//Recargo de equivalencia
         }else{
           factura_sheet.getRange("A"+String(i)).setValue(dictInformacionProducto["codigo Producto"])
-          factura_sheet.getRange("E"+String(i)).setValue("=D"+String(i)+"+(D"+String(i)+"*G"+String(i)+")")//AGG COSA DE CON IVA
-          factura_sheet.getRange("F"+String(i)).setValue("=(D"+String(i)+"-(D"+String(i)+"*H"+String(i)+"))*C"+String(i))//subtotal
+          factura_sheet.getRange("E"+String(i)).setValue("=D"+String(i)+"+(D"+String(i)+"*G"+String(i)+")")//AGG COSA DE CON IVA 
+          factura_sheet.getRange("F"+String(i)).setValue("=(D"+String(i)+")*C"+String(i))//subtotal
           factura_sheet.getRange("D"+String(i)).setValue(dictInformacionProducto["valor Unitario"])//valor unitario
           factura_sheet.getRange("G"+String(i)).setValue(dictInformacionProducto["IVA"])//IVA
           
           factura_sheet.getRange("I"+String(i)).setValue(dictInformacionProducto["retencion"])//Retencion
           factura_sheet.getRange("J"+String(i)).setValue(dictInformacionProducto["Recargo de equivalencia"])//Recargo de equivalencia
-          factura_sheet.getRange("K"+String(i)).setValue("=F"+String(i)+"+(F"+String(i)+"*G"+String(i)+")-(F"+String(i)+"*I"+String(i)+")+(F"+String(i)+"*J"+String(i)+")")//total linea
+          factura_sheet.getRange("K"+String(i)).setValue("=((F"+String(i)+"+(F"+String(i)+"*G"+String(i)+")-(F"+String(i)+"*I"+String(i)+")+(F"+String(i)+"*J"+String(i)+"))-(F"+String(i)+"+(F"+String(i)+"*G"+String(i)+")-((F"+String(i)+"*I"+String(i)+")+(F"+String(i)+"*J"+String(i)+")))*H"+String(i)+")")//total linea
         }
       }
 
@@ -1029,7 +1030,7 @@ function calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRo
   let rowParaFormulaBaseImponible=taxSectionStartRow+1
   let rowEspacioIvasAgrupacion=taxSectionStartRow+5
   let rowTotalBaseImponibleEIvaGeneral=taxSectionStartRow+7
-  hojaActual.getRange("A"+String(rowParaFormulaBaseImponible)).setValue("=ARRAYFORMULA(SUMIF(G15:G"+String(lastRowProducto)+"; B"+String(rowParaFormulaBaseImponible)+":B"+String(rowEspacioIvasAgrupacion)+"; F15:F"+String(lastRowProducto)+"))")
+  hojaActual.getRange("A"+String(rowParaFormulaBaseImponible)).setValue("=ARRAYFORMULA(SUMIF(G15:G"+String(lastRowProducto)+"; B"+String(rowParaFormulaBaseImponible)+":B"+String(rowEspacioIvasAgrupacion)+"; D15:D"+String(lastRowProducto)+"))")
     //total base imponible e iva genberal
     hojaActual.getRange("A"+String(rowTotalBaseImponibleEIvaGeneral)).setValue("=SUM(A"+String(rowParaFormulaBaseImponible)+":A"+String(rowEspacioIvasAgrupacion)+")")
     hojaActual.getRange("C"+String(rowTotalBaseImponibleEIvaGeneral)).setValue("=SUM(C"+String(rowParaFormulaBaseImponible)+":C"+String(rowEspacioIvasAgrupacion)+")")

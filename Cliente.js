@@ -529,7 +529,7 @@ function saveClientData(formData) {
   let referenciaUnica = nombre + "-" + formData.numeroIdentificacion;
   sheet.getRange(emptyRow, 2).setValue(referenciaUnica);
   sheet.getRange(emptyRow, 1).setValue("Valido");
-  SpreadsheetApp.getUi().alert("Nuevo producto generado satisfactoriamente");
+  SpreadsheetApp.getUi().alert("Nuevo cliente generado satisfactoriamente");
 
   return { success: true, message: 'Nuevo cliente generado satisfactoriamente.' };
 }

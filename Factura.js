@@ -1347,7 +1347,7 @@ function guardarYGenerarInvoice(){
     let ivaTaxInformation = {
       Id: "01",//Id
       TaxEvidenceIndicator: false,
-      TaxableAmount: Amount,
+      TaxableAmount: Price,
       TaxAmount: Iva,
       Percent: percent,
       BaseUnitMeasure: "",
@@ -1424,6 +1424,7 @@ function guardarYGenerarInvoice(){
   }
   
   let totalesValores=String(rangeTotales.getValues())
+  Logger.log("totalesValores antes"+totalesValores)
   totalesValores=totalesValores.split(",")
   Logger.log("totalesValores"+totalesValores)
   cargoTotal=totalesValores[2]
@@ -1436,7 +1437,7 @@ function guardarYGenerarInvoice(){
   let facturaTotalesBaseImponilbe=String(rangeBaseImponilbeValor.getValues());
   facturaTotalesBaseImponilbe=facturaTotalesBaseImponilbe.split(",");
   Logger.log("facturaTotales "+facturaTotalesBaseImponilbe)
-  let TotalFactura=rangeFacturaTotal.getValue()
+  let TotalFactura=String(rangeFacturaTotal.getValue())
 
   /*Aqui cambia por completo, por ahora solo voy a dejar los parametros en numeros x 
   ,  solo coinciden el base imponible he IVA */
@@ -1654,6 +1655,11 @@ function obtenerDatosFactura(factura){
           var notaPago = invoiceData.PaymentSummary.PaymentNote;
           var observaciones = invoiceData.InvoiceGeneralInformation.Note;
 
+          let ReqEquivalencia=parseFloat(invoiceData.InvoiceTotal.totalCargoEqui)
+          let retenciones=parseFloat(invoiceData.InvoiceTotal.totalRet)
+          let totalLinea=totalFacturaJSON
+          
+
           var filasInsertadas = 0;
           var filasInsertadasPorProductos = 0;
           var grupoIva = {};
@@ -1744,12 +1750,13 @@ function obtenerDatosFactura(factura){
 
             var producto = listaProductos[j]
             //crea un diccionario que la llave sea el % de iva y el valor sea el total de la linea
-            
+            Logger.log(grupoIva+"before")
             if (grupoIva.hasOwnProperty(percent)) {
               grupoIva[percent] += producto.TaxesInformation[0].TaxableAmount;
             } else {
               grupoIva[percent] = producto.TaxesInformation[0].TaxableAmount;
             }
+            Logger.log("grupoIva after"+grupoIva)
           }
           var contador = 0;
           var auxiliarFilasInsertadas = filasInsertadas;
@@ -1858,7 +1865,23 @@ function obtenerDatosFactura(factura){
           } else {
             poblacionCell.setValue(poblacion+', '+provincia+', '+pais);
           }
+          
+          totalRetenciones.setNumberFormat('€#,##0.00');
+          totalRetenciones.setHorizontalAlignment('normal');
 
+          totalCrgEquivalencia.setNumberFormat('€#,##0.00');
+          totalCrgEquivalencia.setHorizontalAlignment('normal');
+
+          totalDeFactura.setNumberFormat('€#,##0.00');
+          totalDeFactura.setHorizontalAlignment('normal');
+
+          cargosCell.setNumberFormat('€#,##0.00');
+
+          totalDescuentos.setNumberFormat('€#,##0.00');
+
+          descuentosCell.setNumberFormat('€#,##0.00');
+
+          totalCargos.setNumberFormat('€#,##0.00')
           
           fechaEmisionCell.setValue(fechaEmision);
           formaPagoCell.setValue(formaPago);
@@ -1872,14 +1895,16 @@ function obtenerDatosFactura(factura){
           sumaBaseImponible.setFormula('=SUM(A'+(30+numeroProductos-1)+':A'+(31+filasInsertadas-1)+')');
           sumaImpIva.setFormula('=SUM(F'+(30+numeroProductos-1)+':F'+(31+filasInsertadas-1)+')');
           sumaTotal.setFormula('=SUM(I'+(30+numeroProductos-1)+':I'+(31+filasInsertadas-1)+')');
-          totalRetenciones.setFormula('=SUMPRODUCT(H19:H'+(19+numeroProductos-1)+';K19:K'+(19+numeroProductos-1)+')');
-          totalCrgEquivalencia.setFormula('=SUMPRODUCT(H19:H'+(19+numeroProductos-1)+';L19:L'+(19+numeroProductos-1)+')');
+          totalRetenciones.setValue(retenciones);
+          totalCrgEquivalencia.setValue(ReqEquivalencia);
           totalCargos.setValue(cargosFactura);
           Logger.log("descuentosFactura: "+descuentosFactura)
           totalDescuentos.setValue(descuentosFactura);
   
-          totalDeFactura.setFormula('=SUM(M19:M'+(19+numeroProductos-1)+')+G'+(36+filasInsertadas)+'-A'+(24+filasInsertadasPorProductos));
-          
+          totalDeFactura.setValue(totalLinea);
+
+
+
 
           
           
