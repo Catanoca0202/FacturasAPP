@@ -8,7 +8,7 @@
 
 // function onInstall(e) {
 //   onOpen(e); // Llama a onOpen durante la instalación
-  
+  //ups mal merge
 // }
 
 function OnOpenVariablesGlobales(){
