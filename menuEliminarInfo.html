@@ -70,32 +70,21 @@
 
  <main>
 
-    <div class="row py-3 px-4 gx-0">
-        <div class="col-12 py-4">
-          <p class="fs-6">Si estás seguro de borrar la totalidad de la información actual, incluyendo contactos, productos, datos del emisor, etc., por favor escribe <strong>"ELIMINAR"</strong> en el campo a continuación y luego haz clic en el botón.</p>
-        </div>
-        <div class="col-12">
-          <label for="opcionesMenu" class="form-label">Selecciona opciones:</label>
-          <select id="opcionesMenu" class="form-select" multiple>
-            <option value="opcion1">Toda la informacion</option>
-            <option value="opcion2">Clientes</option>
-            <option value="opcion3">Prodcutos</option>
-            <option value="opcion4">Datos emisor</option>
-            <option value="opcion5">Historial facturas</option>
-          </select>
-          <small class="text-muted">Usa Ctrl (Windows) o Cmd (Mac) para seleccionar múltiples opciones.</small>
-        </div>
-
-        <div class="col-12 px-0">
-            <form class="row g-3" id="clientForm">
-                <div class="col-12">
-                  <label for="confirmacionTexto" class="form-label">Confirma:</label>
-                  <input type="text" id="confirmacionTexto" class="form-control" placeholder="Escribe ELIMINAR" oninput="toggleButton()">
-                </div>
-
-            </form>
-        </div>
+  <div class="row py-3 px-4 gx-0">
+    <div class="col-12 py-4">
+      <p class="fs-6">Si estás seguro de borrar la totalidad de la información actual, incluyendo contactos, productos, datos del emisor, etc., por favor escribe <strong>"ELIMINAR"</strong> en el campo a continuación y luego haz clic en el botón.</p>
     </div>
+
+    <div class="col-12 px-0">
+        <form class="row g-3" id="clientForm">
+            <div class="col-12">
+              <label for="confirmacionTexto" class="form-label">Confirma:</label>
+              <input type="text" id="confirmacionTexto" class="form-control" placeholder="Escribe ELIMINAR" oninput="toggleButton()">
+            </div>
+
+        </form>
+    </div>
+  </div>
 
 
   </main>
@@ -110,7 +99,7 @@
         </a>
       </div>
       <div class="col-6 ps-1">
-        <a href="#" onclick="opcionElegida()" id="botonEliminar" class="btn btn-primary btn-lg w-100 btn-menu" disabled="disabled">
+        <a href="#" onclick="borrarInformacion()" id="botonEliminar" class="btn btn-primary btn-lg w-100 btn-menu" disabled="disabled">
           <span class="">Eliminar</span>
           <i class="icon-24-outlined-action-main-delete-2"style="font-size: 20px;"></i>
         </a>
