@@ -37,7 +37,7 @@ function iniciarHojasFactura() {
   const plantillaID = "1qxbXlhH4RpCOsObk91wsuu4k8jarVK34XXRUlKaKS1U";
   const plantilla = SpreadsheetApp.openById(plantillaID);
 
-  const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Historial Facturas", "Clientes", "Factura", "Historial Facturas Data", "ClientesInvalidos", "Facturas ID", "Copia de Plantilla", "ListadoEstado", "Plantilla", "Celdas plantilla", "Copia de Plantilla", "Copia de Factura","Datos"];
+  const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Clientes", "Factura", "Historial Facturas Data", "ClientesInvalidos", "Historial Facturas","Facturas ID", "Copia de Plantilla", "ListadoEstado", "Plantilla", "Celdas plantilla", "Copia de Plantilla", "Copia de Factura","Datos"];
   const hojasBloqueadasEInvisibles = ["ListadoEstado", "Plantilla", "Celdas plantilla", "Historial Facturas Data", "Facturas ID", "Datos", "ClientesInvalidos", "Copia de Plantilla", "Copia de Factura"];
 
 
@@ -81,6 +81,7 @@ function iniciarHojasFactura() {
           protection.removeEditors(protection.getEditors()); // Bloquear completamente
           protection.addEditor(Session.getEffectiveUser()); // Solo el propietario tiene acceso
         }
+
       } else {
         SpreadsheetApp.getUi().alert('La hoja "' + nombreHoja + '" no existe en la plantilla.');
       }
