@@ -1347,7 +1347,7 @@ function guardarYGenerarInvoice(){
     let ivaTaxInformation = {
       Id: "01",//Id
       TaxEvidenceIndicator: false,
-      TaxableAmount: Amount,
+      TaxableAmount: Price,
       TaxAmount: Iva,
       Percent: percent,
       BaseUnitMeasure: "",
@@ -1654,6 +1654,11 @@ function obtenerDatosFactura(factura){
           var notaPago = invoiceData.PaymentSummary.PaymentNote;
           var observaciones = invoiceData.InvoiceGeneralInformation.Note;
 
+          let ReqEquivalencia=invoiceData.invoiceTotal.totalCargoEqui
+          let retenciones=invoiceData.invoiceTotal.totalRet
+          let totalLinea=totalFacturaJSON
+          
+
           var filasInsertadas = 0;
           var filasInsertadasPorProductos = 0;
           var grupoIva = {};
@@ -1744,12 +1749,13 @@ function obtenerDatosFactura(factura){
 
             var producto = listaProductos[j]
             //crea un diccionario que la llave sea el % de iva y el valor sea el total de la linea
-            
+            Logger.log(grupoIva+"before")
             if (grupoIva.hasOwnProperty(percent)) {
               grupoIva[percent] += producto.TaxesInformation[0].TaxableAmount;
             } else {
               grupoIva[percent] = producto.TaxesInformation[0].TaxableAmount;
             }
+            Logger.log("grupoIva after"+grupoIva)
           }
           var contador = 0;
           var auxiliarFilasInsertadas = filasInsertadas;
