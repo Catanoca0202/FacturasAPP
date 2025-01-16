@@ -757,7 +757,7 @@ function onEdit(e) {
           
           factura_sheet.getRange("I"+String(i)).setValue(dictInformacionProducto["retencion"])//Retencion
           factura_sheet.getRange("J"+String(i)).setValue(dictInformacionProducto["Recargo de equivalencia"])//Recargo de equivalencia
-          factura_sheet.getRange("K"+String(i)).setValue("=((F"+String(i)+"+(F"+String(i)+"*G"+String(i)+")-(F"+String(i)+"*I"+String(i)+")+(F"+String(i)+"*J"+String(i)+"))-(F"+String(i)+"+(F"+String(i)+"*G"+String(i)+")-((F"+String(i)+"*I"+String(i)+")+(F"+String(i)+"*J"+String(i)+")))*H"+String(i)+")")//total linea
+          factura_sheet.getRange("K"+String(i)).setValue("=((F"+String(i)+"+(F"+String(i)+"*G"+String(i)+")-(F"+String(i)+"*I"+String(i)+")+(F"+String(i)+"*J"+String(i)+"))-(F"+String(i)+"*H"+String(i)+"))")//total linea
         }
       }
 
@@ -1023,7 +1023,7 @@ function calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRo
   let rowParaFormulaBaseImponible=taxSectionStartRow+1
   let rowEspacioIvasAgrupacion=taxSectionStartRow+5
   let rowTotalBaseImponibleEIvaGeneral=taxSectionStartRow+7
-  hojaActual.getRange("A"+String(rowParaFormulaBaseImponible)).setValue("=ARRAYFORMULA(SUMIF(G15:G"+String(lastRowProducto)+"; B"+String(rowParaFormulaBaseImponible)+":B"+String(rowEspacioIvasAgrupacion)+"; D15:D"+String(lastRowProducto)+"))")
+  hojaActual.getRange("A"+String(rowParaFormulaBaseImponible)).setValue("=ARRAYFORMULA(SUMIF(G15:G"+String(lastRowProducto)+"; B"+String(rowParaFormulaBaseImponible)+":B"+String(rowEspacioIvasAgrupacion)+"; F15:F"+String(lastRowProducto)+"))")
     //total base imponible e iva genberal
     hojaActual.getRange("A"+String(rowTotalBaseImponibleEIvaGeneral)).setValue("=SUM(A"+String(rowParaFormulaBaseImponible)+":A"+String(rowEspacioIvasAgrupacion)+")")
     hojaActual.getRange("C"+String(rowTotalBaseImponibleEIvaGeneral)).setValue("=SUM(C"+String(rowParaFormulaBaseImponible)+":C"+String(rowEspacioIvasAgrupacion)+")")
@@ -1039,7 +1039,7 @@ function calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRo
 
   //total descuentos FACTURA
   let rowDescuentos=taxSectionStartRow-1
-  hojaActual.getRange("D"+String(rowParaTotales)).setValue("=B"+String(rowDescuentos)+" + SUMPRODUCT(D15:D"+String(lastRowProducto)+"; C15:C"+String(lastRowProducto)+") - SUM(F15:F"+String(lastRowProducto)+")")
+  hojaActual.getRange("D"+String(rowParaTotales)).setValue("=B"+String(rowDescuentos)+"+(SUMPRODUCT(F15:F"+String(lastRowProducto)+";H15:H"+String(lastRowProducto)+"))")
 
   //totalfactura
   let rowParaTotalFactura=taxSectionStartRow+12

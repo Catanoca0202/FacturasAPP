@@ -1347,7 +1347,7 @@ function guardarYGenerarInvoice(){
     let ivaTaxInformation = {
       Id: "01",//Id
       TaxEvidenceIndicator: false,
-      TaxableAmount: Price,
+      TaxableAmount: Amount,
       TaxAmount: Iva,
       Percent: percent,
       BaseUnitMeasure: "",
@@ -1708,7 +1708,7 @@ function obtenerDatosFactura(factura){
 
             var celdaSubtotal = targetSheet.getRange('H'+numeroCelda);
             celdaSubtotal.setBorder(true,true,true,true,null,null,null,null);
-            celdaSubtotal.setFormula('=F'+numeroCelda+'*(G'+numeroCelda+'-(G'+numeroCelda+'*J'+numeroCelda+'))');
+            celdaSubtotal.setFormula(listaProductos[j].LineExtensionAmount);
             celdaSubtotal.setHorizontalAlignment('normal');
             celdaSubtotal.setNumberFormat('€#,##0.00')
             
@@ -1743,7 +1743,8 @@ function obtenerDatosFactura(factura){
             var celdaTotalLinea = targetSheet.getRange('M'+numeroCelda);
             celdaTotalLinea.setBorder(true,true,true,true,null,null,null,null);
             //subtotal+(subtotal*iva)+(subtotal*recargo)-(subtotal*retencion)
-            celdaTotalLinea.setFormula('=H'+numeroCelda+'+(H'+numeroCelda+'*I'+numeroCelda+')+(H'+numeroCelda+'*L'+numeroCelda+')-(H'+numeroCelda+'*K'+numeroCelda+')');
+            Logger.log("LineTotal "+listaProductos[j].LineTotal)
+            celdaTotalLinea.setFormula(listaProductos[j].LineTotal);
             celdaTotalLinea.setNumberFormat('€#,##0.00');
             celdaTotalLinea.setHorizontalAlignment('normal');
             
