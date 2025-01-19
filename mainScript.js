@@ -1032,10 +1032,10 @@ function calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRo
 
   let rowParaTotales=taxSectionStartRow+10
   //total retenciones
-  hojaActual.getRange("A"+String(rowParaTotales)).setValue("=(SUM(F15:F"+String(lastRowProducto)+")*(SUM(I15:I"+String(lastRowProducto)+")))")
+  hojaActual.getRange("A"+String(rowParaTotales)).setValue("=SUMPRODUCT(F15:F"+String(lastRowProducto)+";I15:I"+String(lastRowProducto)+")")
 
   //total cargo equivalencia
-  hojaActual.getRange("B"+String(rowParaTotales)).setValue("=(SUM(F15:F"+String(lastRowProducto)+"))*(SUM(J15:J"+String(lastRowProducto)+"))")
+  hojaActual.getRange("B"+String(rowParaTotales)).setValue("=SUMPRODUCT(F15:F"+String(lastRowProducto)+";J15:J"+String(lastRowProducto)+")")
 
   //total descuentos FACTURA
   let rowDescuentos=taxSectionStartRow-1
