@@ -1161,7 +1161,7 @@ var centenas = ['', 'Ciento ', 'Doscientos ', 'Trescientos ', 'Cuatrocientos ', 
 var decenas1 = ['Diez ', 'Once ', 'Doce ', 'Trece ', 'Catorce ', 'Quince ', 'Dieciseis ', 'Diecisiete ',
   'Dieciocho ', 'Diecinueve ']
 
-var decenas2 = ['', 'Diez', 'Veinte ', 'Treinta ', 'Cuarenta ', 'Cincuenta ', 'Sesenta ', 'Setenta', 'Ochenta ', 'Noventa ']
+var decenas2 = ['', 'Diez ', 'Veinte ', 'Treinta ', 'Cuarenta ', 'Cincuenta ', 'Sesenta ', 'Setenta ', 'Ochenta ', 'Noventa ']
 var unidades = ['', 'Un ', 'Dos ', 'Tres ', 'Cuatro ', 'Cinco ', 'Seis ', 'Siete ', 'Ocho ', 'Nueve ']
 
 function getPaymentMeans(PaymentMeansTxt) {
@@ -1375,7 +1375,7 @@ function int2word(n) {
   }
 
   if (centimos > 0) {
-    letras = letras + 'Euros' + `Con ${cienes(centimos)}Céntimos`;
+    letras = letras + 'Euros' + ` Con ${cienes(centimos)}Céntimos`;
   }
 
   return letras;

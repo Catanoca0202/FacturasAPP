@@ -1651,7 +1651,10 @@ function obtenerDatosFactura(factura){
           let descuentoGeneralesFactura=parseFloat(invoiceData.InvoiceTotal.GeneralPrePaidAmount);
           var cargosFactura = parseFloat(invoiceData.InvoiceTotal.ChargeTotalAmount);
           var totalFacturaJSON = parseFloat(invoiceData.InvoiceTotal.PayableAmount);
-          var valorPagar = int2word(totalFacturaJSON) //arreglar
+          let totalFacturaLetra=int2word(totalFacturaJSON)
+          totalFacturaLetra=capitalizarPrimeraPalabra(totalFacturaLetra)
+          Logger.log("totalFacturaLetra "+totalFacturaLetra)
+          var valorPagar = totalFacturaLetra //arreglar
           var notaPago = invoiceData.PaymentSummary.PaymentNote;
           var observaciones = invoiceData.InvoiceGeneralInformation.Note;
 
@@ -1744,7 +1747,7 @@ function obtenerDatosFactura(factura){
             celdaTotalLinea.setBorder(true,true,true,true,null,null,null,null);
             //subtotal+(subtotal*iva)+(subtotal*recargo)-(subtotal*retencion)
             Logger.log("LineTotal "+listaProductos[j].LineTotal)
-            celdaTotalLinea.setFormula(listaProductos[j].LineTotal);
+            celdaTotalLinea.setValue(listaProductos[j].LineTotal);
             celdaTotalLinea.setNumberFormat('€#,##0.00');
             celdaTotalLinea.setHorizontalAlignment('normal');
             
@@ -1942,6 +1945,24 @@ function obtenerDatosFactura(factura){
 
 
   Logger.log('Invoice number ' + factura + ' not found.');
+}
+
+function capitalizarPrimeraPalabra(cadena) {
+  if (typeof cadena !== 'string') {
+      throw new Error('El argumento debe ser una cadena.');
+  }
+  
+  // Convertimos toda la cadena a minúsculas para garantizar consistencia
+  cadena = cadena.toLowerCase();
+
+  // Dividimos la cadena en palabras
+  const palabras = cadena.split(' ');
+
+  // Capitalizamos la primera palabra y unimos el resto sin modificar
+  palabras[0] = palabras[0].charAt(0).toUpperCase() + palabras[0].slice(1);
+
+  // Unimos las palabras de nuevo en una cadena
+  return palabras.join(' ');
 }
 
 function dividirString(string) {
