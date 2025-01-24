@@ -1525,7 +1525,7 @@ function guardarYGenerarInvoice(){
   let invoice = JSON.stringify({
     CustomerInformation: CustomerInformation,
     InvoiceGeneralInformation: InvoiceGeneralInformation,
-    Delivery: "",
+    Delivery: String(prefactura_sheet.getRange("G8").getValue()),
     AdditionalDocuments: getAdditionalDocuments(),
     AdditionalProperty: getAdditionalProperty(),
     PaymentSummary: PaymentSummary, //por ahora esto leugo se cambia la funcion getPaymentSummary para que cumpla los parametros
@@ -1637,6 +1637,7 @@ function obtenerDatosFactura(factura){
       if (jsonData) {
         try {
           var invoiceData = JSON.parse(jsonData);
+          let Asesor=invoiceData.Delivery
           var facturaNumero = invoiceData.InvoiceGeneralInformation.InvoiceNumber;
           var cliente = invoiceData.CustomerInformation.RegistrationName;
           var nif = invoiceData.CustomerInformation.Identification;
@@ -1863,7 +1864,7 @@ function obtenerDatosFactura(factura){
           codigoCell.setValue(codigo);
           direccionCell.setValue(direccion);
           telefonoCell.setValue(telefono);
-          contactoCell.setValue(cliente)
+          contactoCell.setValue(Asesor)
           // Ajustar la forma en que se ve el pais - IMPORTANTE
           if (poblacion == "" || provincia == "" || pais == "") {
             var columnaPoblacion = poblacionCell.getColumn();

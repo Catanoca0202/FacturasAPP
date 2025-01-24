@@ -732,7 +732,7 @@ function getCustomerInformation(customer) {
     "AdditionalAccountID": "Numero que representa el tipo de persona, en España no se sabe si se utiliza o no",//"1",//1, //1: Juridica, 2: Natural
     "TaxLevelCodeListName": "numero que representa unos impuestos, no se si en España exista",//"48" Impuesto sobre las ventas IVA 49 – No responsable de impuesto sobre las ventas IVA
     "TaxSchemeCode": "Numero que representa algo, no se si en España exista ",
-    "TaxSchemeName": "Numero que representa algo, no se si en España exista ",
+    "TaxSchemeName": "",
     "FiscalResponsabilities": "Responsabiliades fiscales, no se si en España exista",
 
     "PartecipationPercent": 100,
@@ -751,7 +751,7 @@ function obtenerInformacionCliente(cliente) {
 
 
 
-  let codigoContacto = datos_sheet.getRange("I2").getValue();
+  let codigoContacto = datos_sheet.getRange("K2").getValue();
   let direccion = datos_sheet.getRange("T2").getValue();
   let pais = datos_sheet.getRange("S2").getValue();
   let provincia = datos_sheet.getRange("AA2").getValue();
