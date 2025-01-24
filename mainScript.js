@@ -734,7 +734,7 @@ function onEdit(e) {
     
         let verifcadorFecha=verificarDescuentoValido(valorFechaActual,ivaProductoActual)
         if (verifcadorFecha===false){
-          SpreadsheetApp.getUi().alert("Alguno de tus productos posee un iva del 5%, este porcentaje solo es valido en el rango de fechas del 1/1/2022 hasta el 12/31/2023")
+          SpreadsheetApp.getUi().alert("Alguno de tus productos posee un iva del 5%, este porcentaje solo es valido en el rango de fechas del 01/06/2022 hasta el 30/09/2024")
           //poner rangos en 0
           continue
         }
@@ -827,6 +827,15 @@ function onEdit(e) {
       let existe=verificarCodigo(numeroIdentificacion,"Clientes",true,rowEditada)
       if(existe){
         SpreadsheetApp.getUi().alert("El numero de identificacion ya existe, por favor elegir otro numero unico");
+        celdaEditada.setValue("");
+        verificarDatosObligatorios(e,tipoPersona)
+        throw new Error('por favor poner un Numero de Identificacion unico');
+      }
+    }else if(colEditada ==7 && rowEditada>1){
+      let numeroIdentificacion=hojaCliente.getRange(rowEditada,colEditada).getValue()
+      let existe=verificarCodigo(numeroIdentificacion,"Clientes",true,rowEditada,"codigo")
+      if(existe){
+        SpreadsheetApp.getUi().alert("El codigo del cliente ya existe, por favor elegir otro numero unico");
         celdaEditada.setValue("");
         verificarDatosObligatorios(e,tipoPersona)
         throw new Error('por favor poner un Numero de Identificacion unico');

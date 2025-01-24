@@ -851,7 +851,7 @@ function unirNombreYcodigo(hoja){
 }
 
 
-function verificarCodigo(codigo, nombreHoja, inHoja,lineEditada=null) {
+function verificarCodigo(codigo, nombreHoja, inHoja,lineEditada=null,codigoV="") {
   Logger.log("Verificar códigos");
   Logger.log("linea editada: "+lineEditada)
   // Obtener la hoja por nombre
@@ -870,8 +870,11 @@ function verificarCodigo(codigo, nombreHoja, inHoja,lineEditada=null) {
     let pruebaPostRow=0
     Logger.log(lastActiveRow+"last acitrive row")
     // Determinar la columna y el rango según el tipo de hoja
-    if (nombreHoja === "Clientes") {
+    if (nombreHoja === "Clientes" && codigoV!=="codigo") {
       columna = 6; // Columna para el identificador de clientes
+      rangeDatos = sheet.getRange(2, columna, lastActiveRow - (inHoja ? 2 : 1));
+    }else if(nombreHoja==="Clientes" && codigoV==="codigo"){
+      columna = 7;
       rangeDatos = sheet.getRange(2, columna, lastActiveRow - (inHoja ? 2 : 1));
     } else if (nombreHoja === "Productos") {
       columna = 2; // Columna para el código de productos
@@ -1711,7 +1714,7 @@ function obtenerDatosFactura(factura){
 
             var celdaSubtotal = targetSheet.getRange('H'+numeroCelda);
             celdaSubtotal.setBorder(true,true,true,true,null,null,null,null);
-            celdaSubtotal.setFormula(listaProductos[j].LineExtensionAmount);
+            celdaSubtotal.setValue(listaProductos[j].LineExtensionAmount);
             celdaSubtotal.setHorizontalAlignment('normal');
             celdaSubtotal.setNumberFormat('€#,##0.00')
             
