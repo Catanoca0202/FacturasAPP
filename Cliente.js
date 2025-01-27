@@ -475,8 +475,11 @@ function saveClientData(formData) {
   }
 
   let existe = verificarCodigo(formData.numeroIdentificacion, "Clientes", false);
+  let existeC=verificarCodigo(formData.codigoContacto, "Clientes", false,null,"codigo");
   if (existe) {
     return { success: false, message: 'El Número de Identificación ya existe. Por favor ingrese un número único.' };
+  }else if(existeC){
+    return { success: false, message: 'El Codigo ya existe. Por favor ingrese un número único.' };
   }
 
   const lastRow = sheet.getLastRow();

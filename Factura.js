@@ -341,6 +341,7 @@ function guardarFactura(){
 
 }
 function agregarFilaNueva(){
+  
   var spreadsheet = SpreadsheetApp.getActive();
   let hojaFactura = spreadsheet.getSheetByName('Factura');
   let numeroFilasParaAgregar = hojaFactura.getRange("B13").getValue();
@@ -350,13 +351,17 @@ function agregarFilaNueva(){
     SpreadsheetApp.getUi().alert("Error: Por favor, ingresa un número válido de filas para agregar.");
     return; // Detener la ejecución si hay error
   }
-  
+  Logger.log("esperarB"+esperar)
+  while(esperar){
+    Logger.log("espera")
+  }
   let taxSectionStartRow = getTaxSectionStartRow(hojaFactura); // recordar este devuelve el lugar en donde deberían estar base imponible, toca restar -1
   const productStartRow = 15;
   const lastProductRow = getLastProductRow(hojaFactura, productStartRow, taxSectionStartRow);
   
   Logger.log("Agregar fila nueva");
   hojaFactura.insertRows(lastProductRow, numeroFilasParaAgregar);
+  
 }
 
 function agregarProductoDesdeFactura(cantidad,producto){
@@ -874,7 +879,7 @@ function verificarCodigo(codigo, nombreHoja, inHoja,lineEditada=null,codigoV="")
       columna = 6; // Columna para el identificador de clientes
       rangeDatos = sheet.getRange(2, columna, lastActiveRow - (inHoja ? 2 : 1));
     }else if(nombreHoja==="Clientes" && codigoV==="codigo"){
-      columna = 7;
+      columna = 7;//columna codigo
       rangeDatos = sheet.getRange(2, columna, lastActiveRow - (inHoja ? 2 : 1));
     } else if (nombreHoja === "Productos") {
       columna = 2; // Columna para el código de productos
@@ -903,7 +908,7 @@ function verificarCodigo(codigo, nombreHoja, inHoja,lineEditada=null,codigoV="")
       if (datos[i] === codigoNumero) {
         if(i===lineEditada-2){
           Logger.log("dentro de continue")
-          continue
+          
         }else{
 
         Logger.log(`El código "${codigoNumero}" ya existe en la hoja "${nombreHoja}".`);
@@ -1725,7 +1730,7 @@ function obtenerDatosFactura(factura){
             percent = percent.slice(0, -1);
             percent = parseFloat(percent);
             celdaIva.setValue(percent/100);
-            celdaIva.setNumberFormat('0.0%');
+            celdaIva.setNumberFormat('0%');
             celdaIva.setHorizontalAlignment('center');
 
             var celdaDescuento = targetSheet.getRange('J'+numeroCelda);
@@ -1795,7 +1800,7 @@ function obtenerDatosFactura(factura){
               var celdaPorcentajeIva = targetSheet.getRange('E'+numeroCelda);
               celdaPorcentajeIva.setBorder(true,true,true,true,null,null,null,null);
               celdaPorcentajeIva.setValue(key/100);
-              celdaPorcentajeIva.setNumberFormat('0.0%');
+              celdaPorcentajeIva.setNumberFormat('0%');
               celdaPorcentajeIva.setHorizontalAlignment('center');
               
               var celdaIVA = targetSheet.getRange('F'+numeroCelda);

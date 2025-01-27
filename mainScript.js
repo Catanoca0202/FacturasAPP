@@ -140,6 +140,8 @@ function IniciarFacturasApp(){
   let ui = SpreadsheetApp.getUi();
   
   let hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Datos de emisor");
+  const scriptProps = PropertiesService.getScriptProperties();
+
   if (hoja==null){
     iniciarHojasFactura()
     OnOpenSheetInicio()
@@ -665,15 +667,17 @@ function mostrarAlertaDesdeServidor(mensaje) {
   SpreadsheetApp.getUi().alert(mensaje);
 }
 
-
+var esperar;
 function onEdit(e) {
   let spreadsheet = SpreadsheetApp.getActive();
   let hojaActual = e.source.getActiveSheet();
   let factura_sheet = spreadsheet.getSheetByName('Factura');
+
+  let lock = LockService.getScriptLock();
   //verificarTipoDeDatos(e);
 
   if (hojaActual.getName() === "Factura") {
-
+    esperar=true
     let celdaEditada = e.range;
     let rowEditada = celdaEditada.getRow();
     let colEditada = celdaEditada.getColumn();
@@ -734,7 +738,7 @@ function onEdit(e) {
     
         let verifcadorFecha=verificarDescuentoValido(valorFechaActual,ivaProductoActual)
         if (verifcadorFecha===false){
-          SpreadsheetApp.getUi().alert("Alguno de tus productos posee un iva del 5%, este porcentaje solo es valido en el rango de fechas del 01/06/2022 hasta el 30/09/2024")
+          SpreadsheetApp.getUi().alert("Alguno de tus productos posee un iva del 5%. La fecha de facturación debe estar comprendida entre el 1 de julio de 2022 y el 30 de septiembre de 2024")
           //poner rangos en 0
           continue
         }
@@ -794,8 +798,10 @@ function onEdit(e) {
         celdaEditada.setValue("");
         throw new Error('por favor poner un Numero de Identificacion unico');
       }
+    }else if(colEditada==12 && rowEditada >= productStartRow && rowEditada < posRowTotalProductos){
+      Logger.log("dentro eliminar")
     }
-
+    
     let lastRowProducto=getLastProductRow(hojaActual, productStartRow, taxSectionStartRow);
     if (lastRowProducto===productStartRow){
       Logger.log("dentro de agg info para TOTLA pero last y start son iguales")
@@ -809,8 +815,11 @@ function onEdit(e) {
       Logger.log("productStartRow"+productStartRow)
       calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRow,hojaActual)
     }
-
+    
     updateTotalProductCounter(lastRowProducto,productStartRow,hojaActual,taxSectionStartRow)
+    Logger.log("esperarB"+esperar)
+    esperar=false
+    Logger.log("esperarA"+esperar)
   } else if (hojaActual.getName() === "Clientes") {
     let celdaEditada = e.range;
     let hojaCliente=e.source.getActiveSheet();
@@ -870,6 +879,25 @@ function onEdit(e) {
         verificarDatosObligatoriosProductos(e)
         throw new Error('por favor poner un Numero de Identificacion unico');
       }
+    }
+  }
+}
+
+function eliminarProductos(){
+  //mirar cuando solo hay 1 fila
+  let spreadsheet = SpreadsheetApp.getActive();
+  let factura_sheet = spreadsheet.getSheetByName('Factura');
+  const productStartRow = 15; // prodcutos empeiza aca
+  let taxSectionStartRow = getTaxSectionStartRow(factura_sheet); // Assuming products end at column H
+  let posRowTerminaProductos=taxSectionStartRow-4//poscion (row) de Total productos
+  Logger.log("posRowTotalProductos" +posRowTerminaProductos)
+  let range=factura_sheet.getRange("L15:L"+String(posRowTerminaProductos))
+  let values = range.getValues()
+
+  for (let i = values.length - 1; i >= 0; i--) {
+    if (values[i][0] === true) {
+      Logger.log(i+productStartRow)
+      factura_sheet.deleteRow(i +productStartRow); // Elimina la fila correspondiente
     }
   }
 }
