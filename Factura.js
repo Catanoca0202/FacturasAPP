@@ -861,12 +861,8 @@ function verificarCodigo(codigo, nombreHoja, inHoja,lineEditada=null,codigoV="")
   Logger.log("linea editada: "+lineEditada)
   // Obtener la hoja por nombre
   let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nombreHoja);
+  let codigoNumero = String(codigo)
 
-  // Validar que el código no esté vacío y sea un número válido
-  if (codigo === "" || isNaN(Number(codigo))) {
-    Logger.log("El código es vacío o no es un número válido.");
-    return false;
-  }
 
   try {
     let columna;
@@ -894,12 +890,12 @@ function verificarCodigo(codigo, nombreHoja, inHoja,lineEditada=null,codigoV="")
     }
     Logger.log("last active ro post"+pruebaPostRow)
     // Obtener los valores del rango como una matriz de números
-    let datos = rangeDatos.getValues().flat().map(Number);
+    let datos = rangeDatos.getValues().flat().map(String);
     Logger.log("Datos obtenidos como números:");
     Logger.log(datos);
 
     // Convertir el código a número
-    let codigoNumero = Number(codigo);
+    
     Logger.log(codigoNumero)
     // Verificar si algún valor en datos es exactamente igual al código
     for (let i = 0; i < datos.length; i++) {
@@ -1324,7 +1320,7 @@ function guardarYGenerarInvoice(){
     let ItemCode = new Number(LineaFactura['referencia']);
     let MeasureUnitCode = "Sin unidad"
     let Quantity = LineaFactura['cantidad'];
-    let Price = LineaFactura['siniva'];
+    let Price = LineaFactura['preciounitario'];
     let Amount = parseFloat(LineaFactura['subtotal']);//importe
     let ImpoConsumo = 1// no es un parametro para empresas espanolas
     let LineChargeTotal = parseFloat(LineaFactura['totaldelinea']);

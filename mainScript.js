@@ -673,7 +673,6 @@ function onEdit(e) {
   let hojaActual = e.source.getActiveSheet();
   let factura_sheet = spreadsheet.getSheetByName('Factura');
 
-  let lock = LockService.getScriptLock();
   //verificarTipoDeDatos(e);
 
   if (hojaActual.getName() === "Factura") {
@@ -879,6 +878,18 @@ function onEdit(e) {
         verificarDatosObligatoriosProductos(e)
         throw new Error('por favor poner un Numero de Identificacion unico');
       }
+    }
+  }else if(hojaActual.getName() === "Datos de emisor"){
+    Logger.log("datos emisor")
+    let celdaEditada = e.range;
+    
+    let rowEditada = celdaEditada.getRow();
+    let colEditada = celdaEditada.getColumn();
+    if(rowEditada == 22 && colEditada ==1){
+      Logger.log("dentro de Consecutivo")
+      let Consecutivo=hojaActual.getRange(rowEditada,colEditada).getValue()
+      Logger.log("Consecutivo "+Consecutivo)
+      verificarConsecutivo(Consecutivo)
     }
   }
 }
@@ -1551,3 +1562,10 @@ function updatesheetValueA1(sheet, column, row, value) {
   return
 }
 
+function aumentarConsecutivo(Consecutivo){
+
+}
+
+function verificarConsecutivo(Consecutivo){
+  
+}
