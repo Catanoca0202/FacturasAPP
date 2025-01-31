@@ -889,7 +889,14 @@ function onEdit(e) {
       Logger.log("dentro de Consecutivo")
       let Consecutivo=hojaActual.getRange(rowEditada,colEditada).getValue()
       Logger.log("Consecutivo "+Consecutivo)
-      verificarConsecutivo(Consecutivo)
+      let res=verificarConsecutivo(Consecutivo)
+      Logger.log("res "+res)
+      if(res){
+        Logger.log("consecutivo valido")
+      }else{
+        SpreadsheetApp.getUi().alert('Por favor ingresa un consecutivo valido de tipo abc123');
+        hojaActual.getRange(rowEditada,colEditada).setValue("") 
+      }
     }
   }
 }
@@ -902,13 +909,17 @@ function eliminarProductos(){
   let taxSectionStartRow = getTaxSectionStartRow(factura_sheet); // Assuming products end at column H
   let posRowTerminaProductos=taxSectionStartRow-4//poscion (row) de Total productos
   Logger.log("posRowTotalProductos" +posRowTerminaProductos)
-  let range=factura_sheet.getRange("L15:L"+String(posRowTerminaProductos))
-  let values = range.getValues()
+  if(posRowTerminaProductos==15){
+    SpreadsheetApp.getUi().alert('No puedes eliminar hojas cuando solo hay un producto en la factura');
+  }else{
+    let range=factura_sheet.getRange("L15:L"+String(posRowTerminaProductos))
+    let values = range.getValues()
 
-  for (let i = values.length - 1; i >= 0; i--) {
-    if (values[i][0] === true) {
-      Logger.log(i+productStartRow)
-      factura_sheet.deleteRow(i +productStartRow); // Elimina la fila correspondiente
+    for (let i = values.length - 1; i >= 0; i--) {
+      if (values[i][0] === true) {
+        Logger.log(i+productStartRow)
+        factura_sheet.deleteRow(i +productStartRow); // Elimina la fila correspondiente
+      }
     }
   }
 }
@@ -1566,6 +1577,12 @@ function aumentarConsecutivo(Consecutivo){
 
 }
 
-function verificarConsecutivo(Consecutivo){
+function verificarConsecutivo(consecutivo) {
+  // Expresión regular para validar:
+  //  - 1 a 10 letras (a-z, sin importar mayúscula o minúscula)
+  //  - Seguidas de 1 a 10 dígitos
+  var regex = /^[A-Za-z]{1,10}\d{1,10}$/;
   
+  // Retorna true si hace match, false en caso contrario
+  return regex.test(consecutivo);
 }
