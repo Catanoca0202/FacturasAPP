@@ -17,6 +17,10 @@
 
   </head>
   <script>
+    function agregarUltimoCliente(referenciaUnica){
+
+      google.script.run.agregarUltimoCliente(referenciaUnica)
+    }
     function writeDocument(htmlOutput) {
       document.open();
       document.write(htmlOutput);
@@ -108,6 +112,9 @@
         
         
         // Limpiar el formulario
+        console.log(response)
+        console.log(response.refe)
+        agregarUltimoCliente(response.refe)
         resetearFormulario();
         document.getElementById('numeroIdentificacion').focus();
       } else {
@@ -153,7 +160,7 @@ function resetearFormulario() {
 
     <div class="mt-4 px-4 gx-0 d-flex flex-column">
               <a href="#"  onclick="Back()" class="btn btn-outline-secondary btn-fluid"><i class="icon-left"></i> <span>Regresar</span></a>
-            <h2 class="mt-4">Crear contacto</h2>
+            <h2 class="mt-4">Crear contacto desde factura</h2>
     </div>
   </header>
 

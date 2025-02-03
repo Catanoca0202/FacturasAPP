@@ -575,9 +575,9 @@ function processForm(data) {
     sheet.getRange(newRow,1).setValue("Valido")
     
     SpreadsheetApp.getUi().alert("Nuevo producto generado satisfactoriamente");
-    return "Datos guardados correctamente";
+    return {message: "Datos guardados correctamente", refe: referenciaUnica};
   } catch (error) {
-    return "Error al guardar los datos: " + error.message;
+    return {message:"Error al guardar los datos: " + error.message,refe: null};
   }
 }
 

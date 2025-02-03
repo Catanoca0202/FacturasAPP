@@ -1,12 +1,19 @@
-// var spreadsheet = SpreadsheetApp.getActive();
 // var datos_sheet = spreadsheet.getSheetByName('Datos');
+// var spreadsheet = SpreadsheetApp.getActive();
 // var factura_sheet= spreadsheet.getSheetByName("Factura")
 
-function showNuevaCliente() {
-  var html = HtmlService.createHtmlOutputFromFile('menuAgregarCliente').setTitle("Nuevo Cliente")
+function showNuevaClienteDesdeFactura() {
+  var html = HtmlService.createHtmlOutputFromFile('menuAgregarClienteDesdeF').setTitle("Nuevo Cliente")
   SpreadsheetApp.getUi()
     .showSidebar(html);
 }
+
+function showNuevaProductoDesdeFactura(){
+  var html = HtmlService.createHtmlOutputFromFile('agregarProductoDesdeF').setTitle("Nuevo Cliente")
+  SpreadsheetApp.getUi()
+    .showSidebar(html);
+}
+
 function showNuevaClienteV2() {
   var html = HtmlService.createHtmlOutputFromFile('menuAgregarCliente').setTitle("Nuevo Cliente")
   SpreadsheetApp.getUi()
@@ -531,12 +538,25 @@ function saveClientData(formData) {
   sheet.getRange(emptyRow, 3, 1, values.length).setValues([values]);
   let referenciaUnica = nombre + "-" + formData.numeroIdentificacion;
   sheet.getRange(emptyRow, 2).setValue(referenciaUnica);
+  Logger.log("dentro de ref unico "+referenciaUnica)
   sheet.getRange(emptyRow, 1).setValue("Valido");
   SpreadsheetApp.getUi().alert("Nuevo cliente generado satisfactoriamente");
 
-  return { success: true, message: 'Nuevo cliente generado satisfactoriamente.' };
+  return { success: true, message: 'Nuevo cliente generado satisfactoriamente.' , refe: referenciaUnica};
+}
+function agregarUltimoCliente(referenciaUnica){
+  Logger.log("agregarUltimo")
+  Logger.log("referenciaUnica "+referenciaUnica)
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  var sheet = ss.getSheetByName("Factura");
+  sheet.getRange("B2").setValue(referenciaUnica)
+  obtenerFechaYHoraActual()
 }
 
+function agregarUltimoProducto(refe){
+  agregarProductoDesdeFactura(1,refe)
+}
 
 
 function verificarDatosObligatoriosProductos(e){
@@ -649,8 +669,12 @@ function verificarDatosObligatorios(e, tipoPersona) {
 
 function crearContacto(){
   Logger.log("imprima algo")
-  showNuevaClienteV2()
+  showNuevaClienteDesdeFactura()
 
+}
+
+function crearProducto(){
+  showNuevaProductoDesdeFactura()
 }
 
 function getCustomerInformation(customer) {
