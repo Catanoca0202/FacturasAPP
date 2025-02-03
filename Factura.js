@@ -883,7 +883,7 @@ function verificarCodigo(codigo, nombreHoja, inHoja,lineEditada=null,codigoV="")
       rangeDatos = sheet.getRange(2, columna, lastActiveRow - (inHoja? 2: 1));
     } else if (nombreHoja === "Historial Facturas Data") {
       columna = 1; // Columna para el número de factura
-      rangeDatos = sheet.getRange(2, columna, lastActiveRow - 2);
+      rangeDatos = sheet.getRange(2, columna, lastActiveRow - 1);
     } else {
       Logger.log("Nombre de hoja no válido.");
       return false;
@@ -1118,32 +1118,63 @@ function verificarYCopiarContacto(e) {
 function generarNumeroFactura(){
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = spreadsheet.getSheetByName('Factura');
-  let sheetHistorial=spreadsheet.getSheetByName("Historial Facturas Data")
-  let columnaNumeroFactura=1
-  let lastActiveRow=sheetHistorial.getLastRow()
-  if (lastActiveRow==1 || lastActiveRow==2){
-    lastActiveRow=2
+  let sheetHistorial = spreadsheet.getSheetByName("Historial Facturas Data");
+  let columnaNumeroFactura = 1;
+  let lastActiveRow = sheetHistorial.getLastRow();
+  
+  if (lastActiveRow <= 2) {
+    lastActiveRow = 2;
   }
+  
   let rangeNumeroFactura = sheetHistorial.getRange(2, columnaNumeroFactura, lastActiveRow - 1);
   let numeroFacturas = rangeNumeroFactura.getValues();
-
-  // Inicializar una variable para almacenar el número mayor
+  
   let numeroMayor = -Infinity;
+  let ultimoConsecutivo = "";
 
-  // Iterar sobre el array de arrays
+  // Iterar sobre la columna para encontrar el mayor número
   for (let i = 0; i < numeroFacturas.length; i++) {
-    let numero = Number(numeroFacturas[i][0]); // Convertir el valor a número
-    Logger.log("numero "+numero)
-    if (numero > numeroMayor) {
-      numeroMayor = numero; // Actualizar si encontramos un número mayor
+    let consecutivo = numeroFacturas[i][0]; 
+    let cumple = cumpleEstructura(consecutivo)
+    if(!cumple){
+      Logger.log("No cumple con la estructura")
+    }else{
+      let numero = obtenerParteNumerica(consecutivo);
+      
+      if (numero > numeroMayor) {
+        numeroMayor = numero;
+        ultimoConsecutivo = consecutivo; // Guardamos el último número en formato original
+      }
     }
+
+    let numeroActual = numeroMayor + 1;
+    let nuevoConsecutivo = generarNuevoConsecutivo(ultimoConsecutivo, numeroActual);
+
+    sheet.getRange("G2").setValue(nuevoConsecutivo);
+  }
+}
+
+// Extrae la parte numérica de una cadena
+function obtenerParteNumerica(str) {
+  str = String(str);
+  const match = str.match(/\d+$/);
+  return match ? parseInt(match[0], 10) : 0;
+}
+
+// Genera el nuevo número con el mismo formato del original
+function generarNuevoConsecutivo(original, nuevoNumero) {
+  let match = original.match(/^(\D*)(\d+)$/); // Captura el prefijo y la parte numérica
+  
+  if (!match) {
+    return String(nuevoNumero); // Si no hay formato reconocible, devuelve solo el número
   }
 
-  Logger.log(numeroMayor)
-  let numeroActual= numeroMayor
-  numeroActual=Number(numeroActual);
-  numeroActual++
-  sheet.getRange("G2").setValue(numeroActual);
+  let prefijo = match[1]; // Parte no numérica (ejemplo: "uuu", "xyz-")
+  let parteNumerica = match[2]; // Parte numérica original (ejemplo: "000001")
+  
+  let nuevoNumeroStr = String(nuevoNumero).padStart(parteNumerica.length, '0'); // Mantiene los ceros iniciales
+  
+  return prefijo + nuevoNumeroStr;
 }
 
 function obtenerFechaYHoraActual(){ 
@@ -1505,7 +1536,7 @@ function guardarYGenerarInvoice(){
         "contactName": String(cliente),
         "nif": String(CustomerInformation["Identification"]),
         "invoiceDate": String(fechParaNuevoInvoice),
-        "numberInvoice": String(InvoiceGeneralInformation["InvoiceNumber"]),
+        "numberInvoice": InvoiceGeneralInformation["InvoiceNumber"],
         "taxableAmount": String(parseFloat(facturaTotalesBaseImponilbe[0])),
         "Percent": "0",
         "taxAmount": String(parseFloat(facturaTotalesBaseImponilbe[2])),
@@ -1540,7 +1571,7 @@ function guardarYGenerarInvoice(){
   Logger.log(nuevoInvoiceResumido)
 
   let nameString = prefactura_sheet.getRange("B2").getValue();
-  let numeroFactura = JSON.stringify(InvoiceGeneralInformation.InvoiceNumber);
+  let numeroFactura = InvoiceGeneralInformation.InvoiceNumber;
   let fecha =ObtenerFecha();
   let codigoCliente=prefactura_sheet.getRange("B3").getValue();
   listadoestado_sheet.appendRow(["vacio", "vacio","vacio" , fecha,"vacio" ,numeroFactura ,nameString ,codigoCliente,"vacio" ,"vacio" ,"representacion" ,"Vacio", String(invoice),String(nuevoInvoiceResumido)]);
@@ -1632,6 +1663,7 @@ function obtenerDatosFactura(factura){
   for (var i = 1; i < data.length; i++) { // Comienza en 1 para saltar la fila de encabezado
     //Logger.log(data[i][invoiceColIndex])
     //Logger.log(typeof(data[i][invoiceColIndex]))
+    Logger.log("error "+data[i][invoiceColIndex])
     if (data[i][invoiceColIndex] == factura) {
       var jsonData = data[i][jsonColIndex];
       Logger.log("jsondata "+jsonData)

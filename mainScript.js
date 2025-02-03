@@ -791,12 +791,19 @@ function onEdit(e) {
       }
     }else if(colEditada==7 && rowEditada==2){
       let valorFacturaNumero = celdaEditada.getValue();
-      let existe=verificarCodigo(valorFacturaNumero,"Historial Facturas Data",false)
-      if(existe){
-        SpreadsheetApp.getUi().alert("El numero de factura ya existe, por favor poner un numero de factura unico");
+      let coincideEstruct=cumpleEstructura(valorFacturaNumero)
+      if(!coincideEstruct){
+        SpreadsheetApp.getUi().alert("El consecutivo de la factura debe de existir la estructura que tu elegiste");
         celdaEditada.setValue("");
-        throw new Error('por favor poner un Numero de Identificacion unico');
-      }
+      }else {
+        Logger.log("coincideEstruct "+coincideEstruct)
+        let existe=verificarCodigo(valorFacturaNumero,"Historial Facturas Data",false)
+        if(existe){
+          SpreadsheetApp.getUi().alert("El numero de factura ya existe, por favor poner un numero de factura unico");
+          celdaEditada.setValue("");
+          throw new Error('por favor poner un Numero de Identificacion unico');
+        }
+    }
     }else if(colEditada==12 && rowEditada >= productStartRow && rowEditada < posRowTotalProductos){
       Logger.log("dentro eliminar")
     }
@@ -881,23 +888,7 @@ function onEdit(e) {
     }
   }else if(hojaActual.getName() === "Datos de emisor"){
     Logger.log("datos emisor")
-    let celdaEditada = e.range;
-    
-    let rowEditada = celdaEditada.getRow();
-    let colEditada = celdaEditada.getColumn();
-    if(rowEditada == 22 && colEditada ==1){
-      Logger.log("dentro de Consecutivo")
-      let Consecutivo=hojaActual.getRange(rowEditada,colEditada).getValue()
-      Logger.log("Consecutivo "+Consecutivo)
-      let res=verificarConsecutivo(Consecutivo)
-      Logger.log("res "+res)
-      if(res){
-        Logger.log("consecutivo valido")
-      }else{
-        SpreadsheetApp.getUi().alert('Por favor ingresa un consecutivo valido de tipo abc123');
-        hojaActual.getRange(rowEditada,colEditada).setValue("") 
-      }
-    }
+
   }
 }
 
@@ -1577,12 +1568,77 @@ function aumentarConsecutivo(Consecutivo){
 
 }
 
-function verificarConsecutivo(consecutivo) {
-  // Expresión regular para validar:
-  //  - 1 a 10 letras (a-z, sin importar mayúscula o minúscula)
-  //  - Seguidas de 1 a 10 dígitos
-  var regex = /^[A-Za-z]{1,10}\d{1,10}$/;
+function verificarConsecutivo(entrada, isNumero) {
+  let regex;
+  if(entrada==""){
+    return false
+  }else if (isNumero) {
+    // Valida que la cadena contenga únicamente dígitos y tenga de 1 a 10 caracteres
+    regex = /^\d{1,10}$/;
+  } else {
+    // Valida que la cadena contenga cualquier carácter excepto dígitos y tenga de 1 a 10 caracteres
+    // Esto incluye letras, caracteres especiales, e incluso espacios
+    regex = /^[^0-9]{1,10}$/;
+  }
   
-  // Retorna true si hace match, false en caso contrario
-  return regex.test(consecutivo);
+  return regex.test(entrada);
+}
+
+function guardarConsecutivo(){
+  let spreadsheet = SpreadsheetApp.getActive();
+  let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
+  let letra=hojaDatosEmisor.getRange(23,1).getValue()
+  let numero = hojaDatosEmisor.getRange(23,3).getValue()
+  const scriptProperties = PropertiesService.getScriptProperties();
+  if(verificarConsecutivo(letra,false)){
+    Logger.log("letra valida")
+    if(verificarConsecutivo(numero,true)){
+      Logger.log("numero valido")
+      Logger.log("numero "+numero)
+      Logger.log("letra "+letra)
+      scriptProperties.setProperties({
+        'NumeroConescutivo': numero,
+        'LetraConescutivo': letra
+      });
+      SpreadsheetApp.getUi().alert('Consecutivo valido y guardado');
+    }else{
+      SpreadsheetApp.getUi().alert('Por favor ingresa un consecutivo valido');
+    }
+
+  }else{
+    SpreadsheetApp.getUi().alert('Por favor ingresa un consecutivo valido');
+  }
+
+  
+}
+
+function cumpleEstructura(str) {
+  let numero;
+  let letra;
+  
+  try {
+    const scriptProperties = PropertiesService.getScriptProperties();
+    numero = scriptProperties.getProperty('NumeroConescutivo');  // Ej: "123"
+    letra  = scriptProperties.getProperty('LetraConescutivo');   // Ej: "abc"
+  } catch (err) {
+    Logger.log('Error leyendo propiedades: %s', err.message);
+    return false;  // Maneja el error según tu caso
+  }
+
+  // Calculamos la longitud de "numero", que será la cantidad de dígitos esperados
+  const lengthNumeros = numero.length;
+
+  // Escapamos "letra" para que si tuviera caracteres especiales, no rompan la expresión
+  // Ej: si letra fuera "ab." se convertirá en "ab\."
+  const letraEscapada = letra.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // Construimos el patrón:
+  // ^ (inicio)
+  // <letraEscapada> (prefijo literal)
+  // \d{lengthNumeros} (exactamente lengthNumeros dígitos)
+  // $ (fin)
+  const regex = new RegExp(`^${letraEscapada}\\d{${lengthNumeros}}$`);
+
+  // Verificamos si "str" cumple esa estructura
+  return regex.test(str);
 }

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="es" class="h-100">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
+    <meta name="generator" content="Hugo 0.84.0">
+    <title>Crear producto</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="https://facturasapp.com/Publico/google-sheets-resources/css/bootstrap.css" rel="stylesheet">
+
+    <!-- Custom styles for this template -->
+    <link href="https://facturasapp.com/Publico/google-sheets-resources/css/custom.css" rel="stylesheet">
+    <link href="https://facturasapp.com/Publico/google-sheets-resources/css/fontello-codes.css" rel="stylesheet">
+
+    <script>
+
+      function showMenuPrincipal() {
+        google.script.run.showSidebar();
+      }
+      function Back() {
+        google.script.run.showNuevaFactura();
+      }
+
+      function agregarProducto() {
+        var cantidad = document.getElementById('cantidad').value;
+        var producto = document.getElementById('buscarProducto').value;
+
+        console.log("Producto:", producto, "Cantidad:", cantidad);
+        google.script.run.agregarProductoDesdeFactura(cantidad, producto);
+      }
+
+      function buscarProductos() {
+        var input = document.getElementById('buscarProducto').value;
+        google.script.run.withSuccessHandler(mostrarResultados).buscarProductos(input);
+      }
+      
+      function mostrarResultados(productos) {
+        var resultBox = document.querySelector('.result-box');
+        resultBox.innerHTML = '';
+        productos.forEach(function(producto) {
+          var div = document.createElement('div');
+          div.textContent = producto;
+          div.onclick = function() {
+            seleccionarProducto(producto);
+          };
+          resultBox.appendChild(div);
+        });
+      }
+
+      function seleccionarProducto(producto) {
+        document.getElementById('buscarProducto').value = producto;
+        var resultBox = document.querySelector('.result-box');
+        resultBox.innerHTML = ''; // Limpiar los resultados
+      }
+  </script>
+  </head>
+
+  <body class="d-flex h-100">
+    <div class="assistant-container d-flex w-100 h-100 mx-auto flex-column">
+      <header class="mb-auto">
+        <div id="logo" class="d-flex justify-content-center bg-primary">
+          <img src="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/images/logoAssistant.png" alt="">
+        </div>
+
+        <div class="mt-4 px-4 gx-0 d-flex flex-column">
+                  <a href="#"  onclick="Back()" class="btn btn-outline-secondary btn-fluid"><i class="icon-left"></i> <span>Regresar</span></a>
+                <h2 class="mt-4">Agregar producto</h2>
+        </div>
+      </header>
+
+      <main>
+        <div class="row py-3 px-4 mt-3 gx-0">
+          <div class="col-12 py-4">
+            <p>Ingresa la información de tu nuevo producto.</p>
+          </div>
+
+          <div class="col-12 px-0">
+
+            <form class="row g-3" id="productForm">
+              <div class="col-12">
+                <label for="cantidad"class="form-label">Cantidad</label>
+                <input type="number" class="form-control" id="cantidad" placeholder="Cantidad">
+              </div>
+
+              <div class="col-12">
+                <label for="buscarProducto"class="form-label">Buscar producto</label>
+                <input type="text" id="buscarProducto" class="form-control" placeholder="Buscar producto" autocomplete="off" onkeyup="buscarProductos()">
+                <div class="result-box">
+                  <!-- Los resultados se mostrarán aquí -->
+                </div>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      </main>
+
+
+      <footer class="mt-auto">
+        <div class="row p-4 gx-0">
+          <div class="col-6 pe-1">
+            <a href="#" onclick="showMenuPrincipal()" class="btn btn-outline-primary btn-lg w-100 btn-menu">
+              <span class="">Inicio</span>
+              <i class="icon-24-outlined-other-location-home"style="font-size: 20px;"></i>
+            </a>
+          </div>
+          <div class="col-6 ps-1">
+            <a href="#" onclick="agregarProducto()" class="btn btn-primary btn-lg w-100 btn-menu">
+              <span class="">Agregar</span>
+              <i class="icon-24-outlined-suggested-symbol"style="font-size: 20px;"></i>
+            </a>
+          </div>
+        </div>
+      </footer>
+
+
+    </div>
+  </body>
+</html>
