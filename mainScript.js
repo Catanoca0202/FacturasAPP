@@ -667,228 +667,237 @@ function mostrarAlertaDesdeServidor(mensaje) {
   SpreadsheetApp.getUi().alert(mensaje);
 }
 
-var esperar;
+
 function onEdit(e) {
+  const lock = LockService.getScriptLock();
   let spreadsheet = SpreadsheetApp.getActive();
   let hojaActual = e.source.getActiveSheet();
   let factura_sheet = spreadsheet.getSheetByName('Factura');
 
   //verificarTipoDeDatos(e);
+  try{
+    lock.waitLock(5000)
+    if (hojaActual.getName() === "Factura") {
+      
+      let celdaEditada = e.range;
+      let rowEditada = celdaEditada.getRow();
+      let colEditada = celdaEditada.getColumn();
+      let columnaContactos = 2; // Ajusta según sea necesario
+      let rowContactos = 2;
 
-  if (hojaActual.getName() === "Factura") {
-    esperar=true
-    let celdaEditada = e.range;
-    let rowEditada = celdaEditada.getRow();
-    let colEditada = celdaEditada.getColumn();
-    let columnaContactos = 2; // Ajusta según sea necesario
-    let rowContactos = 2;
 
+      const productStartRow = 15; // prodcutos empeiza aca
+      const productEndColumn = 8; //   procutos terminan en column H
+      let taxSectionStartRow = getTaxSectionStartRow(hojaActual); // Assuming products end at column H
+      let posRowTotalProductos=taxSectionStartRow-3//poscion (row) de Total productos
+      Logger.log("taxSectionStartRow "+taxSectionStartRow)
 
-    const productStartRow = 15; // prodcutos empeiza aca
-    const productEndColumn = 8; //   procutos terminan en column H
-    let taxSectionStartRow = getTaxSectionStartRow(hojaActual); // Assuming products end at column H
-    let posRowTotalProductos=taxSectionStartRow-3//poscion (row) de Total productos
-    Logger.log("taxSectionStartRow "+taxSectionStartRow)
-
-    if (colEditada === columnaContactos && rowEditada === rowContactos) {
-      //celda de elegir contacto en hoja factura
-      Logger.log("No se editó un contacto válido");
-      verificarYCopiarContacto(e);
-      obtenerFechaYHoraActual()
-      //generarNumeroFactura()
-      let hojaInfoUsuario= spreadsheet.getSheetByName('Datos de emisor');
-      let  iban= hojaInfoUsuario.getRange("B9").getValue();
-      factura_sheet.getRange("B11").setValue(iban)
-
-    }
-    else if(rowEditada >= productStartRow && (colEditada == 2 || colEditada == 3) && rowEditada < posRowTotalProductos)  {//asegurar que si sea dentro del espacio permititdo(donde empieza el taxinfo)
-      if (colEditada == 2){
-        Logger.log("agg producto")
-        let valorok=celdaEditada.getValue()
-        Logger.log("valor+ "+valorok)
-        let dictInformacionProducto = obtenerInformacionProducto(valorok);
-        let Estado=dictInformacionProducto["Estado"]
-        if(Estado==="No Valido"){
-          SpreadsheetApp.getUi().alert("El prodcuto elegido tiene un estado invalido. Verifica que el prodcuto posea los datos minimos para ser valido y vuelve a elegir");
-          celdaEditada.setValue("")
-        }
+      if (colEditada === columnaContactos && rowEditada === rowContactos) {
+        //celda de elegir contacto en hoja factura
+        Logger.log("No se editó un contacto válido");
+        verificarYCopiarContacto(e);
+        obtenerFechaYHoraActual()
+        //generarNumeroFactura()
+        let hojaInfoUsuario= spreadsheet.getSheetByName('Datos de emisor');
+        let  iban= hojaInfoUsuario.getRange("B9").getValue();
+        factura_sheet.getRange("B11").setValue(iban)
 
       }
-      const lastProductRow = getLastProductRow(hojaActual, productStartRow, taxSectionStartRow);//1 producto
-      Logger.log("lastProductRow " + lastProductRow)
-      Logger.log("taxSectionStartRow " + taxSectionStartRow)
+      else if(rowEditada >= productStartRow && (colEditada == 2 || colEditada == 3) && rowEditada < posRowTotalProductos)  {//asegurar que si sea dentro del espacio permititdo(donde empieza el taxinfo)
+        if (colEditada == 2){
+          Logger.log("agg producto")
+          let valorok=celdaEditada.getValue()
+          Logger.log("valor+ "+valorok)
+          let dictInformacionProducto = obtenerInformacionProducto(valorok);
+          let Estado=dictInformacionProducto["Estado"]
+          if(Estado==="No Valido"){
+            SpreadsheetApp.getUi().alert("El prodcuto elegido tiene un estado invalido. Verifica que el prodcuto posea los datos minimos para ser valido y vuelve a elegir");
+            celdaEditada.setValue("")
+          }
 
-
-      //proceso para agg el valor de %IVA y precio unitario
-      for(let i=productStartRow;i <= lastProductRow;i++){
-
-
-        //por aca seria el proceso de ver si el IVA del producto esta entre el rango de tiempo
-        let productoFilaI = factura_sheet.getRange("B"+String(i)).getValue()
-        if(productoFilaI===""){
-          Logger.log("NO ha elegido producto")
-          continue
         }
-        let dictInformacionProducto = obtenerInformacionProducto(productoFilaI);
-        let cantiadProducto= factura_sheet.getRange("C"+String(i)).getValue()
+        const lastProductRow = getLastProductRow(hojaActual, productStartRow, taxSectionStartRow);//1 producto
+        Logger.log("lastProductRow " + lastProductRow)
+        Logger.log("taxSectionStartRow " + taxSectionStartRow)
 
-        let ivaProductoActual=dictInformacionProducto["IVA"]
-        let valorFechaActual=ObtenerFecha()
-    
-        let verifcadorFecha=verificarDescuentoValido(valorFechaActual,ivaProductoActual)
-        if (verifcadorFecha===false){
-          SpreadsheetApp.getUi().alert("Alguno de tus productos posee un iva del 5%. La fecha de facturación debe estar comprendida entre el 1 de julio de 2022 y el 30 de septiembre de 2024")
-          //poner rangos en 0
-          continue
+
+        //proceso para agg el valor de %IVA y precio unitario
+        for(let i=productStartRow;i <= lastProductRow;i++){
+          Logger.log(rowEditada+" row editada")
+          if(i!=rowEditada){
+            Logger.log("no es la linea editada "+i)
+          }else{
+          //por aca seria el proceso de ver si el IVA del producto esta entre el rango de tiempo
+          let productoFilaI = factura_sheet.getRange("B"+String(i)).getValue()
+          if(productoFilaI===""){
+            Logger.log("NO ha elegido producto")
+            continue
+          }
+          let dictInformacionProducto = obtenerInformacionProducto(productoFilaI);
+          let cantiadProducto= factura_sheet.getRange("C"+String(i)).getValue()
+
+          let ivaProductoActual=dictInformacionProducto["IVA"]
+          let valorFechaActual=ObtenerFecha()
+      
+          let verifcadorFecha=verificarDescuentoValido(valorFechaActual,ivaProductoActual)
+          if (verifcadorFecha===false){
+            SpreadsheetApp.getUi().alert("Alguno de tus productos posee un iva del 5%. La fecha de facturación debe estar comprendida entre el 1 de julio de 2022 y el 30 de septiembre de 2024")
+            //poner rangos en 0
+            continue
+          }
+
+          if(cantiadProducto===""){
+            cantiadProducto=0
+            //tal vez mirara si agrego el 0 de cantidad
+            factura_sheet.getRange("A"+String(i)).setValue(dictInformacionProducto["codigo Producto"])
+            factura_sheet.getRange("D"+String(i)).setValue(0)//unitario preciounitario
+            factura_sheet.getRange("G"+String(i)).setValue(dictInformacionProducto["IVA"])//IVA
+            
+            factura_sheet.getRange("I"+String(i)).setValue(dictInformacionProducto["retencion"])//Retencion
+            factura_sheet.getRange("J"+String(i)).setValue(dictInformacionProducto["Recargo de equivalencia"])//Recargo de equivalencia
+          }else{
+            factura_sheet.getRange("A"+String(i)).setValue(dictInformacionProducto["codigo Producto"])
+            factura_sheet.getRange("E"+String(i)).setValue("=D"+String(i)+"+(D"+String(i)+"*G"+String(i)+")")//AGG COSA DE CON IVA 
+            factura_sheet.getRange("F"+String(i)).setValue("=(D"+String(i)+")*C"+String(i))//subtotal
+            factura_sheet.getRange("D"+String(i)).setValue(dictInformacionProducto["valor Unitario"])//valor unitario
+            factura_sheet.getRange("G"+String(i)).setValue(dictInformacionProducto["IVA"])//IVA
+            
+            factura_sheet.getRange("I"+String(i)).setValue(dictInformacionProducto["retencion"])//Retencion
+            factura_sheet.getRange("J"+String(i)).setValue(dictInformacionProducto["Recargo de equivalencia"])//Recargo de equivalencia
+            factura_sheet.getRange("K"+String(i)).setValue("=((F"+String(i)+"+(F"+String(i)+"*G"+String(i)+")-(F"+String(i)+"*I"+String(i)+")+(F"+String(i)+"*J"+String(i)+"))-(F"+String(i)+"*H"+String(i)+"))")//total linea
+          }
+        }
+        
         }
 
-        if(cantiadProducto===""){
-          cantiadProducto=0
-          //tal vez mirara si agrego el 0 de cantidad
-          factura_sheet.getRange("A"+String(i)).setValue(dictInformacionProducto["codigo Producto"])
-          factura_sheet.getRange("D"+String(i)).setValue(0)//unitario SIN 'IVA'
-          factura_sheet.getRange("G"+String(i)).setValue(dictInformacionProducto["IVA"])//IVA
-          
-          factura_sheet.getRange("I"+String(i)).setValue(dictInformacionProducto["retencion"])//Retencion
-          factura_sheet.getRange("J"+String(i)).setValue(dictInformacionProducto["Recargo de equivalencia"])//Recargo de equivalencia
-        }else{
-          factura_sheet.getRange("A"+String(i)).setValue(dictInformacionProducto["codigo Producto"])
-          factura_sheet.getRange("E"+String(i)).setValue("=D"+String(i)+"+(D"+String(i)+"*G"+String(i)+")")//AGG COSA DE CON IVA 
-          factura_sheet.getRange("F"+String(i)).setValue("=(D"+String(i)+")*C"+String(i))//subtotal
-          factura_sheet.getRange("D"+String(i)).setValue(dictInformacionProducto["valor Unitario"])//valor unitario
-          factura_sheet.getRange("G"+String(i)).setValue(dictInformacionProducto["IVA"])//IVA
-          
-          factura_sheet.getRange("I"+String(i)).setValue(dictInformacionProducto["retencion"])//Retencion
-          factura_sheet.getRange("J"+String(i)).setValue(dictInformacionProducto["Recargo de equivalencia"])//Recargo de equivalencia
-          factura_sheet.getRange("K"+String(i)).setValue("=((F"+String(i)+"+(F"+String(i)+"*G"+String(i)+")-(F"+String(i)+"*I"+String(i)+")+(F"+String(i)+"*J"+String(i)+"))-(F"+String(i)+"*H"+String(i)+"))")//total linea
+      }else if(colEditada==8 && rowEditada >= productStartRow && rowEditada < posRowTotalProductos) {
+        //verificar descuentos
+        let valorEditadoDescuneto = celdaEditada.getValue();
+        Logger.log(typeof(valorEditadoDescuneto))
+        Logger.log("valorEditadoDescuneto "+valorEditadoDescuneto)
+
+        if(0.00 > valorEditadoDescuneto || valorEditadoDescuneto > 1.00){
+          Logger.log("No se puede pasar de 100% el valor de descuento o menos de 0%")
+          SpreadsheetApp.getUi().alert("No es valido un descuento mayor a 100% ni menor a 0%")
+          celdaEditada.setValue("0%")
         }
-      }
-
-    }else if(colEditada==8 && rowEditada >= productStartRow && rowEditada < posRowTotalProductos) {
-      //verificar descuentos
-      let valorEditadoDescuneto = celdaEditada.getValue();
-      Logger.log(typeof(valorEditadoDescuneto))
-      Logger.log("valorEditadoDescuneto "+valorEditadoDescuneto)
-
-      if(0.00 > valorEditadoDescuneto || valorEditadoDescuneto > 1.00){
-        Logger.log("No se puede pasar de 100% el valor de descuento o menos de 0%")
-        SpreadsheetApp.getUi().alert("No es valido un descuento mayor a 100% ni menor a 0%")
-        celdaEditada.setValue("0%")
-      }
 
 
-    }else if (colEditada == 7 && rowEditada == 6) {
-      // Entra a verificar días de vencimiento
-      let valorDiasVencimiento = celdaEditada.getValue();
-    
-      // Verifica si es un entero positivo
-      if (!Number.isInteger(valorDiasVencimiento) || valorDiasVencimiento <= 0) {
-        // Muestra una alerta
-        SpreadsheetApp.getUi().alert('El valor de días de vencimiento debe ser un entero positivo.');
-    
-        // Restablece el valor a 0
-        celdaEditada.setValue(0);
-      }
-    }else if(colEditada==7 && rowEditada==2){
-      let valorFacturaNumero = celdaEditada.getValue();
-      let coincideEstruct=cumpleEstructura(valorFacturaNumero)
-      if(!coincideEstruct){
-        SpreadsheetApp.getUi().alert("El consecutivo de la factura debe de existir la estructura que tu elegiste");
-        celdaEditada.setValue("");
-      }else {
-        Logger.log("coincideEstruct "+coincideEstruct)
-        let existe=verificarCodigo(valorFacturaNumero,"Historial Facturas Data",false)
-        if(existe){
-          SpreadsheetApp.getUi().alert("El numero de factura ya existe, por favor poner un numero de factura unico");
+      }else if (colEditada == 7 && rowEditada == 6) {
+        // Entra a verificar días de vencimiento
+        let valorDiasVencimiento = celdaEditada.getValue();
+      
+        // Verifica si es un entero positivo
+        if (!Number.isInteger(valorDiasVencimiento) || valorDiasVencimiento <= 0) {
+          // Muestra una alerta
+          SpreadsheetApp.getUi().alert('El valor de días de vencimiento debe ser un entero positivo.');
+      
+          // Restablece el valor a 0
+          celdaEditada.setValue(0);
+        }
+      }else if(colEditada==7 && rowEditada==2){
+        let valorFacturaNumero = celdaEditada.getValue();
+        let coincideEstruct=cumpleEstructura(valorFacturaNumero)
+        if(!coincideEstruct){
+          SpreadsheetApp.getUi().alert("El consecutivo de la factura debe de existir la estructura que tu elegiste");
           celdaEditada.setValue("");
+        }else {
+          Logger.log("coincideEstruct "+coincideEstruct)
+          let existe=verificarCodigo(valorFacturaNumero,"Historial Facturas Data",false)
+          if(existe){
+            SpreadsheetApp.getUi().alert("El numero de factura ya existe, por favor poner un numero de factura unico");
+            celdaEditada.setValue("");
+            throw new Error('por favor poner un Numero de Identificacion unico');
+          }
+      }
+      }else if(colEditada==12 && rowEditada >= productStartRow && rowEditada < posRowTotalProductos){
+        Logger.log("dentro eliminar")
+      }
+      
+      let lastRowProducto=getLastProductRow(hojaActual, productStartRow, taxSectionStartRow);
+      if (lastRowProducto===productStartRow){
+        Logger.log("dentro de agg info para TOTLA pero last y start son iguales")
+        // //ESTADO DEAFULT no se hace nada
+        hojaActual.getRange("B31").setValue("=SUM(K15)+C29-B18")
+
+
+      }else{
+        Logger.log("dentro de agg info para totoal")
+        Logger.log("lastRowProducto "+lastRowProducto)
+        Logger.log("productStartRow"+productStartRow)
+        calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRow,hojaActual)
+      }
+      
+      updateTotalProductCounter(lastRowProducto,productStartRow,hojaActual,taxSectionStartRow)
+
+    } else if (hojaActual.getName() === "Clientes") {
+      let celdaEditada = e.range;
+      let hojaCliente=e.source.getActiveSheet();
+      
+      let rowEditada = celdaEditada.getRow();
+      let colEditada = celdaEditada.getColumn();
+      let colTipoDePersona=2
+      let tipoPersona= obtenerTipoDePersona(e);
+
+      if (colEditada ==6 && rowEditada>1){
+        Logger.log("entro a ver si el edit es en numero")
+        let numeroIdentificacion=hojaCliente.getRange(rowEditada,colEditada).getValue()
+        Logger.log("num i"+numeroIdentificacion )
+        let existe=verificarCodigo(numeroIdentificacion,"Clientes",true,rowEditada)
+        if(existe){
+          SpreadsheetApp.getUi().alert("El numero de identificacion ya existe, por favor elegir otro numero unico");
+          celdaEditada.setValue("");
+          verificarDatosObligatorios(e,tipoPersona)
           throw new Error('por favor poner un Numero de Identificacion unico');
         }
-    }
-    }else if(colEditada==12 && rowEditada >= productStartRow && rowEditada < posRowTotalProductos){
-      Logger.log("dentro eliminar")
-    }
-    
-    let lastRowProducto=getLastProductRow(hojaActual, productStartRow, taxSectionStartRow);
-    if (lastRowProducto===productStartRow){
-      Logger.log("dentro de agg info para TOTLA pero last y start son iguales")
-      // //ESTADO DEAFULT no se hace nada
-      hojaActual.getRange("B31").setValue("=SUM(K15)+C29-B18")
-
-
-    }else{
-      Logger.log("dentro de agg info para totoal")
-      Logger.log("lastRowProducto "+lastRowProducto)
-      Logger.log("productStartRow"+productStartRow)
-      calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRow,hojaActual)
-    }
-    
-    updateTotalProductCounter(lastRowProducto,productStartRow,hojaActual,taxSectionStartRow)
-    Logger.log("esperarB"+esperar)
-    esperar=false
-    Logger.log("esperarA"+esperar)
-  } else if (hojaActual.getName() === "Clientes") {
-    let celdaEditada = e.range;
-    let hojaCliente=e.source.getActiveSheet();
-    
-    let rowEditada = celdaEditada.getRow();
-    let colEditada = celdaEditada.getColumn();
-    let colTipoDePersona=2
-    let tipoPersona= obtenerTipoDePersona(e);
-
-    if (colEditada ==6 && rowEditada>1){
-      Logger.log("entro a ver si el edit es en numero")
-      let numeroIdentificacion=hojaCliente.getRange(rowEditada,colEditada).getValue()
-      Logger.log("num i"+numeroIdentificacion )
-      let existe=verificarCodigo(numeroIdentificacion,"Clientes",true,rowEditada)
-      if(existe){
-        SpreadsheetApp.getUi().alert("El numero de identificacion ya existe, por favor elegir otro numero unico");
-        celdaEditada.setValue("");
-        verificarDatosObligatorios(e,tipoPersona)
-        throw new Error('por favor poner un Numero de Identificacion unico');
+      }else if(colEditada ==7 && rowEditada>1){
+        let numeroIdentificacion=hojaCliente.getRange(rowEditada,colEditada).getValue()
+        let existe=verificarCodigo(numeroIdentificacion,"Clientes",true,rowEditada,"codigo")
+        if(existe){
+          SpreadsheetApp.getUi().alert("El codigo del cliente ya existe, por favor elegir otro numero unico");
+          celdaEditada.setValue("");
+          verificarDatosObligatorios(e,tipoPersona)
+          throw new Error('por favor poner un Numero de Identificacion unico');
+        }
       }
-    }else if(colEditada ==7 && rowEditada>1){
-      let numeroIdentificacion=hojaCliente.getRange(rowEditada,colEditada).getValue()
-      let existe=verificarCodigo(numeroIdentificacion,"Clientes",true,rowEditada,"codigo")
-      if(existe){
-        SpreadsheetApp.getUi().alert("El codigo del cliente ya existe, por favor elegir otro numero unico");
-        celdaEditada.setValue("");
-        verificarDatosObligatorios(e,tipoPersona)
-        throw new Error('por favor poner un Numero de Identificacion unico');
+
+      verificarDatosObligatorios(e,tipoPersona)
+      agregarCodigoIdentificador(e)
+    
+
+    }else if (hojaActual.getName() === "Historial Facturas"){
+      let celdaEditada = e.range;
+      let rowEditada = celdaEditada.getRow();
+      let colEditada = celdaEditada.getColumn();
+      if(rowEditada==5 && colEditada==9){
+        Logger.log("dentto de selccionar filtor")
+        let valor = celdaEditada.getValue()
+        filtroHistorialFacturas(valor)
       }
-    }
-
-    verificarDatosObligatorios(e,tipoPersona)
-    agregarCodigoIdentificador(e)
-  
-
-  }else if (hojaActual.getName() === "Historial Facturas"){
-    let celdaEditada = e.range;
-    let rowEditada = celdaEditada.getRow();
-    let colEditada = celdaEditada.getColumn();
-    if(rowEditada==5 && colEditada==9){
-      Logger.log("dentto de selccionar filtor")
-      let valor = celdaEditada.getValue()
-      filtroHistorialFacturas(valor)
-    }
-  }else if (hojaActual.getName() === "Productos"){
-    let celdaEditada = e.range;
-    let rowEditada = celdaEditada.getRow();
-    let colEditada = celdaEditada.getColumn();
-    verificarDatosObligatoriosProductos(e)
-    agregarCodigoIdentificador(e)
-    if (colEditada==2 && rowEditada>1){
-      let codigoRerencia=hojaActual.getRange(rowEditada,colEditada).getValue()
-      let existe=verificarCodigo(codigoRerencia,"Productos",true,rowEditada)
-      if(existe){
-        SpreadsheetApp.getUi().alert("El Codigo de referencia ya existe, por favor elegir otro numero unico");
-        celdaEditada.setValue("");
-        verificarDatosObligatoriosProductos(e)
-        throw new Error('por favor poner un Numero de Identificacion unico');
+    }else if (hojaActual.getName() === "Productos"){
+      let celdaEditada = e.range;
+      let rowEditada = celdaEditada.getRow();
+      let colEditada = celdaEditada.getColumn();
+      verificarDatosObligatoriosProductos(e)
+      agregarCodigoIdentificador(e)
+      if (colEditada==2 && rowEditada>1){
+        let codigoRerencia=hojaActual.getRange(rowEditada,colEditada).getValue()
+        let existe=verificarCodigo(codigoRerencia,"Productos",true,rowEditada)
+        if(existe){
+          SpreadsheetApp.getUi().alert("El Codigo de referencia ya existe, por favor elegir otro numero unico");
+          celdaEditada.setValue("");
+          verificarDatosObligatoriosProductos(e)
+          throw new Error('por favor poner un Numero de Identificacion unico');
+        }
       }
-    }
-  }else if(hojaActual.getName() === "Datos de emisor"){
-    Logger.log("datos emisor")
+    }else if(hojaActual.getName() === "Datos de emisor"){
+      Logger.log("datos emisor")
 
+    }
+  }catch(error){
+    Logger.log("No se pudo obtener el lock o hubo error: " + error);
+  }finally {
+    lock.releaseLock();
   }
 }
 
@@ -1600,13 +1609,13 @@ function guardarConsecutivo(){
         'NumeroConescutivo': numero,
         'LetraConescutivo': letra
       });
-      SpreadsheetApp.getUi().alert('Consecutivo valido y guardado');
+      SpreadsheetApp.getUi().alert('Consecutivo válido y guardado');
     }else{
-      SpreadsheetApp.getUi().alert('Por favor ingresa un consecutivo valido');
+      SpreadsheetApp.getUi().alert('Por favor ingresa un consecutivo válido');
     }
 
   }else{
-    SpreadsheetApp.getUi().alert('Por favor ingresa un consecutivo valido');
+    SpreadsheetApp.getUi().alert('Por favor ingresa un consecutivo válido');
   }
 
   

@@ -341,27 +341,40 @@ function guardarFactura(){
 
 }
 function agregarFilaNueva(){
-  
-  var spreadsheet = SpreadsheetApp.getActive();
-  let hojaFactura = spreadsheet.getSheetByName('Factura');
-  let numeroFilasParaAgregar = hojaFactura.getRange("B13").getValue();
-  
-  // Verificar si numeroFilasParaAgregar es nulo, vacío o no es un número
-  if (numeroFilasParaAgregar == 0 || numeroFilasParaAgregar == "" || isNaN(numeroFilasParaAgregar)) {
-    SpreadsheetApp.getUi().alert("Error: Por favor, ingresa un número válido de filas para agregar.");
-    return; // Detener la ejecución si hay error
+  // 1) Obtener el candado
+  const lock = LockService.getScriptLock();
+  try {
+    // Esperar hasta 5s para obtener el candado
+    lock.waitLock(5000);
+
+    // --- AQUÍ PONES TU LÓGICA ---
+    var spreadsheet = SpreadsheetApp.getActive();
+    let hojaFactura = spreadsheet.getSheetByName('Factura');
+    let numeroFilasParaAgregar = hojaFactura.getRange("B13").getValue();
+    
+    // Verificar si numeroFilasParaAgregar es nulo, vacío o no es un número
+    if (numeroFilasParaAgregar == 0 || numeroFilasParaAgregar == "" || isNaN(numeroFilasParaAgregar)) {
+      SpreadsheetApp.getUi().alert("Error: Por favor, ingresa un número válido de filas para agregar.");
+      return; // Detener la ejecución si hay error
+    }
+
+    let taxSectionStartRow = getTaxSectionStartRow(hojaFactura);
+    const productStartRow = 15;
+    const lastProductRow = getLastProductRow(hojaFactura, productStartRow, taxSectionStartRow);
+    
+    Logger.log("Agregar fila nueva");
+    hojaFactura.insertRows(lastProductRow, numeroFilasParaAgregar);
+
+    // Si quieres asegurar que la hoja ya refleje los cambios antes de salir:
+    SpreadsheetApp.flush();
+
+  } catch (err) {
+    // Si no se pudo conseguir el lock en 5 seg o hay otro error
+    Logger.log("Error en agregarFilaNueva: " + err);
+  } finally {
+    // 2) Liberar el candado
+    lock.releaseLock();
   }
-  Logger.log("esperarB"+esperar)
-  while(esperar){
-    Logger.log("espera")
-  }
-  let taxSectionStartRow = getTaxSectionStartRow(hojaFactura); // recordar este devuelve el lugar en donde deberían estar base imponible, toca restar -1
-  const productStartRow = 15;
-  const lastProductRow = getLastProductRow(hojaFactura, productStartRow, taxSectionStartRow);
-  
-  Logger.log("Agregar fila nueva");
-  hojaFactura.insertRows(lastProductRow, numeroFilasParaAgregar);
-  
 }
 
 function agregarProductoDesdeFactura(cantidad,producto){
@@ -1146,8 +1159,16 @@ function generarNumeroFactura(){
         ultimoConsecutivo = consecutivo; // Guardamos el último número en formato original
       }
     }
-
-    let numeroActual = numeroMayor + 1;
+    let numeroActual=0
+    if (numeroMayor==-Infinity){
+      const scriptProperties = PropertiesService.getScriptProperties();
+      numero = scriptProperties.getProperty('NumeroConescutivo');  // Ej: "123"
+      letra  = scriptProperties.getProperty('LetraConescutivo');   // Ej: "abc"
+      let consecutivo = letra+numero
+      numeroActual =consecutivo
+    }else{
+      numeroActual = numeroMayor + 1;
+    }
     let nuevoConsecutivo = generarNuevoConsecutivo(ultimoConsecutivo, numeroActual);
 
     sheet.getRange("G2").setValue(nuevoConsecutivo);

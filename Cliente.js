@@ -548,9 +548,10 @@ function agregarUltimoCliente(referenciaUnica){
   Logger.log("agregarUltimo")
   Logger.log("referenciaUnica "+referenciaUnica)
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  
+  let InfoCliente=obtenerInformacionCliente(referenciaUnica)
   var sheet = ss.getSheetByName("Factura");
   sheet.getRange("B2").setValue(referenciaUnica)
+  sheet.getRange("B3").setValue(InfoCliente["Código cliente"])
   obtenerFechaYHoraActual()
 }
 
