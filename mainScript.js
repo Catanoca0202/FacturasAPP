@@ -133,25 +133,35 @@ function reinstalarHojaDatos(ss, plantilla) {
   }
 }
 
-
+function cambiarConfiguracionRegional() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // Cambiar la configuración regional a España
+  sheet.setSpreadsheetLocale("es_ES");
+  
+  Logger.log("Configuración regional cambiada a España (es_ES)");
+}
 
 
 function IniciarFacturasApp(){
   let ui = SpreadsheetApp.getUi();
   
   let hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Datos de emisor");
-  const scriptProps = PropertiesService.getScriptProperties();
+  const scriptProps = PropertiesService.getUserProperties();
 
   if (hoja==null){
     iniciarHojasFactura()
     OnOpenSheetInicio()
     agregarDataValidations()
+    cambiarConfiguracionRegional()
+
   }else{
     let respuesta = ui.alert('Si vuelves a instalar, solo se instalaran las hojas no existan o que hayan sido eliminadas?', ui.ButtonSet.YES_NO);
     if (respuesta == ui.Button.YES) {
       iniciarHojasFactura()
       OnOpenSheetInicio()
       agregarDataValidations()
+      cambiarConfiguracionRegional()
     } else {
       return
     }
@@ -799,14 +809,16 @@ function onEdit(e) {
         let valorFacturaNumero = celdaEditada.getValue();
         let coincideEstruct=cumpleEstructura(valorFacturaNumero)
         if(!coincideEstruct){
-          SpreadsheetApp.getUi().alert("El consecutivo de la factura debe de existir la estructura que tu elegiste");
+          SpreadsheetApp.getUi().alert("El consecutivo de la factura debe de coincidir con la estructura que tu elegiste");
           celdaEditada.setValue("");
+          generarNumeroFactura()
         }else {
           Logger.log("coincideEstruct "+coincideEstruct)
           let existe=verificarCodigo(valorFacturaNumero,"Historial Facturas Data",false)
           if(existe){
             SpreadsheetApp.getUi().alert("El numero de factura ya existe, por favor poner un numero de factura unico");
             celdaEditada.setValue("");
+            generarNumeroFactura()
             throw new Error('por favor poner un Numero de Identificacion unico');
           }
       }
@@ -1598,7 +1610,7 @@ function guardarConsecutivo(){
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
   let letra=hojaDatosEmisor.getRange(23,1).getValue()
   let numero = hojaDatosEmisor.getRange(23,3).getValue()
-  const scriptProperties = PropertiesService.getScriptProperties();
+  const scriptProperties = PropertiesService.getUserProperties();
   if(verificarConsecutivo(letra,false)){
     Logger.log("letra valida")
     if(verificarConsecutivo(numero,true)){
@@ -1626,7 +1638,7 @@ function cumpleEstructura(str) {
   let letra;
   
   try {
-    const scriptProperties = PropertiesService.getScriptProperties();
+    const scriptProperties = PropertiesService.getUserProperties();
     numero = scriptProperties.getProperty('NumeroConescutivo');  // Ej: "123"
     letra  = scriptProperties.getProperty('LetraConescutivo');   // Ej: "abc"
   } catch (err) {

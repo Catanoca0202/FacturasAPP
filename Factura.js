@@ -1161,7 +1161,7 @@ function generarNumeroFactura(){
     }
     let numeroActual=0
     if (numeroMayor==-Infinity){
-      const scriptProperties = PropertiesService.getScriptProperties();
+      const scriptProperties = PropertiesService.getUserProperties();
       numero = scriptProperties.getProperty('NumeroConescutivo');  // Ej: "123"
       letra  = scriptProperties.getProperty('LetraConescutivo');   // Ej: "abc"
       let consecutivo = letra+numero
