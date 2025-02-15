@@ -1161,7 +1161,7 @@ function generarNumeroFactura(){
     }
     let numeroActual=0
     if (numeroMayor==-Infinity){
-      const scriptProperties = PropertiesService.getUserProperties();
+      const scriptProperties = PropertiesService.getDocumentProperties();
       numero = scriptProperties.getProperty('NumeroConescutivo');  // Ej: "123"
       letra  = scriptProperties.getProperty('LetraConescutivo');   // Ej: "abc"
       let consecutivo = letra+numero
@@ -1232,7 +1232,7 @@ function ObtenerFecha(opcion){
     let valorFecha=sheet.getRange("G4").getValue();
     fechaFormateada = Utilities.formatDate(new Date(valorFecha), "UTC+1", "dd/MM/yyyy");
   }
-
+  Logger.log("fecha formateada"+fechaFormateada)
 
   return fechaFormateada
 }

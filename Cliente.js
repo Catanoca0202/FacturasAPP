@@ -3,7 +3,7 @@
 // var factura_sheet= spreadsheet.getSheetByName("Factura")
 
 function showNuevaClienteDesdeFactura() {
-  var html = HtmlService.createHtmlOutputFromFile('menuAgregarClienteDesdeF').setTitle("Nuevo Cliente")
+  var html = HtmlService.createHtmlOutputFromFile('menuAgregarClienteDesdeF').setTitle("Nuevo Producto")
   SpreadsheetApp.getUi()
     .showSidebar(html);
 }

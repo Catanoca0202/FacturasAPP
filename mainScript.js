@@ -147,7 +147,7 @@ function IniciarFacturasApp(){
   let ui = SpreadsheetApp.getUi();
   
   let hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Datos de emisor");
-  const scriptProps = PropertiesService.getUserProperties();
+  const scriptProps = PropertiesService.getDocumentProperties();
 
   if (hoja==null){
     iniciarHojasFactura()
@@ -711,6 +711,7 @@ function onEdit(e) {
         let hojaInfoUsuario= spreadsheet.getSheetByName('Datos de emisor');
         let  iban= hojaInfoUsuario.getRange("B9").getValue();
         factura_sheet.getRange("B11").setValue(iban)
+        generarNumeroFactura()
 
       }
       else if(rowEditada >= productStartRow && (colEditada == 2 || colEditada == 3) && rowEditada < posRowTotalProductos)  {//asegurar que si sea dentro del espacio permititdo(donde empieza el taxinfo)
@@ -1610,7 +1611,7 @@ function guardarConsecutivo(){
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
   let letra=hojaDatosEmisor.getRange(23,1).getValue()
   let numero = hojaDatosEmisor.getRange(23,3).getValue()
-  const scriptProperties = PropertiesService.getUserProperties();
+  const scriptProperties = PropertiesService.getDocumentProperties();
   if(verificarConsecutivo(letra,false)){
     Logger.log("letra valida")
     if(verificarConsecutivo(numero,true)){
@@ -1638,7 +1639,7 @@ function cumpleEstructura(str) {
   let letra;
   
   try {
-    const scriptProperties = PropertiesService.getUserProperties();
+    const scriptProperties = PropertiesService.getDocumentProperties();
     numero = scriptProperties.getProperty('NumeroConescutivo');  // Ej: "123"
     letra  = scriptProperties.getProperty('LetraConescutivo');   // Ej: "abc"
   } catch (err) {
