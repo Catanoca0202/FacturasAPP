@@ -686,7 +686,7 @@ function onEdit(e) {
 
   //verificarTipoDeDatos(e);
   try{
-    lock.waitLock(5000)
+    lock.waitLock(6000);
     if (hojaActual.getName() === "Factura") {
       
       let celdaEditada = e.range;

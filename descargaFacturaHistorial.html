@@ -27,7 +27,7 @@
           google.script.run.mostrarAlertaDesdeServidor(mensaje);
       }
 
-      function handleSubmit() {
+    function handleSubmit() {
           // Obtén el valor del campo directamente
           const numFactura = document.getElementById('numFactura').value;
 
@@ -43,6 +43,8 @@
                   if (url === 'Factura no encontrada') {
                       mostrarAlerta("Factura no encontrada, error: " + url);
                   } else {
+                      console.log(url)
+                      mostrarAlerta(String(url));
                       const link = document.createElement('a');
                       link.href = url;
                       link.download = 'Factura_' + data.numFactura + '.pdf';
@@ -81,12 +83,12 @@
       <main class="d-flex flex-column align-items-center justify-content-center flex-grow-1">
         <div class="row py-3 px-4 gx-0 w-100">
           <div class="col-12 py-4">
-            <p class="fs-6">Ingresa el numero de la factura la cual deseas descargar o enviar.</p>
+            <p class="fs-6">Ingresa el número de la factura la cual deseas descargar o enviar.</p>
           </div>
           <div class="col-12 px-0">
             <form class="row g-3 d-flex flex-column align-items-center">
               <div class="col-12 mb-3 w-100">
-                <label for="numFactura" class="form-label">Numero de Factura</label>
+                <label for="numFactura" class="form-label">Número de Factura</label>
                 <input type="text" id="numFactura" class="form-control text-center=" name="numFactura" required>
               </div>
               <div class="col-12">
@@ -97,13 +99,13 @@
               </div>
               <div class="col-12 ">
                 <button type="button" class="btn btn-primary btn-lg w-100 btn-menu" onclick="OpenEnviarEmail()">
-                  <span class="pe-4">Envio por email</span>
+                  <span class="pe-4">Envío por email</span>
                   
                 </button>
               </div>
               <div class="col-12">
                 <button type="button" class="btn btn-primary btn-lg w-100 btn-menu" onclick="enviarFacturasApp()">
-                  <span class="pe-4">Envio a FacturasApp</span>
+                  <span class="pe-4">Envío a FacturasApp</span>
                   
                 </button>
               </div>

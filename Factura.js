@@ -345,7 +345,7 @@ function agregarFilaNueva(){
   const lock = LockService.getScriptLock();
   try {
     // Esperar hasta 5s para obtener el candado
-    lock.waitLock(5000);
+    lock.waitLock(6000);
 
     // --- AQUÍ PONES TU LÓGICA ---
     var spreadsheet = SpreadsheetApp.getActive();
@@ -772,7 +772,7 @@ function linkDescargaFactura() {
 
   // Generar la URL de descarga
   var url = "https://drive.google.com/uc?export=download&id=" + idArchivo;
-
+  
   return {
     numFactura: numFactura,
     url: url
@@ -842,30 +842,60 @@ function enviarEmailPostFactura(email,historial=false,numFacturaAbuscar=null) {
 
 
 function ProcesarFormularioFactura(data) {
-  var numFactura = data.numFactura
+  var numFactura = data.numFactura;
   var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Facturas ID');
 
-  var range = hoja.getRange('A2:A'); // Rango desde A2 hasta el final de la columna A
+  var range = hoja.getRange('A2:A');
   var textFinder = range.createTextFinder(numFactura);
   var cell = textFinder.findNext();
-
-  if (cell) {
-    var fila = cell.getRow();
-    var idAsociado = hoja.getRange('B' + fila).getValue();
-  } else {
+  Logger.log("cell "+cell)
+  if (!cell) {
     return 'Factura no encontrada';
   }
-  //Prueba
-  //var lista = DriveApp.getFilesByName("Factura.pdf");
-  //var nuevoId = lista.next().getId();
-  let pdf = Drive.Files.get(idAsociado);
-  //Logger.log(nuevoId);
-  var url = "https://drive.google.com/uc?export=download&id=" + idAsociado;
-  return url;
+
+  var fila = cell.getRow();
+  var idAsociado = hoja.getRange('B' + fila).getValue();
+
+  if (!idAsociado) {
+    return 'ID de factura no encontrado';
+  }
+
+  try {
+    // descargarPDF(idAsociado);
+    // makeFilePublic(idAsociado)
+    // var url = `https://www.googleapis.com/drive/v3/files/${idAsociado}/download`;
+    // var file = Drive.Files.get(idAsociado);
+    // const url = file.webContentLink;
+    var url = "https://drive.google.com/uc?export=download&id=" + idAsociado;
+    return url;
+  } catch (e) {
+    return 'Error al obtener el archivo: ' + e.message;
+  }
 }
 
-function unirNombreYcodigo(hoja){
+function descargarPDF(id) {
+  var fileId = id; // Reemplaza con el ID real del archivo PDF
+  var file = Drive.Files.get(fileId);
+  var url = file.webContentLink; // Obtiene el enlace de descarga directo
 
+  Logger.log("Enlace de descarga: " + url);
+  
+  // Opcional: Si lo ejecutas desde un script de Google Sheets, puedes mostrarlo en un cuadro de diálogo
+  var ui = SpreadsheetApp.getUi();
+  ui.alert("Haz clic en el enlace para descargar:\n" + url);
+}
+
+function makeFilePublic(fileId) {
+  try {
+    var permission = {
+      'role': 'reader',
+      'type': 'anyone'
+    };
+    Drive.Permissions.insert(permission, fileId, {sendNotificationEmails: false});
+    return "Permiso actualizado. Intenta descargar nuevamente.";
+  } catch (e) {
+    return "Error al actualizar permisos: " + e.message;
+  }
 }
 
 
@@ -952,7 +982,7 @@ function  insertarImagen(fila) {
 
 function descargarFactura() {
   var html = HtmlService.createHtmlOutputFromFile('descargaFacturaHistorial')
-    .setTitle('Historial facutras');
+    .setTitle('Historial Facturas');
   SpreadsheetApp.getUi()
     .showSidebar(html);
 }
@@ -1220,20 +1250,25 @@ function obtenerFechaYHoraActual(){
 
 }
 
-function ObtenerFecha(opcion){
+function ObtenerFecha(opcion=null){
   let spreadsheet = SpreadsheetApp.getActive();
   let fechaFormateada
+  let valorFecha
+  let zonaHorariaEspaña = "Europe/Madrid"
   if(opcion=="pago"){
     let sheet = spreadsheet.getSheetByName('Factura');
-    let valorFecha=sheet.getRange("G3").getValue();
-    fechaFormateada = Utilities.formatDate(new Date(valorFecha), "UTC+1", "dd/MM/yyyy");
+    valorFecha=sheet.getRange("G3").getValue();
+    Logger.log("valorFecha 1"+String(valorFecha))
+    fechaFormateada = Utilities.formatDate(new Date(valorFecha), zonaHorariaEspaña, "dd/MM/yyyy");
   }else{
     let sheet = spreadsheet.getSheetByName('Factura');
-    let valorFecha=sheet.getRange("G4").getValue();
-    fechaFormateada = Utilities.formatDate(new Date(valorFecha), "UTC+1", "dd/MM/yyyy");
+    valorFecha=sheet.getRange("G4").getValue();
+    Logger.log("valorFecha "+String(valorFecha))
+    Logger.log("valorFecha 2"+valorFecha)
+    fechaFormateada = Utilities.formatDate(new Date(valorFecha), zonaHorariaEspaña, "dd/MM/yyyy");
   }
   Logger.log("fecha formateada"+fechaFormateada)
-
+  Logger.log("valorFecha "+String(valorFecha))
   return fechaFormateada
 }
 
@@ -1597,7 +1632,7 @@ function guardarYGenerarInvoice(){
   let codigoCliente=prefactura_sheet.getRange("B3").getValue();
   listadoestado_sheet.appendRow(["vacio", "vacio","vacio" , fecha,"vacio" ,numeroFactura ,nameString ,codigoCliente,"vacio" ,"vacio" ,"representacion" ,"Vacio", String(invoice),String(nuevoInvoiceResumido)]);
   
-  SpreadsheetApp.getUi().alert("Factura generada y guardada satisfactoriamente, aguarde unos segundos");
+  SpreadsheetApp.getUi().alert("Factura generada y guardada satisfactoriamente, espera unos segundos");
   
 }
 
