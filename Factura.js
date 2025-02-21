@@ -1648,7 +1648,7 @@ function showCustomDialog() {
   var html = HtmlService.createHtmlOutputFromFile('postFactura')
       .setWidth(400)
       .setHeight(400);
-  SpreadsheetApp.getUi().showModalDialog(html, 'Elige una opcion');
+  SpreadsheetApp.getUi().showModalDialog(html, 'Elige una opción');
 }
 
 
