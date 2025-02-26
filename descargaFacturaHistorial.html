@@ -44,7 +44,7 @@
                       mostrarAlerta("Factura no encontrada, error: " + url);
                   } else {
                       console.log(url)
-                      mostrarAlerta(String(url));
+                      
                       const link = document.createElement('a');
                       link.href = url;
                       link.download = 'Factura_' + data.numFactura + '.pdf';

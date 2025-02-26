@@ -1231,9 +1231,9 @@ function generarNuevoConsecutivo(original, nuevoNumero) {
 function obtenerFechaYHoraActual(){ 
   let spreadsheet = SpreadsheetApp.getActive();
   let sheet = spreadsheet.getSheetByName('Factura');
-
-  let fecha = Utilities.formatDate(new Date(), "UTC+1", "dd/MM/yyyy");
-  let hora= Utilities.formatDate(new Date(), "UTC+1", "HH:mm:ss");
+  let zonaHorariaEspaña = "Europe/Madrid"
+  let fecha = Utilities.formatDate(new Date(), zonaHorariaEspaña, "dd/MM/yyyy");
+  let hora= Utilities.formatDate(new Date(), zonaHorariaEspaña, "HH:mm:ss");
 
   sheet.getRange("G4").setNumberFormat("dd/MM/yyyy");
   sheet.getRange("G4").setValue(String(fecha))
@@ -1243,7 +1243,7 @@ function obtenerFechaYHoraActual(){
   
   let valorFecha=sheet.getRange("G4").getValue();
 
-  let fechaFormateada = Utilities.formatDate(new Date(valorFecha), "UTC+1", "dd/MM/yyyy");
+  let fechaFormateada = Utilities.formatDate(new Date(valorFecha), zonaHorariaEspaña, "dd/MM/yyyy");
   Logger.log("valorFecha "+valorFecha)
   Logger.log("fecha "+fecha)
   Logger.log("fechaFormateada "+fechaFormateada)

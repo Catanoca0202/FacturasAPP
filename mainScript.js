@@ -147,7 +147,6 @@ function IniciarFacturasApp(){
   let ui = SpreadsheetApp.getUi();
   
   let hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Datos de emisor");
-  const scriptProps = PropertiesService.getDocumentProperties();
 
   if (hoja==null){
     iniciarHojasFactura()
@@ -251,9 +250,15 @@ function showSidebar() {
 }
 
 function showSidebar2() {
+  const usuario =obtenerUsuario()
+  const propietario= obtenerPropietario()
   console.log("showSidebar2 Enters");
   let ui = SpreadsheetApp.getUi();
   console.log("setActiveSheet2 Inicio");
+  const scriptProps = PropertiesService.getDocumentProperties();
+  scriptProps.setProperties({
+    'propietario': propietario,
+  });
   // var sheet =  SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Inicio");
   // SpreadsheetApp.setActiveSheet(sheet);
   let hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Datos de emisor");
@@ -269,13 +274,12 @@ function showSidebar2() {
       return
     }
   }else{
-  var html = HtmlService.createHtmlOutputFromFile('main')
-  .setTitle('Menú');
-SpreadsheetApp.getUi()
-  .showSidebar(html);
+    var template = HtmlService.createTemplateFromFile('main');
+    template.emailPropietario=propietario
+    const html = template.evaluate().setTitle('Menú');
+    SpreadsheetApp.getUi().showSidebar(html);
+    console.log("showSidebar Exits"); 
 
- 
-console.log("showSidebar Exits"); 
   }
 }
 
@@ -302,10 +306,15 @@ SpreadsheetApp.getUi()
 
 function showPreProductos() {
   console.log("Attempting to show Productos");
+  respuesta=verficiarPropietario()
+  if(respuesta){
   var html = HtmlService.createHtmlOutputFromFile('preProductos')
     .setTitle('Productos');
   SpreadsheetApp.getUi()
     .showSidebar(html);
+  }else{
+    SpreadsheetApp.getUi().alert("No tienes permisos para acceder a esta función debido a que tienes activos dos correos en la hoja. Por favor desvincula uno de los correos y vuelve a intentar")
+  }
 }
 
 function showAggProductos() {
@@ -328,10 +337,55 @@ function openHistorialSheet() {
 }
 
 function showMenuFactura() {
-  var html = HtmlService.createHtmlOutputFromFile('menuFactura')
-    .setTitle('Menú Factura');
-  SpreadsheetApp.getUi()
-    .showSidebar(html);
+  obtenerUsuario()
+  obtenerPropietario()
+  respuesta=verficiarPropietario()
+  Logger.log(respuesta)
+  if(respuesta){
+    Logger.log("showMenuFactura adentro")
+    var html = HtmlService.createHtmlOutputFromFile('menuFactura')
+      .setTitle('Menú Factura');
+    SpreadsheetApp.getUi()
+      .showSidebar(html);
+  }else{  
+    Logger.log("showMenuFactura adentro2")
+    SpreadsheetApp.getUi().alert("No tienes permisos para acceder a esta función debido a que tienes activos dos correos en la hoja. Por favor desvincula uno de los correos y vuelve a intentar")
+  }
+
+}
+
+function obtenerUsuario() {
+  var email = Session.getActiveUser().getEmail();
+  Logger.log("Usuario activo: " + email);
+  return(email)
+}
+
+function obtenerPropietario() {
+  var email = Session.getEffectiveUser().getEmail();
+  Logger.log("Propietario del script: " + email);
+  return(email)
+}
+
+function verficiarPropietario() {
+  try {
+    Logger.log("verificar propietario");
+    var email = Session.getEffectiveUser().getEmail();
+    var scriptProps = PropertiesService.getDocumentProperties();
+    var propietario = scriptProps.getProperty('propietario');
+    
+    Logger.log("propietario: " + propietario);
+    Logger.log("email: " + email);
+    
+    if (email === propietario) {
+      return true;
+    } else {
+      return false;
+    }
+
+  } catch (e) {
+    Logger.log("Error en verificarPropietario: " + e);
+    return false;
+  }
 }
 
 function showNuevaFactura() {
@@ -358,10 +412,16 @@ function openDatosEmisorSheet(){
 }
 
 function showClientes() {
+  respuesta=verficiarPropietario()
+  if(respuesta){
+
   var html = HtmlService.createHtmlOutputFromFile('menuCliente')
     .setTitle('Menu cliente');
   SpreadsheetApp.getUi()
     .showSidebar(html);
+  }else{
+    SpreadsheetApp.getUi().alert("No tienes permisos para acceder a esta función debido a que tienes activos dos correos en la hoja. Por favor desvincula uno de los correos y vuelve a intentar")
+  }
 }
 
 function showAjustes(){
