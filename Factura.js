@@ -1776,12 +1776,12 @@ function obtenerDatosFactura(factura){
               filasInsertadas += 1;
               filasInsertadasPorProductos += 1;
             }
-            var celdaItem = targetSheet.getRange('A'+numeroCelda);
-            celdaItem.setBorder(true,true,true,true,null,null,null,null);
-            celdaItem.setValue(numeroProductos);
-            celdaItem.setHorizontalAlignment('center');
+            // var celdaItem = targetSheet.getRange('A'+numeroCelda);
+            // celdaItem.setBorder(true,true,true,true,null,null,null,null);
+            // celdaItem.setValue(numeroProductos);
+            // celdaItem.setHorizontalAlignment('center');
 
-            var celdaReferencia = targetSheet.getRange('B'+numeroCelda);
+            var celdaReferencia = targetSheet.getRange('A'+numeroCelda);
             celdaReferencia.setBorder(true,true,true,true,null,null,null,null);
             celdaReferencia.setValue(listaProductos[j].ItemReference);
             celdaReferencia.setHorizontalAlignment('center');
@@ -1950,7 +1950,7 @@ function obtenerDatosFactura(factura){
           celdaNumFactura.setValue("FACTURA DE VENTA NO. "+facturaNumero);
           clienteCell.setValue(resultado[0]);
           nifCell.setValue(nif);
-          codigoCell.setValue(codigo);
+          // codigoCell.setValue(codigo);
           direccionCell.setValue(direccion);
           telefonoCell.setValue(telefono);
           contactoCell.setValue(Asesor)
@@ -1985,7 +1985,7 @@ function obtenerDatosFactura(factura){
           valorPagarCell.setValue(valorPagar);
           notaPagoCell.setValue(notaPago);
           observacionesCell.setValue(observaciones);
-          totalItemsCell.setValue(numeroProductos);
+          // totalItemsCell.setValue(numeroProductos);
           Logger.log("descuentoGeneralesFactura: "+descuentoGeneralesFactura)
           descuentosCell.setValue(descuentoGeneralesFactura);
           cargosCell.setValue(cargosFactura);
@@ -2006,9 +2006,9 @@ function obtenerDatosFactura(factura){
           
           
           var itemCellPrueba = targetSheet.getRange('A19')
-          var hojaEnBlanco = clienteCell.isBlank() || formaPagoCell.isBlank() || itemCellPrueba.isBlank() || celdaBaseImponible.isBlank();
+          var hojaEnBlanco = clienteCell.isBlank() || formaPagoCell.isBlank() || celdaBaseImponible.isBlank();
           while (hojaEnBlanco) {
-            sleep(2000);
+            Utilities.sleep(2000);
             Logger.log("dentro de while")
             hojaEnBlanco = clienteCell.isBlank() || formaPagoCell.isBlank() || itemCellPrueba.isBlank() || celdaBaseImponible.isBlank();
           }

@@ -936,6 +936,7 @@ function onEdit(e) {
 
       verificarDatosObligatorios(e,tipoPersona)
       agregarCodigoIdentificador(e)
+      validarEmailDeCelda(e)
     
 
     }else if (hojaActual.getName() === "Historial Facturas"){
@@ -971,6 +972,45 @@ function onEdit(e) {
     Logger.log("No se pudo obtener el lock o hubo error: " + error);
   }finally {
     lock.releaseLock();
+  }
+}
+function validarEmailDeCelda(e) {
+  sheet=e.source.getActiveSheet();
+  let range = e.range;
+  let rowEditada = range.getRow();
+  let colEditada = range.getColumn();
+  // Nombre de la hoja y celda a leer
+  const cellRange = "U"+String(rowEditada);
+
+  // Obtiene la hoja y el valor de la celda
+
+  const value = sheet.getRange(cellRange).getValue();
+
+  // Verifica si el valor está vacío, si es número o si es un string
+  if (!value) {
+    // Si está vacío, no hace nada específico
+    Logger.log("La celda está vacía. No se realizó ninguna acción.");
+    return;
+  }
+
+  // Si es un número
+  if (typeof value === 'number') {
+    // Muestra un mensaje o realiza otra acción
+    Logger.log("Valor inválido: Se esperaba un email y se encontró un número.");
+    return;
+  }
+
+  // Si es un string, verificar la estructura de correo
+  if (typeof value === 'string') {
+    // Expresión regular básica para validar emails
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (emailRegex.test(value)) {
+      Logger.log("Correo válido: " + value);
+    } else {
+      Logger.log("Formato de correo inválido: " + value);
+      sheet.getRange(cellRange).setValue("");
+      SpreadsheetApp.getUi().alert('Por favor ingresa un email valido');
+    }
   }
 }
 
