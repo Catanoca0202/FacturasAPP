@@ -1764,3 +1764,11 @@ function cumpleEstructura(str) {
   // Verificamos si "str" cumple esa estructura
   return regex.test(str);
 }
+
+
+function abrirLinkSoporte(){
+  var url = 'https://soporte.facturasapp.com/hc/es-es/articles/34589820237979-Evite-problemas-de-cuenta-en-FacturasApp-for-Google-Sheets-creando-un-perfil-dedicado-en-su-navegador';
+  var html = "<script>window.open('"+url+"');google.script.host.close();</script>";
+  var userInterface = HtmlService.createHtmlOutput(html);
+  SpreadsheetApp.getUi().showModalDialog(userInterface, 'Soporte');
+}

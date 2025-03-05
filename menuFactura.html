@@ -31,6 +31,12 @@
             google.script.run.showNuevaFactura();
             google.script.run.inicarFacturaNueva();
         }
+
+
+      function abrirSoporte() {
+  
+        window.open('https://soporte.facturasapp.com/hc/es-es/articles/34589820237979-Evite-problemas-de-cuenta-en-FacturasApp-for-Google-Sheets-creando-un-perfil-dedicado-en-su-navegador')
+      }
   </script>
   <body class="d-flex h-100">
 
@@ -50,22 +56,26 @@
                  class="btn btn-outline-secondary btn-sm me-2"
                  style="min-width: 120px;"
                >
-                 <i class="icon-24-outlined-action-main-settings-1"></i>
+                 <i class="icon-left"></i>
                  <span class="ms-1">Regresar</span>
                </a>
-               <a 
+               <a
+               onclick="abrirSoporte()"
                href="#"
                class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center"
                style="width: 40px; height: 40px;"
+               data-bs-toggle="tooltip" 
+               data-bs-placement="top" 
+               title="Soporte" 
              >
                <i class="icon-24-outlined-other-other-box-1"></i>
              </a>
-
+      
                
 
        </div>
-       <div class="mt-4 px-4 gx-0 d-flex flex-column">
-        <h2 class="mt-4">Facturación</h2>
+       <div class="mt-2 px-4 gx-0 d-flex flex-column">
+        <h2 class="mt-1">Facturación</h2>
     </div>
       
        

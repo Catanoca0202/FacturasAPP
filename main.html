@@ -32,6 +32,11 @@
         google.script.run.showAjustes();
 
       }
+
+      function abrirSoporte() {
+  
+        window.open('https://soporte.facturasapp.com/hc/es-es/articles/34589820237979-Evite-problemas-de-cuenta-en-FacturasApp-for-Google-Sheets-creando-un-perfil-dedicado-en-su-navegador')
+      }
     </script>
   </head>
   <body class="d-flex h-100">
@@ -57,10 +62,14 @@
         </a>
       
         <!-- Botón cuadrado (solo ícono) -->
-        <a 
+        <a
+          onclick="abrirSoporte()"
           href="#"
           class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center"
           style="width: 40px; height: 40px;"
+          data-bs-toggle="tooltip" 
+          data-bs-placement="top" 
+          title="Soporte" 
         >
           <i class="icon-24-outlined-other-other-box-1"></i>
         </a>
