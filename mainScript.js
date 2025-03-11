@@ -711,9 +711,19 @@ function getPdfUrl() {
 }
 
 function sendPdfByEmail(email) {
+  let hojaDatosEmisor = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Datos de emisor');
+  let nombreCliente = hojaDatosEmisor.getRange("B10").getValue();
   var pdfFile = generatePdfFromFactura();
-  var subject = 'Factura';
-  var body = 'Adjunto encontrará la factura en formato PDF.';
+  var subject = `📄 Nueva factura de ${nombreCliente}`;
+  var body = `¡Hola!\n` +
+           `${nombreCliente} te ha enviado la siguiente factura:\n` +
+           `🔹 Número de factura: ${numFactura}\n` +
+           `💰 Valor: 0000 €\n` +
+           `Si tienes alguna duda, contacta directamente con ${nombreCliente}.\n` +
+           `Saludos,\n` +
+           `${nombreCliente}\n\n`+
+           `📌 ¿Necesitas facturación electrónica? Ahorra tiempo y factura fácilmente con FacturasApp\n` +
+           `👉 Ver más: https://www.facturasapp.com/Publico/`;
 
   if (!email) {
     return "Por favor ingrese una dirección de correo válida.";
@@ -1771,4 +1781,14 @@ function abrirLinkSoporte(){
   var html = "<script>window.open('"+url+"');google.script.host.close();</script>";
   var userInterface = HtmlService.createHtmlOutput(html);
   SpreadsheetApp.getUi().showModalDialog(userInterface, 'Soporte');
+}
+
+
+function cambiarAmbienete(){
+  let respuesta = ui.alert('Estas seguro de que quieres cambiar el ambiente?, tendras que volver a inicar sesion', ui.ButtonSet.YES_NO);
+  if (respuesta == ui.Button.YES){
+    showVincularCuenta()
+  }else{
+    ui.alert('No se ha cambiado el ambiente');
+  }
 }

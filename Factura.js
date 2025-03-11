@@ -812,6 +812,9 @@ function enviarEmailPostFactura(email,historial=false,numFacturaAbuscar=null) {
   Logger.log("idArchivo "+idArchivo)
   Logger.log("numFactura "+numFactura)
 
+  let hojaDatosEmisor = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Datos de emisor');
+  let nombreCliente = hojaDatosEmisor.getRange("B10").getValue();
+
 
   var file = Drive.Files.get(idArchivo);
   Logger.log("file obtenido exitosamente." + file.name);
@@ -823,9 +826,16 @@ function enviarEmailPostFactura(email,historial=false,numFacturaAbuscar=null) {
   }).getBlob();
 
   pdfBlob.setName(file.name)
-  var subject = `Factura ${numFactura}`;
-  var body = 'Adjunto encontrará la factura en formato PDF.';
-
+  var subject = `📄 Nueva factura de ${nombreCliente}`;
+  var body = `¡Hola!\n` +
+           `${nombreCliente} te ha enviado la siguiente factura:\n` +
+           `🔹 Número de factura: ${numFactura}\n` +
+           `💰 Valor: XXXXX €\n` +
+           `Si tienes alguna duda, contacta directamente con ${nombreCliente}.\n` +
+           `Saludos,\n` +
+           `${nombreCliente}\n\n`+
+           `📌 ¿Necesitas facturación electrónica? Ahorra tiempo y factura fácilmente con FacturasApp\n` +
+           `👉 Ver más: https://www.facturasapp.com/Publico/`;
   if (!email) {
     return "Por favor ingrese una dirección de correo válida.";
   }
@@ -1773,6 +1783,7 @@ function obtenerDatosFactura(factura){
             if (numeroProductos > 1) {
               targetSheet.insertRowAfter(numeroCelda);
               targetSheet.getRange('C'+(numeroCelda+1)+':E'+(numeroCelda+1)).merge();
+              targetSheet.getRange('A'+(numeroCelda+1)+':B'+(numeroCelda+1)).merge();
               filasInsertadas += 1;
               filasInsertadasPorProductos += 1;
             }
