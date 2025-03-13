@@ -580,7 +580,16 @@ function convertPdfToBase64(historial=false,row=null) {
 }
 function enviarFactura(){
   var spreadsheet = SpreadsheetApp.getActive();
-  let url ="https://facturasapp-qa.cenet.ws/ApiGateway/InvoiceSync/v2/LoadInvoice/LoadDocument"
+  const scriptProps = PropertiesService.getDocumentProperties();
+  let ambiente = scriptProps.getProperty('Ambiente')
+  Logger.log("apikeuy")
+  Logger.log("Ambiente: "+ambiente)
+  let url
+  if (ambiente=="Pruebas"){
+    url = "https://facturasapp-qa.cenet.ws/ApiGateway/InvoiceSync/v2/LoadInvoice/LoadDocument"
+  }else{
+    url = "https://www.facturasapp.com/ApiGateway/InvoiceSync/v2/LoadInvoice/LoadDocument";
+  }
   let json =convertPdfToBase64()
   let hojaDatos = spreadsheet.getSheetByName('Datos');
   let APIkey=hojaDatos.getRange("I21").getValue()
@@ -595,7 +604,7 @@ function enviarFactura(){
   try {
     var respuesta = UrlFetchApp.fetch(url, opciones);
     Logger.log(respuesta.status); // Muestra la respuesta de la API en los logs
-    SpreadsheetApp.getUi().alert("Factura enviada correctamente a FacturasApp. Si desea verla ingrese a https://facturasapp-qa.cenet.ws/Aplicacion/");
+    SpreadsheetApp.getUi().alert("Factura enviada correctamente a FacturasApp. Si desea verla ingrese a "+String(url));
   } catch (error) {
     Logger.log("Error al enviar el JSON a la API: " + error.message);
     SpreadsheetApp.getUi().alert("Error al enviar la factura a FacturasApp. Intente de nuevo si el error presiste comuniquese con soporte");
@@ -604,7 +613,12 @@ function enviarFactura(){
 
 function enviarFacturaHistorial(numeroFactura){
   let spreadsheet = SpreadsheetApp.getActive()
-  let url="https://facturasapp-qa.cenet.ws/ApiGateway/InvoiceSync/v2/LoadInvoice/LoadDocument"
+  let url
+  if (ambiente=="Pruebas"){
+    url = "https://facturasapp-qa.cenet.ws/ApiGateway/InvoiceSync/v2/LoadInvoice/LoadDocument"
+  }else{
+    url = "https://facturasapp.com/ApiGateway/InvoiceSync/v2/LoadInvoice/LoadDocument";
+  }
   let hojafFacturasID = spreadsheet.getSheetByName('Facturas ID');
   let lastRow=hojafFacturasID.getLastRow()
   let rangeFacturasID=hojafFacturasID.getRange(2,1,lastRow-1)
@@ -631,7 +645,7 @@ function enviarFacturaHistorial(numeroFactura){
   try {
     var respuesta = UrlFetchApp.fetch(url, opciones);
     Logger.log(respuesta.status); // Muestra la respuesta de la API en los logs
-    SpreadsheetApp.getUi().alert("Factura enviada correctamente a FacturasApp. Si desea verla ingrese a https://facturasapp-qa.cenet.ws/Aplicacion/");
+    SpreadsheetApp.getUi().alert("Factura enviada correctamente a FacturasApp. Si desea verla ingrese a "+String(url));
   } catch (error) {
     Logger.log("Error al enviar el JSON a la API: " + error.message);
     SpreadsheetApp.getUi().alert("Error al enviar la factura a FacturasApp. Intente de nuevo si el error presiste comuniquese con soporte");
@@ -660,7 +674,16 @@ function obtenerAPIkey(usuario, contra) {
   let spreadsheet = SpreadsheetApp.getActive();
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
   let hojaDatos=spreadsheet.getSheetByName("Datos")
-  let url = "https://facturasapp-qa.cenet.ws/ApiGateway/AppSecurity/ApiKey";
+  const scriptProps = PropertiesService.getDocumentProperties();
+  let ambiente = scriptProps.getProperty('Ambiente')
+  Logger.log("apikeuy")
+  Logger.log("Ambiente: "+ambiente)
+  let url
+  if (ambiente=="Pruebas"){
+    url = "https://facturasapp-qa.cenet.ws/ApiGateway/AppSecurity/ApiKey";
+  }else{
+    url = "https://www.facturasapp.com/ApiGateway/AppSecurity/ApiKey";
+  }
   let json = jsonAPIkey(usuario, contra);
   let opciones = {
     "method": "post",
@@ -699,6 +722,7 @@ function obtenerAPIkey(usuario, contra) {
     Logger.log("Error al enviar el JSON a la API: " + error.message);
     hojaDatosEmisor.getRange("B15").setBackground('#FFC7C7')
     hojaDatosEmisor.getRange("B15").setValue("Desvinculado")
+    hojaDatos.getRange("I21").setValue(0)
     SpreadsheetApp.getUi().alert("Error al vincular tu cuenta. Verifica que el usuario y la contraseña estén correctos e intenta de nuevo. Si el error persiste, comunícate con soporte.");
   }
 }
@@ -789,10 +813,14 @@ function getDownloadLink() {
 
 function enviarEmailPostFactura(email,historial=false,numFacturaAbuscar=null) {
   var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Facturas ID');
+  let hojaListadoEstado = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ListadoEstado');
+  let lastRowListado=hojaListadoEstado.getLastRow()
   var lastRow = hoja.getLastRow();
   let idArchivo ;
   let numFactura;
   let lastRowfacturasID;
+  let lastRowListadoEstado;
+  let json;
   if(historial){
     let rangeFacturasID=hoja.getRange(2,1,lastRow-1)
     let facturasIDList = rangeFacturasID.getValues().map(row => row[0]);
@@ -801,11 +829,27 @@ function enviarEmailPostFactura(email,historial=false,numFacturaAbuscar=null) {
     lastRowfacturasID=lastRowfacturasID+2
     idArchivo = hoja.getRange("B" + lastRowfacturasID).getValue();
     numFactura = hoja.getRange("A" + lastRowfacturasID).getValue();
+
+
+    let rangeListadoEstado=hojaListadoEstado.getRange(2,6,lastRowListado-1)
+    let listadoEstadoList = rangeListadoEstado.getValues().map(row => row[0]);
+
+    lastRowListadoEstado=busquedaLineal(listadoEstadoList,numFactura)
+    lastRowListadoEstado=lastRowListadoEstado+2
+
+    json =hojaListadoEstado.getRange(lastRowListadoEstado,14).getValue()
+    Logger.log("json "+json)
   }else{
 
     idArchivo = hoja.getRange("B" + lastRow).getValue();
     numFactura = hoja.getRange("A" + lastRow).getValue();
+    json = hojaListadoEstado.getRange("N"+lastRowListado).getValue();
+    Logger.log("json 2"+json)
   } 
+  json = JSON.parse(json);
+
+  const invoiceTotal = json.Document.invoice.invoiceTotal;
+  Logger.log("lastRowListadoEstado "+lastRowListadoEstado)
   Logger.log("lastRowfacturasID " +lastRowfacturasID)
 
   Logger.log("email "+email)
@@ -813,7 +857,7 @@ function enviarEmailPostFactura(email,historial=false,numFacturaAbuscar=null) {
   Logger.log("numFactura "+numFactura)
 
   let hojaDatosEmisor = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Datos de emisor');
-  let nombreCliente = hojaDatosEmisor.getRange("B10").getValue();
+  let nombreCliente = hojaDatosEmisor.getRange("B1").getValue();
 
 
   var file = Drive.Files.get(idArchivo);
@@ -830,7 +874,7 @@ function enviarEmailPostFactura(email,historial=false,numFacturaAbuscar=null) {
   var body = `¡Hola!\n` +
            `${nombreCliente} te ha enviado la siguiente factura:\n` +
            `🔹 Número de factura: ${numFactura}\n` +
-           `💰 Valor: XXXXX €\n` +
+           `💰 Valor: ${invoiceTotal} €\n` +
            `Si tienes alguna duda, contacta directamente con ${nombreCliente}.\n` +
            `Saludos,\n` +
            `${nombreCliente}\n\n`+
@@ -1606,11 +1650,11 @@ function guardarYGenerarInvoice(){
         "taxableAmount": String(parseFloat(facturaTotalesBaseImponilbe[0])),
         "Percent": "0",
         "taxAmount": String(parseFloat(facturaTotalesBaseImponilbe[2])),
-        "surchargeAmount": "el valor no se debe de reportar",
-        "surchargeValue": "el valor no se debe de reportar",
+        "surchargeAmount": "el valor no se debe de reportar",// base de recargo
+        "surchargeValue": "el valor no se debe de reportar", // cuota de recargo
         "PercentSurchargeEquivalence": "0",
         "PercentageRetention": "0",
-        "IRPFValue": "el valor no se debe de reportar",
+        "IRPFValue": "el valor no se debe de reportar", // cuota IRPF
         "invoiceTotal": String(TotalFactura),
         "payDate":String(fechaVencdioParaNuevoInvoice),
         "PaymentType": String(PaymentSummary["PaymentType"]),

@@ -712,8 +712,15 @@ function getPdfUrl() {
 
 function sendPdfByEmail(email) {
   let hojaDatosEmisor = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Datos de emisor');
-  let nombreCliente = hojaDatosEmisor.getRange("B10").getValue();
+  let hojaListadoEstado = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ListadoEstado');
+  let lastRow = hojaListadoEstado.getLastRow();
+  let numFactura;
+  let lastRowfacturasID;
+
+  let nombreCliente = hojaDatosEmisor.getRange("B2").getValue();
   var pdfFile = generatePdfFromFactura();
+
+  busquedaLineal()
   var subject = `📄 Nueva factura de ${nombreCliente}`;
   var body = `¡Hola!\n` +
            `${nombreCliente} te ha enviado la siguiente factura:\n` +
@@ -1051,12 +1058,14 @@ function DesvincularFacturasApp(){
   Logger.log("Desvincular")
   let spreadsheet = SpreadsheetApp.getActive();
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
+  let hojaDatos=spreadsheet.getSheetByName("Datos")
   let estadoVinculacion=hojaDatosEmisor.getRange("B15").getValue();
   if(estadoVinculacion=="Desvinculado"){
     SpreadsheetApp.getUi().alert('Tu estado ya es Desvinculado');
   }else{
   hojaDatosEmisor.getRange("B15").setBackground('#FFC7C7')
   hojaDatosEmisor.getRange("B15").setValue("Desvinculado")
+  hojaDatos.getRange("I21").setValue(0)
   SpreadsheetApp.getUi().alert('Haz desvinculado exitosamente facturasApp ');
   }
 }
@@ -1785,10 +1794,32 @@ function abrirLinkSoporte(){
 
 
 function cambiarAmbienete(){
+  let spreadsheet = SpreadsheetApp.getActive();
+  let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
+
+  Logger.log("cambiar ambiente")
+  let ui = SpreadsheetApp.getUi();
   let respuesta = ui.alert('Estas seguro de que quieres cambiar el ambiente?, tendras que volver a inicar sesion', ui.ButtonSet.YES_NO);
   if (respuesta == ui.Button.YES){
+    //DesvincularFacturasApp()
+    let AmbienteActual=hojaDatosEmisor.getRange("C1001").getValue()
+    if(AmbienteActual=="Produccion"){
+      AmbienteActual="Pruebas"
+    }else{
+      AmbienteActual="Produccion"
+    }
+    Logger.log("Ambiente actual "+AmbienteActual)
+    const scriptProps = PropertiesService.getDocumentProperties();
+    scriptProps.setProperties({
+      'Ambiente': AmbienteActual
+    });
     showVincularCuenta()
+    DesvincularFacturasApp()
+    hojaDatosEmisor.getRange("C1001").setValue(AmbienteActual)
+
   }else{
     ui.alert('No se ha cambiado el ambiente');
   }
 }
+
+
