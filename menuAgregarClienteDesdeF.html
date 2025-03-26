@@ -66,9 +66,9 @@
       const form = document.getElementById('clientForm');
       const tipoPersona = document.getElementById('tipoPersona').value;
       const columnasObligatorias = tipoPersona === 'Autonomo' ?
-        ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion', 'codigoContacto','regimen',  'primerNombre', 'primerApellido', 'pais',  'email'] :
+        ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion', 'codigoContacto','regimen',  'primerNombre', 'primerApellido','codigoPostal', 'pais',  'email'] :
         tipoPersona === 'Empresa' ?
-        ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion',  'codigoContacto','regimen',  'nombreComercial', 'pais',  'email'] :
+        ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion',  'codigoContacto','regimen',  'nombreComercial','codigoPostal', 'pais',  'email'] :
         [];
 
       let isValid = true;

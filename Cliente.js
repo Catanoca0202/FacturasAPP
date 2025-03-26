@@ -628,9 +628,9 @@ function verificarDatosObligatorios(e, tipoPersona) {
   }
 
   if (tipoPersona === "Autonomo") {
-    columnasObligatorias = [3, 4, 5, 6,7, 8, 10, 12, 14, 21]; // Incluyendo "Nombre cliente" (columna 2)
+    columnasObligatorias = [3, 4, 5, 6,7, 8, 10, 12, 14,18, 21]; // Incluyendo "Nombre cliente" (columna 2)
   } else if (tipoPersona === "Empresa") {
-    columnasObligatorias = [3, 4, 5, 6, 7,8,9, 14, 21]; // Incluyendo "Nombre cliente" (columna 2)
+    columnasObligatorias = [3, 4, 5, 6, 7,8,9, 14, 18, 21]; // Incluyendo "Nombre cliente" (columna 2)
   } else {
     Logger.log("Vacio tipo de persona");
   }
@@ -734,12 +734,14 @@ function getCustomerInformation(customer) {
   var WebSiteURI = range.getValue();
 
   var paisCliente= datos_sheet.getRange("S2").getValue();
+  let codigoPostalCliente=datos_sheet.getRange("U2").getValue();
 
   if (IdentificationType == "#NUM!") {
     Browser.msgBox("ERROR: Seleccione Tipo de Identificacion en Clientes")
     return;
   }
   let valorFecha=ObtenerFecha()
+  let valorFechaPago=ObtenerFecha("pago")
   var CustomerInformation = {
     "IdentificationType": IdentificationType,
     "Identification": Identification,//.toString(),
@@ -747,9 +749,9 @@ function getCustomerInformation(customer) {
     "RegistrationName": customer,
     "CountryCode": paisesCodigos[paisCliente],//cambia dependiendo del pais
     "CountryName": paisCliente,
-    "SubdivisionCode": "En España no se como funcionan codigo  de provinica",// 11, //Codigo de Municipio
+    "FechaPago": valorFechaPago,// 11, //Codigo de Municipio
     "SubdivisionName": datos_sheet.getRange("AA2").getValue(),// provicnica
-    "CityCode": "Hay dos codigos postales, este solo existe para colombia",
+    "CityCode": codigoPostalCliente,
     "CityName": datos_sheet.getRange("Z2").getValue(),//polbacion
     "AddressLine": String(Address),
     "PostalZone": datos_sheet.getRange("U2").getValue(),//Confundido con el codigo postal hay 2, de recepcion y de 

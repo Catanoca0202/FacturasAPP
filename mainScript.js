@@ -223,7 +223,7 @@ function onOpen(e) {
 
 function pruebaLogo(){
   var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Datos de emisor");
-  var celdaLogo = hoja.getRange("B12").getValue();
+  var celdaLogo = hoja.getRange("B13").getValue();
   hoja.getRange("B20").setValue(celdaLogo);
 }
 
@@ -786,7 +786,7 @@ function onEdit(e) {
         obtenerFechaYHoraActual()
         //generarNumeroFactura()
         let hojaInfoUsuario= spreadsheet.getSheetByName('Datos de emisor');
-        let  iban= hojaInfoUsuario.getRange("B9").getValue();
+        let  iban= hojaInfoUsuario.getRange("B10").getValue();
         factura_sheet.getRange("B11").setValue(iban)
         generarNumeroFactura()
 
@@ -883,6 +883,8 @@ function onEdit(e) {
           // Restablece el valor a 0
           celdaEditada.setValue(0);
         }
+        Logger.log("dentro de fecha calcular")
+        CalcularDiasOFecha("Dias")
       }else if(colEditada==7 && rowEditada==2){
         let valorFacturaNumero = celdaEditada.getValue();
         let coincideEstruct=cumpleEstructura(valorFacturaNumero)
@@ -902,6 +904,9 @@ function onEdit(e) {
       }
       }else if(colEditada==12 && rowEditada >= productStartRow && rowEditada < posRowTotalProductos){
         Logger.log("dentro eliminar")
+      }else if(colEditada==7 && (rowEditada ==4 || rowEditada ==3) ){
+        Logger.log("dentro de fecha calcular2")
+        CalcularDiasOFecha("Fecha")
       }
       
       let lastRowProducto=getLastProductRow(hojaActual, productStartRow, taxSectionStartRow);
@@ -917,6 +922,8 @@ function onEdit(e) {
         Logger.log("productStartRow"+productStartRow)
         calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRow,hojaActual)
       }
+
+      // CalcularDiasOFecha()
       
       updateTotalProductCounter(lastRowProducto,productStartRow,hojaActual,taxSectionStartRow)
 
@@ -1059,12 +1066,12 @@ function DesvincularFacturasApp(){
   let spreadsheet = SpreadsheetApp.getActive();
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
   let hojaDatos=spreadsheet.getSheetByName("Datos")
-  let estadoVinculacion=hojaDatosEmisor.getRange("B15").getValue();
+  let estadoVinculacion=hojaDatosEmisor.getRange("B16").getValue();
   if(estadoVinculacion=="Desvinculado"){
     SpreadsheetApp.getUi().alert('Tu estado ya es Desvinculado');
   }else{
-  hojaDatosEmisor.getRange("B15").setBackground('#FFC7C7')
-  hojaDatosEmisor.getRange("B15").setValue("Desvinculado")
+  hojaDatosEmisor.getRange("B16").setBackground('#FFC7C7')
+  hojaDatosEmisor.getRange("B16").setValue("Desvinculado")
   hojaDatos.getRange("I21").setValue(0)
   SpreadsheetApp.getUi().alert('Haz desvinculado exitosamente facturasApp ');
   }
@@ -1102,8 +1109,8 @@ function eliminarTotalidadInformacion(){
   borrarInfoHoja(ClientesInvalidos)
   borrarInfoHoja(hojaDatosEmisor)
   eliminarCarpetaConDriveAPI()
-  hojaDatosEmisor.getRange("B15").setBackground('#FFC7C7')
-  hojaDatosEmisor.getRange("B15").setValue("Desvinculado")
+  hojaDatosEmisor.getRange("B16").setBackground('#FFC7C7')
+  hojaDatosEmisor.getRange("B16").setValue("Desvinculado")
   SpreadsheetApp.getUi().alert('Informacion eliminada correctamente');
 
 
@@ -1118,7 +1125,7 @@ function borrarInfoHoja(hoja){
   Logger.log("lastrow "+lastrow)
   if (nombreHoja==="Datos de emisor" ){
     Logger.log("Hoja es datos emisor ")
-    hoja.getRange(1,2,13).setValue("")
+    hoja.getRange(1,2,16).setValue("")
   }else{
     Logger.log("else")
     hoja.deleteRows(2,lastrow)
@@ -1567,6 +1574,8 @@ function int2word(n) {
 
   if (centimos > 0) {
     letras = letras + 'Euros' + ` Con ${cienes(centimos)}Céntimos`;
+  }else{
+    letras = letras + 'Euros';
   }
 
   return letras;
@@ -1728,8 +1737,8 @@ function verificarConsecutivo(entrada, isNumero) {
 function guardarConsecutivo(){
   let spreadsheet = SpreadsheetApp.getActive();
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
-  let letra=hojaDatosEmisor.getRange(23,1).getValue()
-  let numero = hojaDatosEmisor.getRange(23,3).getValue()
+  let letra=hojaDatosEmisor.getRange(24,1).getValue()
+  let numero = hojaDatosEmisor.getRange(24,3).getValue()
   const scriptProperties = PropertiesService.getDocumentProperties();
   if(verificarConsecutivo(letra,false)){
     Logger.log("letra valida")
@@ -1802,7 +1811,7 @@ function cambiarAmbienete(){
   let respuesta = ui.alert('Estas seguro de que quieres cambiar el ambiente?, tendras que volver a inicar sesion', ui.ButtonSet.YES_NO);
   if (respuesta == ui.Button.YES){
     //DesvincularFacturasApp()
-    let AmbienteActual=hojaDatosEmisor.getRange("C1001").getValue()
+    let AmbienteActual=hojaDatosEmisor.getRange("C1002").getValue()
     if(AmbienteActual=="Produccion"){
       AmbienteActual="Pruebas"
     }else{

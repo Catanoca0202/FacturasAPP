@@ -298,7 +298,7 @@ function verificarEstadoValidoFactura() {
 function verificarEstadoCarpeta(){
   let spreadsheet = SpreadsheetApp.getActive();
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
-  let idCarpeta = hojaDatosEmisor.getRange("B14").getValue();  // Obtenemos el ID de la carpeta desde una celda
+  let idCarpeta = hojaDatosEmisor.getRange("B15").getValue();  // Obtenemos el ID de la carpeta desde una celda
   Logger.log("idCarpeta "+idCarpeta)
   if (idCarpeta==""){
     //hoja toca ver si es la misma que esta en la google drive 
@@ -314,7 +314,7 @@ function verificarEstadoCarpeta(){
 function guardarFactura(){
   let spreadsheet = SpreadsheetApp.getActive();
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
-  let estadoVinculacion=hojaDatosEmisor.getRange("B15").getValue();
+  let estadoVinculacion=hojaDatosEmisor.getRange("B16").getValue();
   let estadoFactura=verificarEstadoValidoFactura();
   if(estadoVinculacion=="Desvinculado"){
     SpreadsheetApp.getUi().alert("Recuerda que antes de poder generar una factura es necesario haber vinculado tu cuenta de FacturasApp")
@@ -709,19 +709,19 @@ function obtenerAPIkey(usuario, contra) {
       let apiKey = respuestaJson[0]; // Extrae el API Key
       Logger.log("API Key obtenida: " + apiKey);
       SpreadsheetApp.getUi().alert("Se ha vinculado tu cuenta exitosamente");
-      hojaDatosEmisor.getRange("B15").setBackground('#ccffc7')  // Almacena el API Key en la celda
-      hojaDatosEmisor.getRange("B15").setValue("Vinculado")
+      hojaDatosEmisor.getRange("B16").setBackground('#ccffc7')  // Almacena el API Key en la celda
+      hojaDatosEmisor.getRange("B16").setValue("Vinculado")
       hojaDatos.getRange("I21").setValue(apiKey)
     } else {
-      hojaDatosEmisor.getRange("B15").setBackground('#FFC7C7')
-      hojaDatosEmisor.getRange("B15").setValue("Desvinculado")
+      hojaDatosEmisor.getRange("B16").setBackground('#FFC7C7')
+      hojaDatosEmisor.getRange("B16").setValue("Desvinculado")
       throw new Error("Error de la API: " + contenidoRespuesta); // Muestra el error de la API
       
     }
   } catch (error) {
     Logger.log("Error al enviar el JSON a la API: " + error.message);
-    hojaDatosEmisor.getRange("B15").setBackground('#FFC7C7')
-    hojaDatosEmisor.getRange("B15").setValue("Desvinculado")
+    hojaDatosEmisor.getRange("B16").setBackground('#FFC7C7')
+    hojaDatosEmisor.getRange("B16").setValue("Desvinculado")
     hojaDatos.getRange("I21").setValue(0)
     SpreadsheetApp.getUi().alert("Error al vincular tu cuenta. Verifica que el usuario y la contraseña estén correctos e intenta de nuevo. Si el error persiste, comunícate con soporte.");
   }
@@ -807,6 +807,10 @@ function linkDescargaFactura() {
 
 function getDownloadLink() {
   var data = linkDescargaFactura();
+  const usuario =obtenerUsuario()
+  const propietario= obtenerPropietario()
+  Logger.log("usuario "+usuario)
+  Logger.log("propietario "+propietario)
   Logger.log("sale de linkdescargar")
   return data;
 }
@@ -1163,7 +1167,7 @@ function inicarFacturaNueva(){
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   let hojaFactura = spreadsheet.getSheetByName('Factura');
   let hojaInfoUsuario= spreadsheet.getSheetByName('Datos de emisor');
-  let IABN=hojaInfoUsuario.getRange("B9").getValue()
+  let IABN=hojaInfoUsuario.getRange("B10").getValue()
   
   hojaFactura.getRange("B11").setValue(IABN)
   generarNumeroFactura(); 
@@ -1325,6 +1329,8 @@ function ObtenerFecha(opcion=null){
   Logger.log("valorFecha "+String(valorFecha))
   return fechaFormateada
 }
+
+
 
 function obtenerDatosProductos(sheet,range,e){
     if ( range.getA1Notation() === "A14" || range.getA1Notation()=== "A15" || range.getA1Notation() === "A16" || range.getA1Notation()=== "A17" || range.getA1Notation()=== "A18") {
@@ -1619,7 +1625,7 @@ function guardarYGenerarInvoice(){
   let CustomerInformation = getCustomerInformation(cliente);// tal ves que por ahora no llame al cliente
   
   let sheetDatosEmisor=spreadsheet.getSheetByName('Datos de emisor');
-  let userId = String(sheetDatosEmisor.getRange("B11").getValue());
+  let userId = String(sheetDatosEmisor.getRange("B12").getValue());
   let companyId = String(sheetDatosEmisor.getRange("B3").getValue());
   let PaymentSummary=getPaymentSummary(startingRowTaxation)
 
@@ -1703,6 +1709,30 @@ function showCustomDialog() {
       .setWidth(400)
       .setHeight(400);
   SpreadsheetApp.getUi().showModalDialog(html, 'Elige una opción');
+}
+
+function CalcularDiasOFecha(opcion) {
+  const sheet = SpreadsheetApp.getActive().getSheetByName('Factura');
+  const fechaEmision = sheet.getRange("G4").getValue();
+  const fechaVencimiento = sheet.getRange("G3").getValue();
+  const diasVencimiento = sheet.getRange("G6").getValue();
+  Logger.log(opcion+"opcion")
+
+  // Verifica que haya fecha de emisión
+  if (!fechaEmision) return;
+
+  // Si hay días de vencimiento (incluso 0), calcula la fecha de vencimiento
+  if (opcion === "Dias")  {
+    const nuevaFecha = new Date(fechaEmision);
+    nuevaFecha.setDate(nuevaFecha.getDate() + Number(diasVencimiento));
+    sheet.getRange("G3").setValue(nuevaFecha);
+  }
+  
+  // Si no hay días pero sí fecha de vencimiento, calcula los días
+  else if (opcion === "Fecha") {
+    const dias = Math.ceil((fechaVencimiento - fechaEmision) / (1000 * 60 * 60 * 24));
+    sheet.getRange("G6").setValue(dias);
+  }
 }
 
 
@@ -1791,6 +1821,8 @@ function obtenerDatosFactura(factura){
           var provincia = invoiceData.CustomerInformation.SubdivisionName;
           var pais = invoiceData.CustomerInformation.CountryName;
           var fechaEmision = invoiceData.CustomerInformation.DV;
+          let codigoPostal=invoiceData.CustomerInformation.CityCode;
+          let fechaPago = invoiceData.CustomerInformation.FechaPago
           var formaPago = invoiceData.PaymentSummary.PaymentType;
           var listaProductos = invoiceData.ItemInformation;
           var numeroProductos = 0;
@@ -1843,7 +1875,8 @@ function obtenerDatosFactura(factura){
 
             var celdaDespricion = targetSheet.getRange('C'+numeroCelda);
             celdaDespricion.setBorder(true,true,true,true,null,null,null,null);
-            celdaDespricion.setValue(listaProductos[j].Name);
+            let nombreProducto=obtenerTextoSinNumero(listaProductos[j].Name)
+            celdaDespricion.setValue(nombreProducto);
             celdaDespricion.setHorizontalAlignment('center');
             
             var celdaCantidad = targetSheet.getRange('F'+numeroCelda);
@@ -1968,6 +2001,7 @@ function obtenerDatosFactura(factura){
           var telefonoCeldaHoja = hojaCeldas.getRange('E7').getValue();
           var poblacionCeldaHoja = hojaCeldas.getRange('E6').getValue();
           var fechaEmisionCeldaHoja = hojaCeldas.getRange('E9').getValue();
+          let fechaPagoCeldaHoja = hojaCeldas.getRange('E8').getValue();
           var formaPagoCeldaHoja = hojaCeldas.getRange('E10').getValue();
           let contactoCeldaHoja=hojaCeldas.getRange("E11").getValue();
 
@@ -1983,6 +2017,7 @@ function obtenerDatosFactura(factura){
           var fechaEmisionCell = targetSheet.getRange(fechaEmisionCeldaHoja);
           var formaPagoCell = targetSheet.getRange(formaPagoCeldaHoja);
           let contactoCell=targetSheet.getRange(contactoCeldaHoja);
+          let fechaPagoCell=targetSheet.getRange(fechaPagoCeldaHoja);
           var valorPagarCell = targetSheet.getRange('B'+(41+filasInsertadas));
           var notaPagoCell = targetSheet.getRange('A'+(45+filasInsertadas));
           var observacionesCell = targetSheet.getRange('A'+(50+filasInsertadas));
@@ -2006,7 +2041,7 @@ function obtenerDatosFactura(factura){
           clienteCell.setValue(resultado[0]);
           nifCell.setValue(nif);
           // codigoCell.setValue(codigo);
-          direccionCell.setValue(direccion);
+          direccionCell.setValue(direccion+" "+codigoPostal);
           telefonoCell.setValue(telefono);
           contactoCell.setValue(Asesor)
           // Ajustar la forma en que se ve el pais - IMPORTANTE
@@ -2036,6 +2071,7 @@ function obtenerDatosFactura(factura){
           totalCargos.setNumberFormat('€#,##0.00')
           
           fechaEmisionCell.setValue(fechaEmision);
+          fechaPagoCell.setValue(fechaPago);
           formaPagoCell.setValue(formaPago);
           valorPagarCell.setValue(valorPagar);
           notaPagoCell.setValue(notaPago);
@@ -2093,6 +2129,13 @@ function obtenerDatosFactura(factura){
 
 
   Logger.log('Invoice number ' + factura + ' not found.');
+}
+
+function obtenerTextoSinNumero(str) {
+  // Elimina cualquier espacio alrededor del guion y separa el texto del número
+  const partes = str.split('-');
+  // Retorna solo la parte de texto
+  return partes[0].trim();
 }
 
 function capitalizarPrimeraPalabra(cadena) {
@@ -2202,7 +2245,7 @@ function pruebaSacar(){
 function subirFactura(nombre, pdfBlob) {
   let spreadsheet = SpreadsheetApp.getActive();
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
-  var folderId = hojaDatosEmisor.getRange("B14").getValue();
+  var folderId = hojaDatosEmisor.getRange("B15").getValue();
   var folder = DriveApp.getFolderById(folderId);
   var file = folder.createFile(pdfBlob.setName(`Factura ${nombre}.pdf`));
   var id = file.getId();
@@ -2215,7 +2258,7 @@ function crearCarpeta() {
   let folder = DriveApp.createFolder("FacturasApp");
   Logger.log('Folder created: ' + folder.getName() + ' (ID: ' + folder.getId() + ')');
   let id = folder.getId();
-  hojaDatosEmisor.getRange("B14").setValue(id);
+  hojaDatosEmisor.getRange("B15").setValue(id);
 }
 
 
@@ -2232,22 +2275,22 @@ function crearCarpetaConDriveAPI() {
   var folder = Drive.Files.create(folderMetadata);  // Usamos el servicio avanzado de Drive
   
   var id = folder.id;  // Obtenemos el ID de la nueva carpeta
-  hojaDatosEmisor.getRange("B14").setValue(id);
+  hojaDatosEmisor.getRange("B15").setValue(id);
   Logger.log("Carpeta creada")
 }
 
 function eliminarCarpetaConDriveAPI() {
   let spreadsheet = SpreadsheetApp.getActive();
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
-  let idCarpeta = hojaDatosEmisor.getRange("B14").getValue();  // Obtenemos el ID de la carpeta desde una celda
+  let idCarpeta = hojaDatosEmisor.getRange("B15").getValue();  // Obtenemos el ID de la carpeta desde una celda
 
   try {
     Drive.Files.remove(idCarpeta);  // Elimina la carpeta usando el servicio avanzado de Drive
     Logger.log("Carpeta eliminada exitosamente.");
-    hojaDatosEmisor.getRange("B14").setValue("");
+    hojaDatosEmisor.getRange("B15").setValue("");
   } catch (e) {
     Logger.log("Error al eliminar la carpeta: " + e.message);
-    hojaDatosEmisor.getRange("B14").setValue("");
+    hojaDatosEmisor.getRange("B15").setValue("");
   }
 }
 
@@ -2255,7 +2298,7 @@ function eliminarCarpetaConDriveAPI() {
 function subirFactura2(nombre, pdfBlob) {
   Logger.log("subir factura 2")
   let hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Datos de emisor');
-  let IdCarpeta=hoja.getRange("B14").getValue()
+  let IdCarpeta=hoja.getRange("B15").getValue()
   let fileMetadata = {
     'name': 'Factura ' + nombre + '.pdf',
     'mimeType': 'application/pdf',
