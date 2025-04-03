@@ -302,7 +302,7 @@ function verificarEstadoCarpeta(){
   Logger.log("idCarpeta "+idCarpeta)
   if (idCarpeta==""){
     //hoja toca ver si es la misma que esta en la google drive 
-    SpreadsheetApp.getUi().alert("Necesitas primero crear la carpeta en donde se guardaran las facutras, dirigete a la hoja Datos de emisor y crea la carpeta dandole click al boton crear carpeta")
+    SpreadsheetApp.getUi().alert("Necesitas primero crear la carpeta en donde se guardaran las facturas, dirigete a la hoja Datos de emisor y crea la carpeta dandole click al boton crear carpeta")
     return false
   }else{
     Logger.log("la carpeta si existe");
@@ -335,7 +335,7 @@ function guardarFactura(){
 
     
   }else{
-    SpreadsheetApp.getUi().alert("Error al generar facutra. "+estadoFactura.message)
+    SpreadsheetApp.getUi().alert("Error al generar factura. "+estadoFactura.message)
   }
   
 
@@ -613,6 +613,7 @@ function enviarFactura(){
 
 function enviarFacturaHistorial(numeroFactura){
   let spreadsheet = SpreadsheetApp.getActive()
+  let ambiente = scriptProps.getProperty('Ambiente')
   let url
   if (ambiente=="Pruebas"){
     url = "https://facturasapp-qa.cenet.ws/ApiGateway/InvoiceSync/v2/LoadInvoice/LoadDocument"

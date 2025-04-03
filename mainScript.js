@@ -1824,7 +1824,7 @@ function cambiarAmbienete(){
     });
     showVincularCuenta()
     DesvincularFacturasApp()
-    hojaDatosEmisor.getRange("C1001").setValue(AmbienteActual)
+    hojaDatosEmisor.getRange("C1002").setValue(AmbienteActual)
 
   }else{
     ui.alert('No se ha cambiado el ambiente');
