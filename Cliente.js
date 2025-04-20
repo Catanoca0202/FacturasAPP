@@ -9,7 +9,7 @@ function showNuevaClienteDesdeFactura() {
 }
 
 function showNuevaProductoDesdeFactura(){
-  var html = HtmlService.createHtmlOutputFromFile('agregarProductoDesdeF').setTitle("Nuevo Cliente")
+  var html = HtmlService.createHtmlOutputFromFile('agregarProductoDesdeF').setTitle("Nuevo Producto")
   SpreadsheetApp.getUi()
     .showSidebar(html);
 }
