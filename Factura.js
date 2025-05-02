@@ -324,7 +324,8 @@ function guardarFactura(){
     // generar json
     
     let respuesta = verificarEstadoCarpeta()
-    if(respuesta){
+    let respuestaEstadoConsecutivo=verificarEstadoConsecutivo()
+    if(respuesta && respuestaEstadoConsecutivo){
       guardarYGenerarInvoice()
       guardarFacturaHistorial()
       limpiarHojaFactura()
@@ -431,6 +432,21 @@ function agregarProductoDesdeFactura(cantidad,producto){
 
   updateTotalProductCounter(rowParaDatos, productStartRow,hojaFactura, rowParaTotalTaxes);
   calcularImporteYTotal(rowParaDatos,productStartRow,rowParaTotalTaxes,hojaFactura)
+}
+
+function verificarEstadoConsecutivo(){
+  const scriptProperties = PropertiesService.getDocumentProperties();
+  numero = scriptProperties.getProperty('NumeroConescutivo');  // Ej: "123"
+  letra  = scriptProperties.getProperty('LetraConescutivo');   // Ej: "abc"
+  Logger.log("numero "+numero)
+  Logger.log("letra "+letra)  
+  if (numero==null || letra==null || numero=="" || letra==""){
+    SpreadsheetApp.getUi().alert("Recuerda que antes de poder generar una factura es necesario guardado un nuevo consecutivo, dirígete a la hoja Datos de emisor y crea un nuevo consecutivo dándole click al botón crear consecutivo")
+    return false
+  }else{
+    Logger.log("la consecutivo si existe");
+    return true
+  }
 }
 
 function onImageClick() {
