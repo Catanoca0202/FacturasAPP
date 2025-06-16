@@ -102,7 +102,7 @@ function iniciarHojasFactura() {
     });
 
   SpreadsheetApp.getUi().alert("Hojas instaladas satisfactoriamente.");
-  SpreadsheetApp.getUi().alert("Recuerda que antes de utilizar facturasApp debes de crear la carpeta donde se guardarán las facturas. Dirígete a la hoja Datos de emisor y dale clic en el botón crear carpeta.");
+  SpreadsheetApp.getUi().alert("Recuerda que antes de utilizar FacturasApp debes de crear la carpeta donde se guardarán las facturas. Dirígete a la hoja Datos de emisor y dale clic en el botón crear carpeta.");
 }
 
 function reinstalarHojaDatos(ss, plantilla) {
@@ -888,7 +888,11 @@ function onEdit(e) {
       }else if(colEditada==7 && rowEditada==2){
         let valorFacturaNumero = celdaEditada.getValue();
         let coincideEstruct=cumpleEstructura(valorFacturaNumero)
-        if(!coincideEstruct){
+        if(coincideEstruct==0){
+          SpreadsheetApp.getUi().alert("No puedes editar el consecutivo de la factura sin primero guardaro una estructura del consecutivo");
+          celdaEditada.setValue("");
+        }
+        else if(!coincideEstruct){
           SpreadsheetApp.getUi().alert("El consecutivo de la factura debe de coincidir con la estructura que tu elegiste");
           celdaEditada.setValue("");
           generarNumeroFactura()
@@ -1772,21 +1776,23 @@ function cumpleEstructura(str) {
     letra  = scriptProperties.getProperty('LetraConescutivo');   // Ej: "abc"
   } catch (err) {
     Logger.log('Error leyendo propiedades: %s', err.message);
-    return false;  // Maneja el error según tu caso
+    return false;            // Maneja el error según tu caso
   }
+
+  /* --- NUEVA COMPROBACIÓN --- */
+  // Si número o letra son "0", vacíos o nulos → devolver 0
+  if (!numero || numero === '0' || !letra || letra === '0') {
+    return 0;
+  }
+  /* -------------------------- */
 
   // Calculamos la longitud de "numero", que será la cantidad de dígitos esperados
   const lengthNumeros = numero.length;
 
-  // Escapamos "letra" para que si tuviera caracteres especiales, no rompan la expresión
-  // Ej: si letra fuera "ab." se convertirá en "ab\."
+  // Escapamos "letra" para evitar que caracteres especiales rompan la expresión
   const letraEscapada = letra.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  // Construimos el patrón:
-  // ^ (inicio)
-  // <letraEscapada> (prefijo literal)
-  // \d{lengthNumeros} (exactamente lengthNumeros dígitos)
-  // $ (fin)
+  // Construimos la expresión regular ^<letraEscapada>\d{lengthNumeros}$
   const regex = new RegExp(`^${letraEscapada}\\d{${lengthNumeros}}$`);
 
   // Verificamos si "str" cumple esa estructura
