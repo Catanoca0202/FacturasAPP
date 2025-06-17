@@ -852,7 +852,7 @@ function onEdit(e) {
             
             factura_sheet.getRange("I"+String(i)).setValue(dictInformacionProducto["retencion"])//Retencion
             factura_sheet.getRange("J"+String(i)).setValue(dictInformacionProducto["Recargo de equivalencia"])//Recargo de equivalencia
-            factura_sheet.getRange("K"+String(i)).setValue("=((F"+String(i)+"+(F"+String(i)+"*G"+String(i)+")-(F"+String(i)+"*I"+String(i)+")+(F"+String(i)+"*J"+String(i)+"))-(F"+String(i)+"*H"+String(i)+"))")//total linea
+            factura_sheet.getRange("K"+String(i)).setValue("=(((F"+String(i)+"-(F"+String(i)+"*H"+String(i)+"))+((F"+String(i)+"-(F"+String(i)+"*H"+String(i)+"))*G"+String(i)+")-((F"+String(i)+"-(F"+String(i)+"*H"+String(i)+"))*I"+String(i)+")+((F"+String(i)+"-(F"+String(i)+"*H"+String(i)+"))*J"+String(i)+")))")//total linea
           }
         }
         
