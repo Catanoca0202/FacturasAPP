@@ -846,13 +846,14 @@ function onEdit(e) {
           }else{
             factura_sheet.getRange("A"+String(i)).setValue(dictInformacionProducto["codigo Producto"])
             factura_sheet.getRange("E"+String(i)).setValue("=D"+String(i)+"+(D"+String(i)+"*G"+String(i)+")")//AGG COSA DE CON IVA 
-            factura_sheet.getRange("F"+String(i)).setValue("=(D"+String(i)+")*C"+String(i))//subtotal
+            factura_sheet.getRange("F"+String(i)).setValue("=(D"+String(i)+")*C"+String(i)+"-((D"+String(i)+")*C"+String(i)+")*H"+String(i))//subtotal
             factura_sheet.getRange("D"+String(i)).setValue(dictInformacionProducto["valor Unitario"])//valor unitario
             factura_sheet.getRange("G"+String(i)).setValue(dictInformacionProducto["IVA"])//IVA
             
             factura_sheet.getRange("I"+String(i)).setValue(dictInformacionProducto["retencion"])//Retencion
             factura_sheet.getRange("J"+String(i)).setValue(dictInformacionProducto["Recargo de equivalencia"])//Recargo de equivalencia
-            factura_sheet.getRange("K"+String(i)).setValue("=(((F"+String(i)+"-(F"+String(i)+"*H"+String(i)+"))+((F"+String(i)+"-(F"+String(i)+"*H"+String(i)+"))*G"+String(i)+")-((F"+String(i)+"-(F"+String(i)+"*H"+String(i)+"))*I"+String(i)+")+((F"+String(i)+"-(F"+String(i)+"*H"+String(i)+"))*J"+String(i)+")))")//total linea
+            // factura_sheet.getRange("K"+String(i)).setValue("=(((F"+String(i)+"-(F"+String(i)+"*H"+String(i)+"))+((F"+String(i)+"-(F"+String(i)+"*H"+String(i)+"))*G"+String(i)+")-((F"+String(i)+"-(F"+String(i)+"*H"+String(i)+"))*I"+String(i)+")+((F"+String(i)+"-(F"+String(i)+"*H"+String(i)+"))*J"+String(i)+")))")//total linea
+            factura_sheet.getRange("K"+String(i)).setValue("=(((F"+String(i)+")+(F"+String(i)+"*G"+String(i)+")-(F"+String(i)+"*I"+String(i)+")+(F"+String(i)+"*J"+String(i)+")))")//total linea
           }
         }
         
@@ -1226,11 +1227,22 @@ function calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRo
   let rowEspacioIvasAgrupacion=taxSectionStartRow+5
   let rowTotalBaseImponibleEIvaGeneral=taxSectionStartRow+7
   hojaActual.getRange("A"+String(rowParaFormulaBaseImponible)).setValue("=ARRAYFORMULA(SUMIF(G15:G"+String(lastRowProducto)+"; B"+String(rowParaFormulaBaseImponible)+":B"+String(rowEspacioIvasAgrupacion)+"; F15:F"+String(lastRowProducto)+"))")
+  //BASE imponilbre recargo
+  hojaActual.getRange("E"+String(rowParaFormulaBaseImponible)).setValue("=ARRAYFORMULA(SUMIF(J15:J"+String(lastRowProducto)+"; F"+String(rowParaFormulaBaseImponible)+":F"+String(rowEspacioIvasAgrupacion)+"; F15:F"+String(lastRowProducto)+"))")
+
     //total base imponible e iva genberal
     hojaActual.getRange("A"+String(rowTotalBaseImponibleEIvaGeneral)).setValue("=SUM(A"+String(rowParaFormulaBaseImponible)+":A"+String(rowEspacioIvasAgrupacion)+")")
     hojaActual.getRange("C"+String(rowTotalBaseImponibleEIvaGeneral)).setValue("=SUM(C"+String(rowParaFormulaBaseImponible)+":C"+String(rowEspacioIvasAgrupacion)+")")
+    
+    //total base imponible y recargo
+    hojaActual.getRange("E"+String(rowTotalBaseImponibleEIvaGeneral)).setValue("=SUM(E"+String(rowParaFormulaBaseImponible)+":E"+String(rowEspacioIvasAgrupacion)+")")
+    hojaActual.getRange("G"+String(rowTotalBaseImponibleEIvaGeneral)).setValue("=SUM(G"+String(rowParaFormulaBaseImponible)+":G"+String(rowEspacioIvasAgrupacion)+")")
+
   //IVA%
   hojaActual.getRange("B"+String(rowParaFormulaBaseImponible)).setValue("=UNIQUE(G15:G"+String(lastRowProducto)+")")
+  //RECARGO %
+  hojaActual.getRange("F"+String(rowParaFormulaBaseImponible)).setValue("=UNIQUE(J15:J"+String(lastRowProducto)+")")
+
 
   let rowParaTotales=taxSectionStartRow+10
   //total retenciones
@@ -1835,6 +1847,13 @@ function cambiarAmbienete(){
   }else{
     ui.alert('No se ha cambiado el ambiente');
   }
+}
+
+function showModoFacturacion() {
+  var html = HtmlService.createHtmlOutputFromFile('modoFacturacion')
+    .setTitle('Modo de facturación')
+    .setWidth(400);
+  SpreadsheetApp.getUi().showSidebar(html);
 }
 
 
