@@ -1,0 +1,742 @@
+{
+  "openapi": "3.0.4",
+  "info": {
+    "title": "FacturasApp.Invoice.Api",
+    "version": "1.0"
+  },
+  "servers": [
+    {
+      "url": "https://facturasapp-qa.cenet.ws/ApiGateway/ApiExternal/Invoice",
+      "description": "API Gateway"
+    }
+  ],
+  "paths": {
+    "/api/InvoiceServices/AddInvoice": {
+      "post": {
+        "tags": [
+          "Invoice"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldInvoice"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldInvoice"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldInvoice"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseTools"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseTools"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseTools"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/InvoiceServices/PDFInvoice": {
+      "post": {
+        "tags": [
+          "Invoice"
+        ],
+        "parameters": [
+          {
+            "name": "invoiceNumber",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AditionalData": {
+        "type": "object",
+        "properties": {
+          "invoiceId": {
+            "type": "integer",
+            "description": "Id de la factura",
+            "format": "int32",
+            "nullable": true
+          },
+          "startInvoiceId": {
+            "type": "integer",
+            "description": "Inicio de la facturación Id",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ChargeAndDiscount": {
+        "required": [
+          "baseFeeDiscount",
+          "idtypeFeeDiscount",
+          "idTypeValueFeeDiscount",
+          "totalFeeDiscount",
+          "valueFeeDiscount"
+        ],
+        "type": "object",
+        "properties": {
+          "idtypeFeeDiscount": {
+            "maxLength": 2,
+            "minLength": 0,
+            "type": "string",
+            "description": "Indique el tipo de uso de cargo y descuentos   - ver Servicios de catalogos con el codigo TIPO_USO"
+          },
+          "idTypeValueFeeDiscount": {
+            "maxLength": 2,
+            "minLength": 0,
+            "type": "string",
+            "description": "Indique el tipo de valor de cargo y descuentos  - ver Servicios de catalogos con el codigo TIPO_VALOR"
+          },
+          "baseFeeDiscount": {
+            "type": "number",
+            "description": "Indique la base de cargo y descuentos",
+            "format": "double"
+          },
+          "valueFeeDiscount": {
+            "type": "number",
+            "description": "Indique el valor de cargo y descuento",
+            "format": "double"
+          },
+          "totalFeeDiscount": {
+            "type": "number",
+            "description": "Indique el total de cargo y descuento",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Contacts": {
+        "required": [
+          "addressCustomer",
+          "companyName",
+          "contactType",
+          "country",
+          "customerCode",
+          "identification",
+          "personType",
+          "population",
+          "province",
+          "regime",
+          "tradeName"
+        ],
+        "type": "object",
+        "properties": {
+          "contactType": {
+            "maxLength": 2,
+            "minLength": 0,
+            "type": "string",
+            "description": "Indique el tipo de contacto - ver Servicios de catalogos con el codigo TIPO_CONTACTO"
+          },
+          "personType": {
+            "maxLength": 2,
+            "minLength": 0,
+            "type": "string",
+            "description": "Indique el tipo de persona - ver Servicios de catalogos con el codigo TIPO_PERSONA"
+          },
+          "companyName": {
+            "maxLength": 450,
+            "minLength": 0,
+            "type": "string",
+            "description": "Defina el nombre de la compañía o del contacto"
+          },
+          "customerCode": {
+            "maxLength": 150,
+            "minLength": 0,
+            "type": "string",
+            "description": "Codigo del cliente"
+          },
+          "identification": {
+            "maxLength": 20,
+            "minLength": 0,
+            "type": "string",
+            "description": "Indique el número de documento"
+          },
+          "tradeName": {
+            "maxLength": 450,
+            "minLength": 0,
+            "type": "string",
+            "description": "Indique el nombre comercial"
+          },
+          "regime": {
+            "maxLength": 2,
+            "minLength": 0,
+            "type": "string",
+            "description": "Indique el código del Regimen - ver Servicios de catalogos con el codigo REGIMEN"
+          },
+          "country": {
+            "maxLength": 3,
+            "minLength": 0,
+            "type": "string",
+            "description": "Indique el código del Pais"
+          },
+          "province": {
+            "maxLength": 4,
+            "minLength": 0,
+            "type": "string",
+            "description": "Indique el código de la Provincia - ver Servicios de catalogos con el codigo PROVINCIA"
+          },
+          "population": {
+            "maxLength": 5,
+            "minLength": 0,
+            "type": "string",
+            "description": "Indique el código de la Populación - ver Servicios de catalogos con el codigo POPULACION"
+          },
+          "addressCustomer": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string",
+            "description": "Defina la dirección del Contacto"
+          },
+          "postalCodeCustomer": {
+            "maxLength": 10,
+            "minLength": 0,
+            "type": "string",
+            "description": "Defina el código postal del Contacto",
+            "nullable": true
+          },
+          "phoneCustomer": {
+            "maxLength": 20,
+            "minLength": 0,
+            "type": "string",
+            "description": "Defina el teléfono del Contacto",
+            "nullable": true
+          },
+          "webSite": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string",
+            "description": "Defina el web site del Contacto",
+            "nullable": true
+          },
+          "emailCustomer": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string",
+            "description": "Defina el correo electronico del Contacto",
+            "format": "email",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DiscountDtoModules": {
+        "required": [
+          "discountBase",
+          "discountName",
+          "discountRate",
+          "valueDiscount"
+        ],
+        "type": "object",
+        "properties": {
+          "discountName": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string",
+            "description": "Concepto del descuento"
+          },
+          "discountRate": {
+            "type": "number",
+            "description": "Porcentaje del descuento",
+            "format": "double"
+          },
+          "discountBase": {
+            "type": "number",
+            "description": "Total del descuento",
+            "format": "double"
+          },
+          "valueDiscount": {
+            "type": "number",
+            "description": "Valor del descuento",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "FieldInvoice": {
+        "required": [
+          "contactName",
+          "idOperations",
+          "idOperationsExenta",
+          "idPayment",
+          "invoiceDate",
+          "invoiceIdTypeRegAEAT",
+          "invoiceNumber",
+          "invoiceTime"
+        ],
+        "type": "object",
+        "properties": {
+          "textCustomerObservations": {
+            "maxLength": 350,
+            "minLength": 0,
+            "type": "string",
+            "description": "Observaciones",
+            "nullable": true
+          },
+          "invoiceNumber": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string",
+            "description": "Número de la factura"
+          },
+          "currentNumber": {
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer",
+            "description": "Número actual de la factura",
+            "format": "int32"
+          },
+          "invoiceDate": {
+            "type": "string",
+            "description": "Fecha de la factura",
+            "format": "date-time"
+          },
+          "invoiceTime": {
+            "type": "string",
+            "description": "Hora de captura de la factura",
+            "format": "date-span"
+          },
+          "invoiceExpiration": {
+            "maxLength": 3,
+            "minLength": 0,
+            "type": "string",
+            "description": "Fecha de expiración de la factura",
+            "nullable": true
+          },
+          "invoiceIdTypeRegAEAT": {
+            "maxLength": 2,
+            "minLength": 0,
+            "type": "string",
+            "description": "Define el tipo de registro de la Agencia Estatal de Administración Tributaria"
+          },
+          "invoiceIdTypeRegSIF": {
+            "maxLength": 2,
+            "minLength": 0,
+            "type": "string",
+            "description": "Define el tipo de SIF",
+            "nullable": true
+          },
+          "contactName": {
+            "maxLength": 30,
+            "minLength": 0,
+            "type": "string",
+            "description": "Nombre del contacto"
+          },
+          "contacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Contacts"
+            },
+            "description": "Datos de los contactos de la factura",
+            "nullable": true
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Products"
+            },
+            "description": "Datos de los productos y servicios de la factura",
+            "nullable": true
+          },
+          "idPayment": {
+            "maxLength": 2,
+            "minLength": 0,
+            "type": "string",
+            "description": "Indique el código de la Forma de Pago"
+          },
+          "paymentNote": {
+            "maxLength": 300,
+            "minLength": 0,
+            "type": "string",
+            "description": "Notas del pago",
+            "nullable": true
+          },
+          "textObservations": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string",
+            "description": "Observaciones",
+            "nullable": true
+          },
+          "idOperations": {
+            "maxLength": 2,
+            "minLength": 0,
+            "type": "string",
+            "description": "Indique el código de la Clasificación Operación"
+          },
+          "idOperationsExenta": {
+            "maxLength": 2,
+            "minLength": 0,
+            "type": "string",
+            "description": "Indique el código de la Operación Exenta"
+          },
+          "valueExemptBase": {
+            "maximum": 10000000000000000,
+            "minimum": 0,
+            "type": "number",
+            "description": "Indique la Base Exenta",
+            "format": "double"
+          },
+          "chargeAndDiscount": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChargeAndDiscount"
+            },
+            "description": "Datos de Cargos y descuentos",
+            "nullable": true
+          },
+          "fieldTaxations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldTaxations"
+            },
+            "description": "",
+            "nullable": true
+          },
+          "sumTotalSubTotal": {
+            "maximum": 10000000000000000,
+            "minimum": 0,
+            "type": "number",
+            "description": "Subtotal",
+            "format": "double"
+          },
+          "sumTotalTaxBase": {
+            "maximum": 10000000000000000,
+            "minimum": 0,
+            "type": "number",
+            "description": "Total Base gravable",
+            "format": "double"
+          },
+          "sumTotalTax": {
+            "maximum": 10000000000000000,
+            "minimum": 0,
+            "type": "number",
+            "description": "Total Impuestos",
+            "format": "double"
+          },
+          "sumTotalSubTotalAndTax": {
+            "maximum": 10000000000000000,
+            "minimum": 0,
+            "type": "number",
+            "description": "Subtotal + Impuestos",
+            "format": "double"
+          },
+          "sumTotalExemptBase": {
+            "maximum": 10000000000000000,
+            "minimum": 0,
+            "type": "number",
+            "description": "Total Base exenta",
+            "format": "double"
+          },
+          "sumTotalDiscount": {
+            "maximum": 10000000000000000,
+            "minimum": 0,
+            "type": "number",
+            "description": "Total Descuentos",
+            "format": "double"
+          },
+          "sumTotalCharge": {
+            "maximum": 10000000000000000,
+            "minimum": 0,
+            "type": "number",
+            "description": "Cargos a la factura",
+            "format": "double"
+          },
+          "sumTotalTotal": {
+            "maximum": 10000000000000000,
+            "minimum": 0,
+            "type": "number",
+            "description": "Total",
+            "format": "double"
+          },
+          "sumTotalNetPayable": {
+            "maximum": 10000000000000000,
+            "minimum": 0,
+            "type": "number",
+            "description": "Neto a pagar",
+            "format": "double"
+          },
+          "invoiceTypeId": {
+            "type": "integer",
+            "description": "Tipo de factura",
+            "format": "int32"
+          },
+          "invoiceRectificativeTypeId": {
+            "type": "integer",
+            "description": "Tipo de factura rectificativa",
+            "format": "int32"
+          },
+          "typeRectificativeId": {
+            "type": "integer",
+            "description": "Tipo de factura rectificativa Id",
+            "format": "int32"
+          },
+          "aditionalData": {
+            "$ref": "#/components/schemas/AditionalData"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Clase principal para definir la estructura de la Factura."
+      },
+      "FieldTaxations": {
+        "required": [
+          "rate",
+          "taxBase",
+          "taxName",
+          "valueTax"
+        ],
+        "type": "object",
+        "properties": {
+          "taxName": {
+            "maxLength": 20,
+            "minLength": 0,
+            "type": "string",
+            "description": "Defina el nombre del impuesto"
+          },
+          "rate": {
+            "type": "number",
+            "description": "Defina porcentaje del impuesto",
+            "format": "double"
+          },
+          "taxBase": {
+            "type": "number",
+            "description": "Defina la base gravable del impuesto",
+            "format": "double"
+          },
+          "valueTax": {
+            "type": "number",
+            "description": "Defina el valor del impuesto",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Products": {
+        "required": [
+          "description",
+          "quantity",
+          "reference",
+          "subTotal",
+          "totaldiscount",
+          "totalSurCharges",
+          "totalTax",
+          "totalwithHoldings",
+          "typeUse",
+          "unitPrice"
+        ],
+        "type": "object",
+        "properties": {
+          "typeUse": {
+            "maxLength": 3,
+            "minLength": 0,
+            "type": "string",
+            "description": "Indique el tipo de uso del producto"
+          },
+          "reference": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string",
+            "description": "Indique la referencia del producto o servicio"
+          },
+          "description": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string",
+            "description": "Defina una descripción del producto o servicio"
+          },
+          "unitPrice": {
+            "maximum": 10000000000000000,
+            "minimum": 0,
+            "type": "number",
+            "description": "Defina el precio del producto o servicio",
+            "format": "double"
+          },
+          "quantity": {
+            "maximum": 999,
+            "minimum": 1,
+            "type": "integer",
+            "description": "Defina la cantidad productos o servicios del mismo tipo",
+            "format": "int32"
+          },
+          "subTotal": {
+            "type": "number",
+            "description": "Defina el subtotal del valor del producto o servicios",
+            "format": "double"
+          },
+          "totalTax": {
+            "type": "number",
+            "description": "Defina el valor del impuesto del producto o servicios",
+            "format": "double"
+          },
+          "totalwithHoldings": {
+            "type": "number",
+            "description": "Defina el totales de retenciones del producto o servicio",
+            "format": "double"
+          },
+          "totalSurCharges": {
+            "type": "number",
+            "description": "",
+            "format": "double"
+          },
+          "totaldiscount": {
+            "type": "number",
+            "description": "Defina el total con descuentos",
+            "format": "double"
+          },
+          "taxes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Taxes"
+            },
+            "description": "Datos de los impuestos",
+            "nullable": true
+          },
+          "withHoldingsSurChargesDto": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WithHoldingsSurChargesDto"
+            },
+            "description": "Datos de los recargos por retenciones y recargos",
+            "nullable": true
+          },
+          "discountDtoModules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiscountDtoModules"
+            },
+            "description": "Datos de descuentos",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResponseTools": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "messages": {
+            "type": "string",
+            "nullable": true
+          },
+          "isError": {
+            "type": "boolean"
+          },
+          "toolObject": {
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "Taxes": {
+        "required": [
+          "rate",
+          "taxBase",
+          "taxName",
+          "valueTax"
+        ],
+        "type": "object",
+        "properties": {
+          "taxName": {
+            "maxLength": 20,
+            "minLength": 0,
+            "type": "string",
+            "description": "Defina el nombre del impuesto"
+          },
+          "rate": {
+            "type": "number",
+            "description": "Defina porcentaje del impuesto",
+            "format": "double"
+          },
+          "taxBase": {
+            "type": "number",
+            "description": "Defina la base gravable del impuesto",
+            "format": "double"
+          },
+          "valueTax": {
+            "type": "number",
+            "description": "Defina el valor del impuesto",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "WithHoldingsSurChargesDto": {
+        "required": [
+          "cuotaWithHoldings",
+          "idRateWithHoldings",
+          "subTotalWithHoldings"
+        ],
+        "type": "object",
+        "properties": {
+          "idRateWithHoldings": {
+            "maxLength": 2,
+            "minLength": 0,
+            "type": "string",
+            "description": "Defina la tasa de retención y recargo"
+          },
+          "subTotalWithHoldings": {
+            "type": "number",
+            "description": "Defina el subtotal de retención y recargo",
+            "format": "double"
+          },
+          "cuotaWithHoldings": {
+            "type": "number",
+            "description": "Defina la cuota del retención",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "ApiKeyScheme": {
+        "type": "apiKey",
+        "description": "Clave de API necesaria para acceder a este endpoint",
+        "name": "X-API-KEY",
+        "in": "header"
+      }
+    }
+  },
+  "security": [
+    {
+      "ApiKeyScheme": [ ]
+    }
+  ]
+}
