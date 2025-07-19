@@ -1,0 +1,98 @@
+{
+    "textCustomerObservations": null,
+    "invoiceNumber": "ABC0151",
+    "currentNumber": 151,
+    "invoiceDate": "2025-07-19T04:00:00.000Z",
+    "invoiceTime": "07:24:03.0000000",
+    "invoiceExpiration": "2",
+    "invoiceIdTypeRegAEAT": "AI",
+    "invoiceIdTypeRegSIF": null,
+    "contactName": "alejandro  perez-6666",
+    "contacts": [
+      {
+        "contactType": "01",
+        "personType": "01",
+        "companyName": "alejandro  perez-6666",
+        "customerCode": "6666",
+        "identification": "6666",
+        "tradeName": "alejandro  perez-6666",
+        "regime": "03",
+        "country": "207",
+        "province": "5102",
+        "population": "32653",
+        "addressCustomer": "Calle Principal 123",
+        "postalCodeCustomer": "100100",
+        "phoneCustomer": null,
+        "webSite": null,
+        "emailCustomer": "alejo@hotmail.com"
+      }
+    ],
+    "products": [
+      {
+        "typeUse": "VEN",
+        "reference": "5",
+        "description": "excel prueba-5",
+        "unitPrice": "1500.99",
+        "quantity": "77",
+        "subTotal": 109797.4185,
+        "totalTax": 24978.912708750002,
+        "totalwithHoldings": 16469.612774999998,
+        "totalSurCharges": 1921.4548237500003,
+        "totaldiscount": 5489.870925,
+        "taxes": [
+          {
+            "taxName": "IVA",
+            "rate": 21,
+            "taxBase": 109797.4185,
+            "valueTax": 23057.457885
+          }
+        ],
+        "withHoldingsSurChargesDto": [
+          {
+            "idRateWithHoldings": "20",
+            "subTotalWithHoldings": 109797.4185,
+            "cuotaWithHoldings": 16469.612774999998
+          }
+        ],
+        "discountDtoModules": [
+          {
+            "discountName": "Descuento aplicado",
+            "discountRate": 5,
+            "discountBase": 109797.4185,
+            "valueDiscount": 5489.870925
+          }
+        ]
+      }
+    ],
+    "idPayment": "EF",
+    "paymentNote": null,
+    "textObservations": "Factura N°",
+    "idOperations": "N1",
+    "idOperationsExenta": "E3",
+    "valueExemptBase": "0",
+    "chargeAndDiscount": null,
+    "fieldTaxations": [
+      {
+        "taxName": "IVA",
+        "rate": 21,
+        "taxBase": 109797.4185,
+        "valueTax": 23057.457885
+      }
+    ],
+    "sumTotalSubTotal": 109797.4185,
+    "sumTotalTaxBase": 109797.4185,
+    "sumTotalTax": 23057.457885,
+    "sumTotalSubTotalAndTax": 134776.33120875002,
+    "sumTotalExemptBase": 0,
+    "sumTotalDiscount": 5489.870925,
+    "sumTotalCharge": 0,
+    "sumTotalTotal": 118306.71843375001,
+    "sumTotalNetPayable": 101837.10565875,
+    "invoiceTypeId": 0,
+    "invoiceRectificativeTypeId": 0,
+    "typeRectificativeId": 0,
+    "aditionalData": {
+      "invoiceId": 0,
+      "startInvoiceId": 0
+    }
+  }

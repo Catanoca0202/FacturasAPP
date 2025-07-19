@@ -590,6 +590,7 @@ function enviarFactura(){
     Logger.log("URL: " + url);
     Logger.log("API Key: " + APIkey);
     Logger.log("Payload length: " + jsonFieldInvoice.length);
+    Logger.log("jsonFieldInvoice"+jsonFieldInvoice)
     
     // Verificar que el JSON es válido
     try {
@@ -721,8 +722,8 @@ function busquedaLineal(lista, objetivo) {
 
 function jsonAPIkey(usuario,contra){
   let json={
-    "user": usuario,
-    "password": contra
+    "User": usuario,
+    "Password": contra
   }
 
   return json
@@ -748,8 +749,11 @@ function obtenerAPIkey(usuario, contra) {
     "payload": JSON.stringify(json),
     'muteHttpExceptions': true
   };
+  Logger.log("opciones"+opciones["payload"])
+  Logger.log("usuario "+usuario)
+  Logger.log("contra "+contra)
 
-  try {
+  // try {
     let respuesta = UrlFetchApp.fetch(url, opciones);
     let contenidoRespuesta = respuesta.getContentText();
     
@@ -775,13 +779,13 @@ function obtenerAPIkey(usuario, contra) {
       throw new Error("Error de la API: " + contenidoRespuesta); // Muestra el error de la API
       
     }
-  } catch (error) {
-    Logger.log("Error al enviar el JSON a la API: " + error.message);
-    hojaDatosEmisor.getRange("B16").setBackground('#FFC7C7')
-    hojaDatosEmisor.getRange("B16").setValue("Desvinculado")
-    hojaDatos.getRange("I21").setValue(0)
-    SpreadsheetApp.getUi().alert("Error al vincular tu cuenta. Verifica que el usuario y la contraseña estén correctos e intenta de nuevo. Si el error persiste, comunícate con soporte.");
-  }
+  // } catch (error) {
+  //   Logger.log("Error al enviar el JSON a la API: " + error.message);
+  //   hojaDatosEmisor.getRange("B16").setBackground('#FFC7C7')
+  //   hojaDatosEmisor.getRange("B16").setValue("Desvinculado")
+  //   hojaDatos.getRange("I21").setValue(0)
+  //   SpreadsheetApp.getUi().alert("Error al vincular tu cuenta. Verifica que el usuario y la contraseña estén correctos e intenta de nuevo. Si el error persiste, comunícate con soporte.");
+  // }
 }
 
 
@@ -1066,36 +1070,77 @@ function enviarEmailPostFactura(email,historial=false,numFacturaAbuscar=null) {
 
 function ProcesarFormularioFactura(data) {
   var numFactura = data.numFactura;
-  var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Facturas ID');
-
-  var range = hoja.getRange('A2:A');
-  var textFinder = range.createTextFinder(numFactura);
-  var cell = textFinder.findNext();
-  Logger.log("cell "+cell)
-  if (!cell) {
-    return 'Factura no encontrada';
+  
+  // Verificar que la factura existe en el historial
+  var hojaListadoEstado = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ListadoEstado');
+  var dataRange = hojaListadoEstado.getDataRange();
+  var dataValues = dataRange.getValues();
+  var invoiceColIndex = 5; // Columna F (número de factura)
+  
+  var facturaEncontrada = false;
+  for (let i = 1; i < dataValues.length; i++) {
+    if (dataValues[i][invoiceColIndex] == numFactura) {
+      facturaEncontrada = true;
+      break;
+    }
   }
-
-  var fila = cell.getRow();
-  var idAsociado = hoja.getRange('B' + fila).getValue();
-
-  if (!idAsociado) {
-    return 'ID de factura no encontrado';
+  
+  if (!facturaEncontrada) {
+    return 'Factura no encontrada en el historial';
   }
 
   try {
-    // descargarPDF(idAsociado);
-    // makeFilePublic(idAsociado)
-    // var url = `https://www.googleapis.com/drive/v3/files/${idAsociado}/download`;
-    // var file = Drive.Files.get(idAsociado);
-    // const url = file.webContentLink;
-    var url = "https://drive.google.com/uc?export=download&id=" + idAsociado;
-    return url;
+    Logger.log("Descargando factura " + numFactura + " usando nuevo API PDFInvoice");
+    
+    // Usar la función directa que obtiene el PDF como base64
+    var downloadUrl = descargarPDFDirecto(numFactura);
+    
+    if (!downloadUrl) {
+      return 'Error al obtener el PDF desde FacturasApp';
+    }
+
+    Logger.log("PDF descargado correctamente. URL: " + downloadUrl);
+    
+    return downloadUrl;
   } catch (e) {
+    Logger.log("Error al descargar factura: " + e.message);
     return 'Error al obtener el archivo: ' + e.message;
   }
 }
 
+// Función alternativa para descargar PDF directamente desde FacturasApp
+function descargarPDFDirecto(numeroFactura) {
+  try {
+    Logger.log("Descargando PDF directamente para factura: " + numeroFactura);
+    
+    // Obtener PDF como base64 desde FacturasApp
+    var base64PDF = obtenerPDFFacturaBase64(numeroFactura);
+    
+    if (!base64PDF) {
+      SpreadsheetApp.getUi().alert("Error al obtener el PDF desde FacturasApp");
+      return null;
+    }
+    
+    // Convertir base64 a blob
+    var pdfBytes = Utilities.base64Decode(base64PDF);
+    var pdfBlob = Utilities.newBlob(pdfBytes, 'application/pdf', 'Factura_' + numeroFactura + '.pdf');
+    
+    // Crear archivo temporal en Google Drive para descarga
+    var tempFile = DriveApp.createFile(pdfBlob);
+    var downloadUrl = tempFile.getDownloadUrl();
+    
+    Logger.log("PDF descargado correctamente. URL: " + downloadUrl);
+    
+    return downloadUrl;
+    
+  } catch (error) {
+    Logger.log("Error al descargar PDF: " + error.message);
+    SpreadsheetApp.getUi().alert("Error al descargar PDF: " + error.message);
+    return null;
+  }
+}
+
+// Función obsoleta - mantenida para compatibilidad
 function descargarPDF(id) {
   var fileId = id; // Reemplaza con el ID real del archivo PDF
   var file = Drive.Files.get(fileId);
@@ -1108,6 +1153,7 @@ function descargarPDF(id) {
   ui.alert("Haz clic en el enlace para descargar:\n" + url);
 }
 
+// FUNCIÓN OBSOLETA - Ya no se usa con el nuevo API
 function makeFilePublic(fileId) {
   try {
     var permission = {
@@ -1224,25 +1270,42 @@ function generarPDFfactura() {
   var fila = sheet.getRange('Z1').getValue(); // Leer el número de fila de la celda oculta
   var numeroFactura = sheet.getRange('A' + fila).getValue(); // Obtener el número de factura
 
-  var resultado = obtenerDatosFactura(numeroFactura);
-  if (resultado) {
-    var pdfBlob = generarPDF();
-  } else {
-    Utilities.sleep(5000);
-    var pdfBlob = generarPDF();
-  }
-  var url = generarPdfUrl(pdfBlob);
+  Logger.log("Generando PDF para factura: " + numeroFactura);
 
-  // Crear un archivo temporal en el Drive para proporcionar un enlace de descarga
-  var tempFile = DriveApp.createFile(pdfBlob);
-  var tempFileUrl = tempFile.getDownloadUrl();
-  Logger.log("generar pdf despues de getlinkdownload")
-  // Enviar un enlace de descarga al usuario
-  var html = '<html><body><a href="' + tempFileUrl + '">Descargar PDF de la Factura ' + numeroFactura + '</a></body></html>';
-  var ui = HtmlService.createHtmlOutput(html)
-    .setWidth(300)
-    .setHeight(100);
-  SpreadsheetApp.getUi().showModalDialog(ui, 'Descargar PDF');
+  try {
+    // OPCIÓN 1: Usar el nuevo endpoint PDFInvoice guardando en Drive
+    var fileId = obtenerPDFFactura(numeroFactura);
+    
+    if (!fileId) {
+      SpreadsheetApp.getUi().alert("Error al obtener el PDF desde FacturasApp para la factura " + numeroFactura);
+      return;
+    }
+
+    // Obtener el archivo de Google Drive
+    var file = DriveApp.getFileById(fileId);
+    var tempFileUrl = file.getDownloadUrl();
+    
+    Logger.log("PDF generado correctamente desde FacturasApp");
+    
+    // Enviar un enlace de descarga al usuario
+    var html = '<html><body><a href="' + tempFileUrl + '">Descargar PDF de la Factura ' + numeroFactura + '</a></body></html>';
+    var ui = HtmlService.createHtmlOutput(html)
+      .setWidth(300)
+      .setHeight(100);
+    SpreadsheetApp.getUi().showModalDialog(ui, 'Descargar PDF');
+    
+    // OPCIÓN 2: Alternativa más eficiente (comentada)
+    // var downloadUrl = descargarPDFDirecto(numeroFactura);
+    // if (downloadUrl) {
+    //   var html = '<html><body><a href="' + downloadUrl + '">Descargar PDF de la Factura ' + numeroFactura + '</a></body></html>';
+    //   var ui = HtmlService.createHtmlOutput(html).setWidth(300).setHeight(100);
+    //   SpreadsheetApp.getUi().showModalDialog(ui, 'Descargar PDF');
+    // }
+    
+  } catch (error) {
+    Logger.log("Error al generar PDF: " + error.message);
+    SpreadsheetApp.getUi().alert("Error al generar PDF: " + error.message);
+  }
 }
 
 
@@ -1615,7 +1678,7 @@ function guardarYGenerarInvoice(){
   // Obtener fechas
   let fechaFactura = new Date(prefactura_sheet.getRange("G4").getValue());
   let fechaVencimiento = new Date(prefactura_sheet.getRange("G3").getValue());
-  let horaFactura = new Date().toTimeString().split(' ')[0];
+  let horaFactura = new Date().toTimeString().split(' ')[0] + ".0000000";
   
   // Validar fechas
   if (isNaN(fechaFactura.getTime())) {
@@ -1625,11 +1688,18 @@ function guardarYGenerarInvoice(){
     fechaVencimiento = new Date();
   }
 
-  // Procesar productos
+  // Procesar productos con estructura completa
   let products = [];
   let totalTaxBase = 0;
   let totalTax = 0;
   let totalSubTotal = 0;
+  let totalWithHoldings = 0;
+  let totalSurCharges = 0;
+  let totalDiscounts = 0;
+  
+  // Crear array para fieldTaxations (resumen de impuestos)
+  let fieldTaxations = [];
+  let taxGroups = {};
   
   for (let i = 15; i < 15 + cantidadProductos; i++) {
     let filaActual = "A" + String(i) + ":K" + String(i);
@@ -1642,20 +1712,18 @@ function guardarYGenerarInvoice(){
     let precioUnitario = Number(productoData[3]) || 0;
     let subtotal = Number(productoData[5]) || 0;
     let ivaRate = Number(productoData[6]) || 0;
-    let descuento = Number(productoData[7]) || 0;
-    let retencion = Number(productoData[8]) || 0;
-    let recargoEquivalencia = Number(productoData[9]) || 0;
+    let descuentoRate = Number(productoData[7]) || 0;
+    let retencionRate = Number(productoData[8]) || 0;
+    let recargoEquivalenciaRate = Number(productoData[9]) || 0;
     let totalLinea = Number(productoData[10]) || 0;
     
-    // Calcular impuestos
+    // Calcular valores
     let taxAmount = subtotal * ivaRate;
-    let withHoldings = subtotal * retencion;
-    let surCharges = subtotal * recargoEquivalencia;
-    let totalDiscount = subtotal * descuento;
+    let withHoldingsAmount = subtotal * retencionRate;
+    let surChargesAmount = subtotal * recargoEquivalenciaRate;
+    let discountAmount = subtotal * descuentoRate;
     
-    // Simplificando - eliminando arrays de taxes, withHoldings y discounts
-    
-    // Validar campos obligatorios de productos
+    // Validar campos obligatorios
     if (!descripcion || descripcion.trim() === "") {
       descripcion = "Producto sin descripción";
     }
@@ -1665,26 +1733,71 @@ function guardarYGenerarInvoice(){
     if (cantidad <= 0) {
       cantidad = 1;
     }
-    if (precioUnitario < 0) {
-      precioUnitario = 0;
-    }
-    if (subtotal < 0) {
-      subtotal = 0;
+    
+    // Crear arrays de taxes, withHoldings y discounts según factura.json
+    let taxes = [];
+    if (ivaRate > 0) {
+      taxes.push({
+        taxName: "IVA",
+        rate: ivaRate * 100, // Convertir a porcentaje
+        taxBase: subtotal,
+        valueTax: taxAmount
+      });
+      
+      // Agrupar para fieldTaxations
+      let rateKey = ivaRate * 100;
+      if (!taxGroups[rateKey]) {
+        taxGroups[rateKey] = {
+          taxName: "IVA",
+          rate: rateKey,
+          taxBase: 0,
+          valueTax: 0
+        };
+      }
+      taxGroups[rateKey].taxBase += subtotal;
+      taxGroups[rateKey].valueTax += taxAmount;
     }
     
-    // Producto según el esquema FieldInvoice - MINIMO
+    let withHoldingsSurChargesDto = [];
+    if (retencionRate > 0) {
+      withHoldingsSurChargesDto.push({
+        idRateWithHoldings: "20", // Código estándar
+        subTotalWithHoldings: subtotal,
+        cuotaWithHoldings: withHoldingsAmount
+      });
+    }
+    
+    let discountDtoModules = [];
+    if (descuentoRate > 0) {
+      discountDtoModules.push({
+        discountName: "Descuento aplicado",
+        discountRate: descuentoRate * 100, // Convertir a porcentaje
+        discountBase: subtotal,
+        valueDiscount: discountAmount
+      });
+    }
+    
+    // Crear producto con estructura completa
     let producto = {
-      typeUse: "001",
+      typeUse: "VEN",
       reference: String(referencia).substring(0, 50),
       description: String(descripcion).substring(0, 100),
-      unitPrice: Number(precioUnitario) || 0,
-      quantity: Math.min(Number(cantidad) || 1, 999),
-      subTotal: Number(subtotal) || 0,
-      totalTax: Number(taxAmount) || 0,
-      totalwithHoldings: Number(withHoldings) || 0,
-      totalSurCharges: Number(surCharges) || 0,
-      totaldiscount: Number(totalDiscount) || 0
+      unitPrice: String(precioUnitario), // Como string según factura.json
+      quantity: String(cantidad), // Como string según factura.json
+      subTotal: subtotal,
+      totalTax: taxAmount + surChargesAmount, // Total de impuestos
+      totalwithHoldings: withHoldingsAmount,
+      totalSurCharges: surChargesAmount,
+      totaldiscount: discountAmount,
+      taxes: taxes.length > 0 ? taxes : null,
+      withHoldingsSurChargesDto: withHoldingsSurChargesDto.length > 0 ? withHoldingsSurChargesDto : null,
+      discountDtoModules: discountDtoModules.length > 0 ? discountDtoModules : null
     };
+    
+    // Asignar null si los arrays están vacíos para mantener estructura
+    if (!producto.taxes || producto.taxes.length === 0) producto.taxes = null;
+    if (!producto.withHoldingsSurChargesDto || producto.withHoldingsSurChargesDto.length === 0) producto.withHoldingsSurChargesDto = null;
+    if (!producto.discountDtoModules || producto.discountDtoModules.length === 0) producto.discountDtoModules = null;
     
     products.push(producto);
     
@@ -1692,24 +1805,28 @@ function guardarYGenerarInvoice(){
     totalSubTotal += subtotal;
     totalTaxBase += subtotal;
     totalTax += taxAmount;
+    totalWithHoldings += withHoldingsAmount;
+    totalSurCharges += surChargesAmount;
+    totalDiscounts += discountAmount;
+  }
+  
+  // Crear fieldTaxations desde taxGroups
+  for (let rate in taxGroups) {
+    fieldTaxations.push(taxGroups[rate]);
   }
 
   // Obtener totales de la factura
-  let totalFactura = 0;
   let cargoTotal = 0;
-  let descuentoTotal = 0;
+  let totalFactura = 0;
   
   if (prefactura_sheet.getRange("A31").getValue() === "Total factura") {
     totalFactura = prefactura_sheet.getRange("B31").getValue();
     cargoTotal = prefactura_sheet.getRange("B17").getValue() || 0;
-    descuentoTotal = prefactura_sheet.getRange("B18").getValue() || 0;
   } else {
     let rowTotalFactura = startingRowTaxation + 12;
     let rowCargoFactura = startingRowTaxation - 2;
-    let rowDescuentoFactura = startingRowTaxation - 1;
     totalFactura = prefactura_sheet.getRange(rowTotalFactura, 2).getValue();
     cargoTotal = prefactura_sheet.getRange("B" + String(rowCargoFactura)).getValue() || 0;
-    descuentoTotal = prefactura_sheet.getRange("B" + String(rowDescuentoFactura)).getValue() || 0;
   }
 
   // Validar datos del cliente
@@ -1718,30 +1835,32 @@ function guardarYGenerarInvoice(){
     cliente = "Cliente sin nombre";
   }
   
-  // Contactos según el esquema - MINIMO
+  // Obtener información completa del cliente
+  let codigoCliente = String(prefactura_sheet.getRange("B3").getValue() || "CLIENTE001");
+  
+  // Crear contactos con estructura completa
   let contacts = [{
     contactType: "01",
     personType: "01", 
     companyName: String(cliente).substring(0, 450),
-    customerCode: String(prefactura_sheet.getRange("B3").getValue() || "CLIENTE001").substring(0, 150),
+    customerCode: codigoCliente.substring(0, 150),
     identification: String(CustomerInformation.Identification || "12345678A").substring(0, 20),
     tradeName: String(cliente).substring(0, 450),
-    regime: "01",
-    country: "ESP",
-    province: "28",
-    population: "28079",
-    addressCustomer: String(CustomerInformation.Address || "Calle Principal 123").substring(0, 200)
+    regime: "03", // Según factura.json
+    country: "207", // Código España según factura.json
+    province: "5102", // Código provincia según factura.json
+    population: "32653", // Código población según factura.json
+    addressCustomer: String(CustomerInformation.Address || "Calle Principal 123").substring(0, 200),
+    postalCodeCustomer: String(CustomerInformation.PostalCode || "100100").substring(0, 10),
+    phoneCustomer: String(CustomerInformation.Telephone || "").substring(0, 20),
+    webSite: String(CustomerInformation.WebSite || "").substring(0, 100) || null,
+    emailCustomer: String(CustomerInformation.Email || "").substring(0, 100) || null
   }];
-
-  // Eliminando arrays problemáticos para simplificar
-
-  // Validar totales
-  if (isNaN(totalSubTotal) || totalSubTotal < 0) totalSubTotal = 0;
-  if (isNaN(totalTaxBase) || totalTaxBase < 0) totalTaxBase = 0;
-  if (isNaN(totalTax) || totalTax < 0) totalTax = 0;
-  if (isNaN(totalFactura) || totalFactura < 0) totalFactura = 0;
-  if (isNaN(cargoTotal) || cargoTotal < 0) cargoTotal = 0;
-  if (isNaN(descuentoTotal) || descuentoTotal < 0) descuentoTotal = 0;
+  
+  // Mantener todos los campos, asignar null si están vacíos
+  if (!contacts[0].webSite || contacts[0].webSite.trim() === "") contacts[0].webSite = null;
+  if (!contacts[0].emailCustomer || contacts[0].emailCustomer.trim() === "") contacts[0].emailCustomer = null;
+  if (!contacts[0].phoneCustomer || contacts[0].phoneCustomer.trim() === "") contacts[0].phoneCustomer = null;
   
   // Validar número de factura
   let numeroFacturaValidado = String(InvoiceGeneralInformation.InvoiceNumber);
@@ -1752,111 +1871,106 @@ function guardarYGenerarInvoice(){
   // Extraer número actual y validar que sea mayor que 0
   let currentNumber = Number(numeroFacturaValidado.replace(/[^0-9]/g, ''));
   if (currentNumber <= 0) {
-    currentNumber = Math.floor(Date.now() / 1000); // Usar timestamp como número
+    currentNumber = Math.floor(Date.now() / 1000);
   }
   
-  // Crear el JSON según el esquema FieldInvoice - VERSION MINIMA
+  // Crear chargeAndDiscount - siempre incluir al menos un elemento
+  let chargeAndDiscount = [];
+  
+  // Siempre agregar al menos un elemento base según la estructura requerida
+  let baseFeeDiscountValue = totalTaxBase || 0;
+  let totalFeeDiscountValue = cargoTotal > 0 ? cargoTotal : (baseFeeDiscountValue * 0.01); // 1% por defecto si no hay cargo específico
+  
+  chargeAndDiscount.push({
+    idtypeFeeDiscount: "CG", // Según factura.json
+    idTypeValueFeeDiscount: "PJ", // Según factura.json  
+    baseFeeDiscount: baseFeeDiscountValue,
+    valueFeeDiscount: 1,
+    totalFeeDiscount: totalFeeDiscountValue
+  });
+  
+  // Calcular totales finales
+  let sumTotalSubTotalAndTax = totalSubTotal + totalTax + totalSurCharges;
+  let sumTotalNetPayable = totalFactura - totalWithHoldings;
+  
+  // Crear el JSON con estructura EXACTA de factura.json
   let fieldInvoice = {
-    // SOLO CAMPOS OBLIGATORIOS
-    contactName: String(cliente).substring(0, 30),
+    textCustomerObservations: String(prefactura_sheet.getRange("D11").getValue() || "").substring(0, 350) || null,
     invoiceNumber: numeroFacturaValidado.substring(0, 50),
     currentNumber: currentNumber,
     invoiceDate: fechaFactura.toISOString(),
     invoiceTime: horaFactura,
-    invoiceIdTypeRegAEAT: "01",
-    idPayment: "01",
-    idOperations: "01",
-    idOperationsExenta: "01",
-    
-    // Contactos y productos - OBLIGATORIOS
+    invoiceExpiration: "2", // Según factura.json
+    invoiceIdTypeRegAEAT: "AI",
+    invoiceIdTypeRegSIF: null,
+    contactName: String(cliente).substring(0, 30),
     contacts: contacts,
     products: products,
-    
-    // Totales mínimos - OBLIGATORIOS
-    sumTotalSubTotal: Number(totalSubTotal) || 0,
-    sumTotalTaxBase: Number(totalTaxBase) || 0,
-    sumTotalTax: Number(totalTax) || 0,
-    sumTotalSubTotalAndTax: Number(totalSubTotal + totalTax) || 0,
+    idPayment: "EF", // Según factura.json
+    paymentNote: String(prefactura_sheet.getRange("D11").getValue() || "").substring(0, 300) || null,
+    textObservations: String(prefactura_sheet.getRange("F2").getValue() || "").substring(0, 500) || null,
+    idOperations: "N1", // Según factura.json
+    idOperationsExenta: "E3", // Según factura.json  
+    valueExemptBase: "0", // Como string según factura.json
+    chargeAndDiscount: chargeAndDiscount, // Siempre incluir - nunca null
+    fieldTaxations: fieldTaxations.length > 0 ? fieldTaxations : null,
+    sumTotalSubTotal: totalSubTotal,
+    sumTotalTaxBase: totalTaxBase,
+    sumTotalTax: totalTax,
+    sumTotalSubTotalAndTax: sumTotalSubTotalAndTax,
     sumTotalExemptBase: 0,
-    sumTotalDiscount: Number(descuentoTotal) || 0,
-    sumTotalCharge: Number(cargoTotal) || 0,
-    sumTotalTotal: Number(totalFactura) || 0,
-    sumTotalNetPayable: Number(totalFactura) || 0,
-    
-    // Valores base
-    valueExemptBase: 0,
-    invoiceTypeId: 1,
+    sumTotalDiscount: totalDiscounts,
+    sumTotalCharge: cargoTotal,
+    sumTotalTotal: totalFactura,
+    sumTotalNetPayable: sumTotalNetPayable,
+    invoiceTypeId: 0, // Según factura.json
     invoiceRectificativeTypeId: 0,
     typeRectificativeId: 0,
-    
-    // Datos adicionales
     aditionalData: {
-      invoiceId: currentNumber,
-      startInvoiceId: 1
+      invoiceId: 0, // Según factura.json
+      startInvoiceId: 0 // Según factura.json
     }
   };
+  
+  // Mantener estructura completa - no eliminar campos (excepto fieldTaxations si está vacío)
+  if (!fieldInvoice.fieldTaxations || fieldInvoice.fieldTaxations.length === 0) {
+    fieldInvoice.fieldTaxations = null;
+  }
 
   // Guardar en el listado de estado
   let fecha = ObtenerFecha();
   let numeroFactura = InvoiceGeneralInformation.InvoiceNumber;
   let nameString = cliente;
-  let codigoCliente = prefactura_sheet.getRange("B3").getValue();
   
-  // Guardar el nuevo JSON en lugar del antiguo
+  // Guardar el JSON corregido
   listadoestado_sheet.appendRow([
     "vacio", "vacio", "vacio", fecha, "vacio", numeroFactura, 
     nameString, codigoCliente, "vacio", "vacio", "representacion", 
     "Vacio", JSON.stringify(fieldInvoice), ""
   ]);
   
-  Logger.log("Nuevo JSON FieldInvoice generado:");
+  Logger.log("JSON FieldInvoice generado con estructura completa:");
   Logger.log(JSON.stringify(fieldInvoice, null, 2));
   
-  // Validación adicional del JSON
-  if (!fieldInvoice.products || fieldInvoice.products.length === 0) {
-    Logger.log("ADVERTENCIA: No hay productos en la factura");
+  // Validación de estructura completa
+  Logger.log("=== VALIDACIÓN ESTRUCTURA COMPLETA ===");
+  Logger.log("✓ textCustomerObservations: " + (fieldInvoice.textCustomerObservations !== undefined));
+  Logger.log("✓ invoiceExpiration: " + (fieldInvoice.invoiceExpiration !== undefined));  
+  Logger.log("✓ invoiceIdTypeRegSIF: " + (fieldInvoice.invoiceIdTypeRegSIF !== undefined));
+  Logger.log("✓ paymentNote: " + (fieldInvoice.paymentNote !== undefined));
+  Logger.log("✓ textObservations: " + (fieldInvoice.textObservations !== undefined));
+  Logger.log("✓ valueExemptBase: " + (fieldInvoice.valueExemptBase !== undefined));
+  Logger.log("✓ chargeAndDiscount: " + (fieldInvoice.chargeAndDiscount !== undefined && fieldInvoice.chargeAndDiscount.length > 0));
+  Logger.log("✓ fieldTaxations: " + (fieldInvoice.fieldTaxations !== undefined));
+  Logger.log("✓ Contacto con todos los campos: " + (fieldInvoice.contacts[0].postalCodeCustomer !== undefined));
+  
+  if (fieldInvoice.products && fieldInvoice.products.length > 0) {
+    Logger.log("✓ Producto con taxes: " + (fieldInvoice.products[0].taxes !== undefined));
+    Logger.log("✓ Producto con withHoldingsSurChargesDto: " + (fieldInvoice.products[0].withHoldingsSurChargesDto !== undefined));
+    Logger.log("✓ Producto con discountDtoModules: " + (fieldInvoice.products[0].discountDtoModules !== undefined));
   }
-  if (!fieldInvoice.contacts || fieldInvoice.contacts.length === 0) {
-    Logger.log("ADVERTENCIA: No hay contactos en la factura");
-  }
   
-  // Validar campos críticos que pueden causar el error 500
-  Logger.log("=== VALIDACIÓN CRÍTICA ===");
-  Logger.log("invoiceNumber: " + fieldInvoice.invoiceNumber);
-  Logger.log("currentNumber: " + fieldInvoice.currentNumber);
-  Logger.log("contactName: " + fieldInvoice.contactName);
-  Logger.log("invoiceDate: " + fieldInvoice.invoiceDate);
-  Logger.log("invoiceTime: " + fieldInvoice.invoiceTime);
-  Logger.log("idPayment: " + fieldInvoice.idPayment);
-  Logger.log("idOperations: " + fieldInvoice.idOperations);
-  Logger.log("idOperationsExenta: " + fieldInvoice.idOperationsExenta);
-  Logger.log("invoiceIdTypeRegAEAT: " + fieldInvoice.invoiceIdTypeRegAEAT);
-  Logger.log("Productos count: " + fieldInvoice.products.length);
-  Logger.log("Contactos count: " + fieldInvoice.contacts.length);
-  
-  // Validar cada producto
-  fieldInvoice.products.forEach((product, index) => {
-    Logger.log("Producto " + index + " - typeUse: " + product.typeUse);
-    Logger.log("Producto " + index + " - reference: " + product.reference);
-    Logger.log("Producto " + index + " - description: " + product.description);
-    Logger.log("Producto " + index + " - quantity: " + product.quantity);
-    Logger.log("Producto " + index + " - unitPrice: " + product.unitPrice);
-    Logger.log("Producto " + index + " - subTotal: " + product.subTotal);
-  });
-  
-  // Validar cada contacto
-  fieldInvoice.contacts.forEach((contact, index) => {
-    Logger.log("Contacto " + index + " - contactType: " + contact.contactType);
-    Logger.log("Contacto " + index + " - personType: " + contact.personType);
-    Logger.log("Contacto " + index + " - companyName: " + contact.companyName);
-    Logger.log("Contacto " + index + " - identification: " + contact.identification);
-    Logger.log("Contacto " + index + " - country: " + contact.country);
-    Logger.log("Contacto " + index + " - province: " + contact.province);
-    Logger.log("Contacto " + index + " - population: " + contact.population);
-    Logger.log("Contacto " + index + " - addressCustomer: " + contact.addressCustomer);
-  });
-  
-  SpreadsheetApp.getUi().alert("Factura generada y guardada satisfactoriamente con el nuevo formato API");
+  SpreadsheetApp.getUi().alert("Factura generada con estructura JSON COMPLETA según factura.json");
 }
 
 function showMensajeRespuesta(){
