@@ -1124,10 +1124,10 @@ function descargarPDFDirecto(numeroFactura) {
     // Convertir base64 a blob
     var pdfBytes = Utilities.base64Decode(base64PDF);
     var pdfBlob = Utilities.newBlob(pdfBytes, 'application/pdf', 'Factura_' + numeroFactura + '.pdf');
-    
+    let fileID= subirFactura2(numeroFactura,pdfBlob)
     // Crear archivo temporal en Google Drive para descarga
-    var tempFile = DriveApp.createFile(pdfBlob);
-    var downloadUrl = tempFile.getDownloadUrl();
+   
+    var downloadUrl = "https://drive.google.com/uc?export=download&id="+fileID
     
     Logger.log("PDF descargado correctamente. URL: " + downloadUrl);
     
@@ -1655,7 +1655,8 @@ function guardarYGenerarInvoice(){
   let spreadsheet = SpreadsheetApp.getActive();
   let listadoestado_sheet = spreadsheet.getSheetByName('ListadoEstado');
   let prefactura_sheet = spreadsheet.getSheetByName('Factura');
-  
+  let FacturaDatos = spreadsheet.getSheetByName('Datos de emisor');
+
   // Obtener el total de productos
   let posicionTotalProductos = prefactura_sheet.getRange("A16").getValue();
   let cantidadProductos;
@@ -1674,7 +1675,7 @@ function guardarYGenerarInvoice(){
   let InvoiceGeneralInformation = getInvoiceGeneralInformation();
   let CustomerInformation = getCustomerInformation(cliente);
   let startingRowTaxation = getTaxSectionStartRow(prefactura_sheet);
-  
+  let usuario = FacturaDatos.getRange("B11").getValue()
   // Obtener fechas
   let fechaFactura = new Date(prefactura_sheet.getRange("G4").getValue());
   let fechaVencimiento = new Date(prefactura_sheet.getRange("G3").getValue());
@@ -1790,14 +1791,14 @@ function guardarYGenerarInvoice(){
       totalSurCharges: surChargesAmount,
       totaldiscount: discountAmount,
       taxes: taxes.length > 0 ? taxes : null,
-      withHoldingsSurChargesDto: withHoldingsSurChargesDto.length > 0 ? withHoldingsSurChargesDto : null,
-      discountDtoModules: discountDtoModules.length > 0 ? discountDtoModules : null
+      withHoldingsSurChargesDto: withHoldingsSurChargesDto.length > 0 ? withHoldingsSurChargesDto : [],
+      discountDtoModules: discountDtoModules.length > 0 ? discountDtoModules : []
     };
     
     // Asignar null si los arrays están vacíos para mantener estructura
     if (!producto.taxes || producto.taxes.length === 0) producto.taxes = null;
-    if (!producto.withHoldingsSurChargesDto || producto.withHoldingsSurChargesDto.length === 0) producto.withHoldingsSurChargesDto = null;
-    if (!producto.discountDtoModules || producto.discountDtoModules.length === 0) producto.discountDtoModules = null;
+    if (!producto.withHoldingsSurChargesDto || producto.withHoldingsSurChargesDto.length === 0) producto.withHoldingsSurChargesDto = [];
+    if (!producto.discountDtoModules || producto.discountDtoModules.length === 0) producto.discountDtoModules = [];
     
     products.push(producto);
     
@@ -1830,28 +1831,28 @@ function guardarYGenerarInvoice(){
   }
 
   // Validar datos del cliente
-  cliente = String(cliente || "");
-  if (!cliente || cliente.trim() === "") {
-    cliente = "Cliente sin nombre";
+  usuario = String(usuario || "");
+  if (!usuario || usuario.trim() === "") {
+    usuario = "Cliente sin nombre";
   }
   
   // Obtener información completa del cliente
   let codigoCliente = String(prefactura_sheet.getRange("B3").getValue() || "CLIENTE001");
-  
+  let nombreCliente=dividirString(cliente)
   // Crear contactos con estructura completa
   let contacts = [{
-    contactType: "01",
-    personType: "01", 
-    companyName: String(cliente).substring(0, 450),
-    customerCode: codigoCliente.substring(0, 150),
+    contactType: CustomerInformation.IdentificationType,
+    personType: CustomerInformation.TypePerson, 
+    companyName: String(nombreCliente[0]).substring(0, 450),
+    customerCode: String(cliente).substring(0,20),//codigo
     identification: String(CustomerInformation.Identification || "12345678A").substring(0, 20),
     tradeName: String(cliente).substring(0, 450),
-    regime: "03", // Según factura.json
+    regime: CustomerInformation.Regimen, // Según factura.json
     country: "207", // Código España según factura.json
     province: "5102", // Código provincia según factura.json
     population: "32653", // Código población según factura.json
-    addressCustomer: String(CustomerInformation.Address || "Calle Principal 123").substring(0, 200),
-    postalCodeCustomer: String(CustomerInformation.PostalCode || "100100").substring(0, 10),
+    addressCustomer: String(CustomerInformation.Addre || null).substring(0, 200), //AddressLine
+    postalCodeCustomer: String(CustomerInformation.Cide || null).substring(0, 10), //CityCode
     phoneCustomer: String(CustomerInformation.Telephone || "").substring(0, 20),
     webSite: String(CustomerInformation.WebSite || "").substring(0, 100) || null,
     emailCustomer: String(CustomerInformation.Email || "").substring(0, 100) || null
@@ -1900,10 +1901,10 @@ function guardarYGenerarInvoice(){
     currentNumber: currentNumber,
     invoiceDate: fechaFactura.toISOString(),
     invoiceTime: horaFactura,
-    invoiceExpiration: "2", // Según factura.json
-    invoiceIdTypeRegAEAT: "AI",
-    invoiceIdTypeRegSIF: null,
-    contactName: String(cliente).substring(0, 30),
+    invoiceExpiration: "2", // null
+    invoiceIdTypeRegAEAT: "AI",// null
+    invoiceIdTypeRegSIF: null,//null
+    contactName: String(usuario).substring(0, 30),
     contacts: contacts,
     products: products,
     idPayment: "EF", // Según factura.json
@@ -1927,7 +1928,7 @@ function guardarYGenerarInvoice(){
     invoiceRectificativeTypeId: 0,
     typeRectificativeId: 0,
     aditionalData: {
-      invoiceId: 0, // Según factura.json
+      invoiceId: Number(numeroFacturaValidado), // Según factura.json
       startInvoiceId: 0 // Según factura.json
     }
   };

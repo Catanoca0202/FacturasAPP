@@ -678,6 +678,58 @@ function crearProducto(){
   showNuevaProductoDesdeFactura()
 }
 
+function getIdentificationCode(IdentificationType) {
+
+
+  if (IdentificationType === "Cliente") {
+    return "01";
+  } else if (IdentificationType === "Proveedor") {
+    return "02";
+  } else {
+    throw new Error("Valor inválido en AB2. Debe ser 'Cliente' o 'Proveedor'.");
+  }
+}
+
+function getTypePersonCode(TypePerson) {
+  Logger.log("TypePerson"+TypePerson)
+  if (TypePerson === "Autonomo") {
+    return "01";
+  } else if (TypePerson === "Empresa") {
+    return "02";
+  } else {
+    throw new Error("Valor inválido para TypePerson. Debe ser 'Autonomo' o 'Empresa'.");
+  }
+}
+
+function getRegimenCode(Regimen) {
+  Logger.log("Regimen"+Regimen)
+  const regimenMap = {
+    "Operación de régimen general": "01",
+    "Exportación": "02",
+    "Operaciones a las que se aplique el régimen especial de bienes usados, objetos de arte, antigüedades y objetos de colección": "03",
+    "Régimen especial del oro de inversión": "04",
+    "Régimen especial de las agencias de viajes": "05",
+    "Régimen especial grupo de entidades en IVA (Nivel Avanzado)": "06",
+    "Régimen especial del criterio de caja": "07",
+    "Operaciones sujetas al IPSI / IGIC (Impuesto sobre la Producción, los Servicios y la Importación / Impuesto General Indirecto Canario)": "08",
+    "Facturación de las prestaciones de servicios de agencias de viaje que actúan como mediadoras en nombre y por cuenta ajena (D.A.4ª RD1619/2012)": "09",
+    "Cobros por cuenta de terceros de honorarios profesionales o de derechos derivados de la propiedad industrial, de autor u otros por cuenta de sus socios, asociados o colegiados efectuados por sociedades, asociaciones, colegios profesionales u otras entidades que realicen estas funciones de cobro": "10",
+    "Operaciones de arrendamiento de local de negocio": "11",
+    "Factura con IVA pendiente de devengo en certificaciones de obra cuyo destinatario sea una Administración Pública": "14",
+    "Factura con IVA pendiente de devengo en operaciones de tracto sucesivo": "15",
+    "Operación acogida a alguno de los regímenes previstos en el Capítulo XI del Título IX (OSS e IOSS)": "17",
+    "Recargo de equivalencia": "18",
+    "Operaciones de actividades incluidas en el Régimen Especial de Agricultura, Ganadería y Pesca (REAGYP)": "19",
+    "Régimen simplificado": "20"
+  };
+
+  const code = regimenMap[Regimen];
+  if (!code) {
+    throw new Error("Valor inválido para Regimen. Asegúrate de que el texto coincide exactamente con una de las opciones.");
+  }
+  return code;
+}
+
 function getCustomerInformation(customer) {
   /*esta funcion debe de cambiar para obtener son los datos directamente de la hoja cliente */
   // ojo de donde esta cogiendo el datosheet ?
@@ -695,7 +747,11 @@ function getCustomerInformation(customer) {
 
   //range = datos_sheet.getRange("C51");// aqui agarra es el numero mas no el tipo en si
   //var IdentificationType = range.getValue();
-  let IdentificationType=datos_sheet.getRange("J2").getValue();
+  let IdentificationType=datos_sheet.getRange("AB2").getValue();
+  IdentificationType=getIdentificationCode(IdentificationType)
+
+  let TypePerson=datos_sheet.getRange("L2").getValue();
+  TypePerson=getTypePersonCode(TypePerson)
 
   range = datos_sheet.getRange("K2");
   var Identification = range.getValue();//numero de identificacion
@@ -729,6 +785,9 @@ function getCustomerInformation(customer) {
   var Email = range.getValue();
   //Browser.msgBox(Email);
 
+
+  let Regimen = datos_sheet.getRange("M2").getValue();
+  Regimen =getRegimenCode(Regimen)
 
   range = datos_sheet.getRange("W2");
   var WebSiteURI = range.getValue();
@@ -766,7 +825,9 @@ function getCustomerInformation(customer) {
     "FiscalResponsabilities": "Responsabiliades fiscales, no se si en España exista",
 
     "PartecipationPercent": 100,
-    "AdditionalCustomer": []
+    "AdditionalCustomer": [],
+    "TypePerson":TypePerson,
+    "Regimen":Regimen
 
 
   }

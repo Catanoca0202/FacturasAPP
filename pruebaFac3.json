@@ -1,21 +1,21 @@
 {
-    "textCustomerObservations": null,
-    "invoiceNumber": "ABC0171",
-    "currentNumber": 171,
+    "textCustomerObservations": "jeje  nota de pago factura",
+    "invoiceNumber": "ABC0173",
+    "currentNumber": 173,
     "invoiceDate": "2025-07-20T04:00:00.000Z",
-    "invoiceTime": "20:15:49.0000000",
+    "invoiceTime": "20:36:58.0000000",
     "invoiceExpiration": "2",
     "invoiceIdTypeRegAEAT": "AI",
     "invoiceIdTypeRegSIF": null,
-    "contactName": "alejandro  perez-6666",
+    "contactName": "papeleria 87-9999",
     "contacts": [
       {
         "contactType": "01",
         "personType": "01",
-        "companyName": "alejandro  perez-6666",
-        "customerCode": "6666",
-        "identification": "6666",
-        "tradeName": "alejandro  perez-6666",
+        "companyName": "papeleria 87-9999",
+        "customerCode": "9999",
+        "identification": "9999",
+        "tradeName": "papeleria 87-9999",
         "regime": "03",
         "country": "207",
         "province": "5102",
@@ -24,7 +24,7 @@
         "postalCodeCustomer": "100100",
         "phoneCustomer": null,
         "webSite": null,
-        "emailCustomer": "alejo@hotmail.com"
+        "emailCustomer": "mail@uni.com"
       }
     ],
     "products": [
@@ -34,31 +34,38 @@
         "description": "Tv LG-2",
         "unitPrice": "2599999",
         "quantity": "4",
-        "subTotal": 10399996,
-        "totalTax": 2183999.16,
-        "totalwithHoldings": 727999.7200000001,
+        "subTotal": 9879996.2,
+        "totalTax": 2074799.2019999998,
+        "totalwithHoldings": 691599.734,
         "totalSurCharges": 0,
-        "totaldiscount": 0,
+        "totaldiscount": 493999.81,
         "taxes": [
           {
             "taxName": "IVA",
             "rate": 21,
-            "taxBase": 10399996,
-            "valueTax": 2183999.16
+            "taxBase": 9879996.2,
+            "valueTax": 2074799.2019999998
           }
         ],
         "withHoldingsSurChargesDto": [
           {
             "idRateWithHoldings": "20",
-            "subTotalWithHoldings": 10399996,
-            "cuotaWithHoldings": 727999.7200000001
+            "subTotalWithHoldings": 9879996.2,
+            "cuotaWithHoldings": 691599.734
           }
         ],
-        "discountDtoModules": []
+        "discountDtoModules": [
+          {
+            "discountName": "Descuento aplicado",
+            "discountRate": 5,
+            "discountBase": 9879996.2,
+            "valueDiscount": 493999.81
+          }
+        ]
       }
     ],
     "idPayment": "EF",
-    "paymentNote": null,
+    "paymentNote": "jeje  nota de pago factura",
     "textObservations": "Factura N°",
     "idOperations": "N1",
     "idOperationsExenta": "E3",
@@ -67,28 +74,28 @@
       {
         "idtypeFeeDiscount": "CG",
         "idTypeValueFeeDiscount": "PJ",
-        "baseFeeDiscount": 10399996,
+        "baseFeeDiscount": 9879996.2,
         "valueFeeDiscount": 1,
-        "totalFeeDiscount": 103999.96
+        "totalFeeDiscount": 98799.962
       }
     ],
     "fieldTaxations": [
       {
         "taxName": "IVA",
         "rate": 21,
-        "taxBase": 10399996,
-        "valueTax": 2183999.16
+        "taxBase": 9879996.2,
+        "valueTax": 2074799.2019999998
       }
     ],
-    "sumTotalSubTotal": 10399996,
-    "sumTotalTaxBase": 10399996,
-    "sumTotalTax": 2183999.16,
-    "sumTotalSubTotalAndTax": 12583995.16,
+    "sumTotalSubTotal": 9879996.2,
+    "sumTotalTaxBase": 9879996.2,
+    "sumTotalTax": 2074799.2019999998,
+    "sumTotalSubTotalAndTax": 11954795.401999999,
     "sumTotalExemptBase": 0,
-    "sumTotalDiscount": 0,
+    "sumTotalDiscount": 493999.81,
     "sumTotalCharge": 0,
-    "sumTotalTotal": 11855995.44,
-    "sumTotalNetPayable": 11127995.719999999,
+    "sumTotalTotal": 11263195.668,
+    "sumTotalNetPayable": 10571595.934,
     "invoiceTypeId": 0,
     "invoiceRectificativeTypeId": 0,
     "typeRectificativeId": 0,

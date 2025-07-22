@@ -1,0 +1,23 @@
+invoiceExpiration
+invoiceIdTypeRegAEAT
+invoiceIdTypeRegSIF
+contacts:[country
+province
+population]
+Products:[typeUse
+description..
+discountDtoModules:[discountName]]
+IdOperations
+IdOperationsExenta
+valueExemptBase?
+chargeAndDiscount:[idtypeFeeDiscount(ver Servicios de catalogos con el codigo TIPO_USO)]
+invoiceTypeId
+invoiceRectificativeTypeId
+typeRectificativeId
+aditionalData:[invoiceId?
+    startInvoiceId]
+
+
+volver direccion oblgiatorio
+metodo de pago
+sumTotalExemptBase
