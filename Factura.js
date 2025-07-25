@@ -230,6 +230,7 @@ function verificarEstadoValidoFactura() {
   const fechaPago = hojaFactura.getRange("G3").getValue();
   const fechaEmision = hojaFactura.getRange("G4").getValue();
   const formaPago = hojaFactura.getRange("G5").getValue();
+  const asesor = hojaFactura.getRange("G8").getValue();
 
 
   // Verificar cliente
@@ -271,6 +272,12 @@ function verificarEstadoValidoFactura() {
   if (!formaPago || formaPago === "") {
     estaValido.success = false;
     estaValido.message = "La forma de pago no está definida.";
+    return estaValido;
+  }
+
+  if (!asesor || asesor === "") {
+    estaValido.success = false;
+    estaValido.message = "Asesor no está definida. Si no tienes asesor, escribe el nombre del contacto en 'Datos emisor' ";
     return estaValido;
   }
 
@@ -329,6 +336,7 @@ function guardarFactura(){
       guardarYGenerarInvoice()
       guardarFacturaHistorial()
       Logger.log("guardar factura")
+      enviarFactura()
       limpiarHojaFactura()
       
     }else{
@@ -616,12 +624,13 @@ function enviarFactura(){
         SpreadsheetApp.getUi().alert("Error de FacturasApp: " + responseData.messages);
       } else {
         SpreadsheetApp.getUi().alert("Factura enviada correctamente a FacturasApp. ID: " + responseData.id);
-        
-        // Actualizar el estado en el historial si es necesario
         if (responseData.id) {
           Logger.log("Factura creada con ID: " + responseData.id);
         }
       }
+    } else if (responseCode === 500) {
+      Logger.log("Error HTTP 500: " + responseText);
+      SpreadsheetApp.getUi().alert("Ocurrió un error interno del servidor (500).\nPor favor, intenta cerrar sesión y volver a iniciarla en FacturasApp.\nSi el problema persiste, contacta a soporte.");
     } else {
       Logger.log("Error HTTP " + responseCode + ": " + responseText);
       SpreadsheetApp.getUi().alert("Error HTTP " + responseCode + ": " + responseText);
@@ -851,12 +860,18 @@ function obtenerPDFFacturaBase64(numeroFactura) {
   let ambiente = scriptProps.getProperty('Ambiente')
   
   // Nuevo endpoint para PDFInvoice
-  let url
+  let Burl
   if (ambiente=="Pruebas"){
-    url = "https://facturasapp-qa.cenet.ws/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/PDFInvoice?invoiceNumber=" + encodeURIComponent(numeroFactura)
+    Burl = "https://facturasapp-qa.cenet.ws/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/PDFInvoice" 
   }else{
-    url = "https://www.facturasapp.com/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/PDFInvoice?invoiceNumber=" + encodeURIComponent(numeroFactura);
+    Burl = "https://www.facturasapp.com/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/PDFInvoice" ;
   }
+
+  let params = {
+    invoiceNumber:String(numeroFactura)
+  }
+
+  let url = buildUrlWithParams(Burl,params)
   
   let hojaDatos = spreadsheet.getSheetByName('Datos');
   let APIkey = hojaDatos.getRange("I21").getValue()
@@ -891,6 +906,13 @@ function obtenerPDFFacturaBase64(numeroFactura) {
     Logger.log("Error al obtener el PDF: " + error.message);
     return null;
   }
+}
+
+function buildUrlWithParams(baseUrl, params) {
+  const query = Object.entries(params)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join('&');
+  return `${baseUrl}?${query}`;
 }
 
 // Función obsoleta convertPdfToBase64Prueba() eliminada
@@ -938,33 +960,33 @@ function convertPdfToBase64Prueba_OBSOLETA() {
 
 
 function linkDescargaFactura() {
-  var hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Facturas ID');
-  var lastRow = hoja.getLastRow();
-  var idArchivo = hoja.getRange("B" + lastRow).getValue();
-  var numFactura = hoja.getRange("A" + lastRow).getValue();
+  let hojaID = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Facturas ID');
+  var lastRow = hojaID.getLastRow();
+  // var idArchivo = hoja.getRange("B" + lastRow).getValue();
+  var numFactura = hojaID.getRange("A" + lastRow).getValue();
 
-  if (!idArchivo) {
-    throw new Error("El ID del archivo está vacío o no es válido.");
-  }
+  // if (!idArchivo) {
+  //   throw new Error("El ID del archivo está vacío o no es válido.");
+  // }
 
-  // Verificar el archivo y asignar permisos públicos usando Advanced Drive Service
-  var permisos = {
-    role: "reader",
-    type: "anyone"
-  };
+  // // Verificar el archivo y asignar permisos públicos usando Advanced Drive Service
+  // var permisos = {
+  //   role: "reader",
+  //   type: "anyone"
+  // };
 
-  try {
-    Drive.Permissions.create(permisos, idArchivo, {sendNotificationEmails: false});
-  } catch (e) {
-    throw new Error("Error al configurar permisos públicos: " + e.message);
-  }
+  // try {
+  //   Drive.Permissions.create(permisos, idArchivo, {sendNotificationEmails: false});
+  // } catch (e) {
+  //   throw new Error("Error al configurar permisos públicos: " + e.message);
+  // }
 
   // Generar la URL de descarga
-  var url = "https://drive.google.com/uc?export=download&id=" + idArchivo;
+  // var url = "https://drive.google.com/uc?export=download&id=" + idArchivo;
   
   return {
     numFactura: numFactura,
-    url: url
+    // url: url
   };
 }
 
@@ -972,11 +994,13 @@ function linkDescargaFactura() {
 
 function getDownloadLink() {
   var data = linkDescargaFactura();
-  const usuario =obtenerUsuario()
-  const propietario= obtenerPropietario()
-  Logger.log("usuario "+usuario)
-  Logger.log("propietario "+propietario)
+  // const usuario =obtenerUsuario()
+  // const propietario= obtenerPropietario()
+  // Logger.log("usuario "+usuario)
+  // Logger.log("propietario "+propietario)
   Logger.log("sale de linkdescargar")
+  Logger.log("dataa"+data)
+  Logger.log("dataa"+data.numFactura)
   return data;
 }
 
@@ -1069,6 +1093,13 @@ function enviarEmailPostFactura(email,historial=false,numFacturaAbuscar=null) {
 
 
 function ProcesarFormularioFactura(data) {
+  Logger.log(data)
+  Logger.log("out loop")
+  for (let key in data) {
+    Logger.log("in loop")
+    Logger.log(key + ': ' + data[key]);
+  }
+
   var numFactura = data.numFactura;
   
   // Verificar que la factura existe en el historial
@@ -1851,10 +1882,10 @@ function guardarYGenerarInvoice(){
     country: "207", // Código España según factura.json
     province: "5102", // Código provincia según factura.json
     population: "32653", // Código población según factura.json
-    addressCustomer: String(CustomerInformation.Addre || null).substring(0, 200), //AddressLine
-    postalCodeCustomer: String(CustomerInformation.Cide || null).substring(0, 10), //CityCode
+    addressCustomer: String(CustomerInformation.AddressLine || null).substring(0, 200), //AddressLine
+    postalCodeCustomer: String(CustomerInformation.CityCode || null).substring(0, 10), //CityCode
     phoneCustomer: String(CustomerInformation.Telephone || "").substring(0, 20),
-    webSite: String(CustomerInformation.WebSite || "").substring(0, 100) || null,
+    webSite: String(CustomerInformation.WebSiteURI || "").substring(0, 100) || null,
     emailCustomer: String(CustomerInformation.Email || "").substring(0, 100) || null
   }];
   
@@ -1903,13 +1934,13 @@ function guardarYGenerarInvoice(){
     invoiceTime: horaFactura,
     invoiceExpiration: "2", // null
     invoiceIdTypeRegAEAT: "AI",// null
-    invoiceIdTypeRegSIF: null,//null
-    contactName: String(usuario).substring(0, 30),
+    invoiceIdTypeRegSIF: "AI",//null
+    contactName: String(prefactura_sheet.getRange("G8").getValue()|| "").substring(0, 300) || "",
     contacts: contacts,
     products: products,
     idPayment: "EF", // Según factura.json
     paymentNote: String(prefactura_sheet.getRange("D11").getValue() || "").substring(0, 300) || null,
-    textObservations: String(prefactura_sheet.getRange("F2").getValue() || "").substring(0, 500) || null,
+    textObservations: String(prefactura_sheet.getRange("B10").getValue() || "").substring(0, 500) || null,
     idOperations: "N1", // Según factura.json
     idOperationsExenta: "E3", // Según factura.json  
     valueExemptBase: "0", // Como string según factura.json
@@ -1922,14 +1953,14 @@ function guardarYGenerarInvoice(){
     sumTotalExemptBase: 0,
     sumTotalDiscount: totalDiscounts,
     sumTotalCharge: cargoTotal,
-    sumTotalTotal: totalFactura,
-    sumTotalNetPayable: sumTotalNetPayable,
-    invoiceTypeId: 0, // Según factura.json
-    invoiceRectificativeTypeId: 0,
-    typeRectificativeId: 0,
+    sumTotalTotal: sumTotalNetPayable,
+    sumTotalNetPayable: totalFactura,
+    invoiceTypeId: 1, // Según factura.json
+    invoiceRectificativeTypeId: 1,
+    typeRectificativeId: 1,
     aditionalData: {
-      invoiceId: Number(numeroFacturaValidado), // Según factura.json
-      startInvoiceId: 0 // Según factura.json
+      invoiceId: currentNumber, // Según factura.json
+      startInvoiceId: 1 // Según factura.json
     }
   };
   

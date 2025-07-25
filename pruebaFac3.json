@@ -30,14 +30,14 @@
     "products": [
       {
         "typeUse": "VEN",
-        "reference": "2",
+        "reference": "2",                
         "description": "Tv LG-2",
         "unitPrice": "2599999",
         "quantity": "4",
         "subTotal": 9879996.2,
         "totalTax": 2074799.2019999998,
         "totalwithHoldings": 691599.734,
-        "totalSurCharges": 0,
+        "totalSurCharges": 0,                            
         "totaldiscount": 493999.81,
         "taxes": [
           {

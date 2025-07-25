@@ -1,0 +1,134 @@
+{
+    "textCustomerObservations": "jaajaj nota de pago ",
+    "invoiceNumber": "ABC00010",
+    "currentNumber": 168,
+    "invoiceDate": "2025-07-22T04:00:00.000Z",
+    "invoiceTime": "19:04:26.0000000",
+    "invoiceExpiration": "2",
+    "invoiceIdTypeRegAEAT": "AI",
+    "invoiceIdTypeRegSIF": null,
+    "contactName": "alejandro  perez-6666",
+    "contacts": [
+      {
+        "contactType": "01",
+        "personType": "01",
+        "companyName": "alejandro  perez-6666",
+        "customerCode": "6666",
+        "identification": "6666",
+        "tradeName": "alejandro  perez-6666",
+        "regime": "03",
+        "country": "207",
+        "province": "5102",
+        "population": "32653",
+        "addressCustomer": "Calle Principal 123",
+        "postalCodeCustomer": "100100",
+        "phoneCustomer": null,
+        "webSite": null,
+        "emailCustomer": "alejo@hotmail.com"
+      }
+    ],
+    "products": [
+      {
+        "typeUse": "VEN",
+        "reference": "333",
+        "description": "prueba-333",
+        "unitPrice": "555",
+        "quantity": "44",
+        "subTotal": 24420,
+        "totalTax": 2442,
+        "totalwithHoldings": 3663,
+        "totalSurCharges": 0,
+        "totaldiscount": 0,
+        "taxes": [
+          {
+            "taxName": "IVA",
+            "rate": 10,
+            "taxBase": 24420,
+            "valueTax": 2442
+          }
+        ],
+        "withHoldingsSurChargesDto": [
+          {
+            "idRateWithHoldings": "20",
+            "subTotalWithHoldings": 24420,
+            "cuotaWithHoldings": 3663
+          }
+        ],
+        "discountDtoModules": []
+      },
+      {
+        "typeUse": "VEN",
+        "reference": "5",
+        "description": "excel prueba-5",
+        "unitPrice": "1500.99",
+        "quantity": "33",
+        "subTotal": 47551.3632,
+        "totalTax": 10651.5053568,
+        "totalwithHoldings": 0,
+        "totalSurCharges": 665.7190848,
+        "totaldiscount": 1902.0545280000001,
+        "taxes": [
+          {
+            "taxName": "IVA",
+            "rate": 21,
+            "taxBase": 47551.3632,
+            "valueTax": 9985.786272
+          }
+        ],
+        "withHoldingsSurChargesDto": [],
+        "discountDtoModules": [
+          {
+            "discountName": "Descuento aplicado",
+            "discountRate": 4,
+            "discountBase": 47551.3632,
+            "valueDiscount": 1902.0545280000001
+          }
+        ]
+      }
+    ],
+    "idPayment": "EF",
+    "paymentNote": "jaajaj nota de pago ",
+    "textObservations": "Factura N°",
+    "idOperations": "N1",
+    "idOperationsExenta": "E3",
+    "valueExemptBase": "0",
+    "chargeAndDiscount": [
+      {
+        "idtypeFeeDiscount": "CG",
+        "idTypeValueFeeDiscount": "PJ",
+        "baseFeeDiscount": 71971.36319999999,
+        "valueFeeDiscount": 1,
+        "totalFeeDiscount": 719.713632
+      }
+    ],
+    "fieldTaxations": [
+      {
+        "taxName": "IVA",
+        "rate": 10,
+        "taxBase": 24420,
+        "valueTax": 2442
+      },
+      {
+        "taxName": "IVA",
+        "rate": 21,
+        "taxBase": 47551.3632,
+        "valueTax": 9985.786272
+      }
+    ],
+    "sumTotalSubTotal": 71971.36319999999,
+    "sumTotalTaxBase": 71971.36319999999,
+    "sumTotalTax": 12427.786272,
+    "sumTotalSubTotalAndTax": 85064.8685568,
+    "sumTotalExemptBase": 0,
+    "sumTotalDiscount": 1902.0545280000001,
+    "sumTotalCharge": 0,
+    "sumTotalTotal": 81401.86855680001,
+    "sumTotalNetPayable": 77738.86855680001,
+    "invoiceTypeId": 0,
+    "invoiceRectificativeTypeId": 0,
+    "typeRectificativeId": 0,
+    "aditionalData": {
+      "invoiceId": 0,
+      "startInvoiceId": 0
+    }
+  }

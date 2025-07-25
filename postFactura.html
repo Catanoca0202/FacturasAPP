@@ -21,17 +21,40 @@
         }
 
         function downloadPdf() {
-            google.script.run.withSuccessHandler(function(data) {
-                var numFactura = data.numFactura;
-                var url = data.url;
-                console.log("entraa")
-                var link = document.createElement('a');
-                link.href = url;
-                link.download = 'Factura ' + numFactura + '.pdf';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            }).getDownloadLink();
+            // google.script.run.withSuccessHandler(function(data) {
+            //     var numFactura = data.numFactura;
+            //     var url = data.url;
+            //     console.log("entraa")
+            //     var link = document.createElement('a');
+            //     link.href = url;
+            //     link.download = 'Factura ' + numFactura + '.pdf';
+            //     document.body.appendChild(link);
+            //     link.click();
+            //     document.body.removeChild(link);
+            // }).getDownloadLink();
+
+          google.script.run.withSuccessHandler(function (data) {
+
+
+            google.script.run
+              .withSuccessHandler(function (url) {
+                  if (url === 'Factura no encontrada') {
+                      mostrarAlerta("Factura no encontrada, error: " + url);
+                  } else {
+                      console.log(url)
+                      
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = 'Factura_' + data.numFactura + '.pdf';
+                      link.click();
+                  }
+              })
+              .ProcesarFormularioFactura(data);
+
+          }).getDownloadLink();
+
+           
+
         }
 
         function showEnviarEmailPost() {
@@ -75,7 +98,7 @@
 
     <a onclick="downloadPdf()" class="btn btn-lg btn-outline-secondary mb-2"><i class="icon-download"></i><span>Descargar PDF</span></a>
     <a onclick="showEnviarEmailPost()" class="btn btn-lg btn-outline-secondary mb-2"><i class="icon-send"></i><span>Enviar factura por correo</span></a>
-    <a onclick="enviarFactura()" class="btn btn-lg btn-outline-secondary mb-2"><i class="icon-send"></i><span>Enviar factura a FacturasApp</span></a>
+    <!-- <a onclick="enviarFactura()" class="btn btn-lg btn-outline-secondary mb-2"><i class="icon-send"></i><span>Enviar factura a FacturasApp</span></a> -->
 
   </div>
 </div>
