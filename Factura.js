@@ -625,7 +625,7 @@ function enviarFactura(){
       } else {
         SpreadsheetApp.getUi().alert("Factura enviada correctamente a FacturasApp. ID: " + responseData.id);
         if (responseData.id) {
-          Logger.log("Factura creada con ID: " + responseData.id);
+          Logger.log("Factura creada con ID: " + responseData.id+" y enviada a FacturasApp");
         }
       }
     } else if (responseCode === 500) {
@@ -1934,8 +1934,8 @@ function guardarYGenerarInvoice(){
     invoiceTime: horaFactura,
     invoiceExpiration: "2", // null
     invoiceIdTypeRegAEAT: "AI",// null
-    invoiceIdTypeRegSIF: "AI",//null
-    contactName: String(prefactura_sheet.getRange("G8").getValue()|| "").substring(0, 300) || "",
+    invoiceIdTypeRegSIF: null,//null
+    contactName: String(prefactura_sheet.getRange("G8").getValue()|| "").substring(0, 30) || "",
     contacts: contacts,
     products: products,
     idPayment: "EF", // Según factura.json
@@ -1955,12 +1955,12 @@ function guardarYGenerarInvoice(){
     sumTotalCharge: cargoTotal,
     sumTotalTotal: sumTotalNetPayable,
     sumTotalNetPayable: totalFactura,
-    invoiceTypeId: 1, // Según factura.json
-    invoiceRectificativeTypeId: 1,
-    typeRectificativeId: 1,
+    invoiceTypeId: 0, // Según factura.json
+    invoiceRectificativeTypeId: 0,
+    typeRectificativeId: 0,
     aditionalData: {
-      invoiceId: currentNumber, // Según factura.json
-      startInvoiceId: 1 // Según factura.json
+      invoiceId: 0, // Según factura.json
+      startInvoiceId: 0 // Según factura.json
     }
   };
   

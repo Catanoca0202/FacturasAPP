@@ -1,0 +1,99 @@
+{
+    "textCustomerObservations": null,
+    "invoiceNumber": "ABC0220",
+    "currentNumber": 220,
+    "invoiceDate": "2025-07-25T04:00:00.000Z",
+    "invoiceTime": "15:32:47.0000000",
+    "invoiceExpiration": "2",
+    "invoiceIdTypeRegAEAT": "AI",
+    "invoiceIdTypeRegSIF": "AI",
+    "contactName": "alejandro  ",
+    "contacts": [
+      {
+        "contactType": "02",
+        "personType": "01",
+        "companyName": "alejandro  perez",
+        "customerCode": "alejandro  perez-666",
+        "identification": "6666",
+        "tradeName": "alejandro  perez-6666",
+        "regime": "04",
+        "country": "207",
+        "province": "5102",
+        "population": "32653",
+        "addressCustomer": "cra 5# 344",
+        "postalCodeCustomer": "1120",
+        "phoneCustomer": "3118876544",
+        "webSite": "webp.com",
+        "emailCustomer": "alejo@hotmail.com"
+      }
+    ],
+    "products": [
+      {
+        "typeUse": "VEN",
+        "reference": "2",
+        "description": "Tv LG-2",
+        "unitPrice": "2599999",
+        "quantity": "4",
+        "subTotal": 10399996,
+        "totalTax": 2365999.0900000003,
+        "totalwithHoldings": 727999.7200000001,
+        "totalSurCharges": 181999.93000000002,
+        "totaldiscount": 0,
+        "taxes": [
+          {
+            "taxName": "IVA",
+            "rate": 21,
+            "taxBase": 10399996,
+            "valueTax": 2183999.16
+          }
+        ],
+        "withHoldingsSurChargesDto": [
+          {
+            "idRateWithHoldings": "20",
+            "subTotalWithHoldings": 10399996,
+            "cuotaWithHoldings": 727999.7200000001
+          }
+        ],
+        "discountDtoModules": []
+      }
+    ],
+    "idPayment": "EF",
+    "paymentNote": null,
+    "textObservations": "Factura N°",
+    "idOperations": "N1",
+    "idOperationsExenta": "E3",
+    "valueExemptBase": "0",
+    "chargeAndDiscount": [
+      {
+        "idtypeFeeDiscount": "CG",
+        "idTypeValueFeeDiscount": "PJ",
+        "baseFeeDiscount": 10399996,
+        "valueFeeDiscount": 1,
+        "totalFeeDiscount": 103999.96
+      }
+    ],
+    "fieldTaxations": [
+      {
+        "taxName": "IVA",
+        "rate": 21,
+        "taxBase": 10399996,
+        "valueTax": 2183999.16
+      }
+    ],
+    "sumTotalSubTotal": 10399996,
+    "sumTotalTaxBase": 10399996,
+    "sumTotalTax": 2183999.16,
+    "sumTotalSubTotalAndTax": 12765995.09,
+    "sumTotalExemptBase": 0,
+    "sumTotalDiscount": 0,
+    "sumTotalCharge": 0,
+    "sumTotalTotal": 11309995.649999999,
+    "sumTotalNetPayable": 12037995.37,
+    "invoiceTypeId": 1,
+    "invoiceRectificativeTypeId": 1,
+    "typeRectificativeId": 1,
+    "aditionalData": {
+      "invoiceId": 220,
+      "startInvoiceId": 1
+    }
+  }
