@@ -1155,12 +1155,11 @@ function descargarPDFDirecto(numeroFactura) {
     // Convertir base64 a blob
     var pdfBytes = Utilities.base64Decode(base64PDF);
     var pdfBlob = Utilities.newBlob(pdfBytes, 'application/pdf', 'Factura_' + numeroFactura + '.pdf');
-    let fileID= subirFactura2(numeroFactura,pdfBlob)
-    // Crear archivo temporal en Google Drive para descarga
-   
-    var downloadUrl = "https://drive.google.com/uc?export=download&id="+fileID
     
-    Logger.log("PDF descargado correctamente. URL: " + downloadUrl);
+    // Crear data URL directamente sin subir a Google Drive
+    var downloadUrl = generarPdfUrl(pdfBlob);
+    
+    Logger.log("PDF preparado correctamente para descarga directa");
     
     return downloadUrl;
     
