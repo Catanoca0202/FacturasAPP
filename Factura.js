@@ -1681,6 +1681,59 @@ function getPaymentSummary(startingRowTaxation) {
   return PaymentSummary;
 }
 
+function validarValorWithHolding(valor, tipoWithHolding) {
+  // Validar que el valor esté en la lista de valores permitidos
+  let valoresPermitidos = [];
+  
+  if (tipoWithHolding === 10) { // Retención
+    valoresPermitidos = [7, 15, 19];
+  } else if (tipoWithHolding === 11) { // Recargo de equivalencia
+    valoresPermitidos = [5.2, 1.4, 0.5, 1.75];
+  }
+  
+  let valorRedondeado = Math.round(Number(valor) * 10) / 10;
+  return valoresPermitidos.includes(valorRedondeado);
+}
+
+function obtenerIdRateWithHoldings(valorRetencion, tipoWithHolding) {
+  // Mapeo según la tabla de configuración
+  // tipoWithHolding: 10 = Retención, 11 = Recargo de equivalencia
+  
+  // Convertir a número y redondear para evitar problemas de precisión
+  let valor = Math.round(Number(valorRetencion) * 10) / 10;
+  
+  if (tipoWithHolding === 10) { // Retención
+    switch (valor) {
+      case 7:
+        return "20";
+      case 15:
+        return "21";
+      case 19:
+        return "22";
+      default:
+        Logger.log("Valor de retención no reconocido: " + valor + ". Usando código por defecto 20");
+        return "20"; // Valor por defecto
+    }
+  } else if (tipoWithHolding === 11) { // Recargo de equivalencia
+    switch (valor) {
+      case 5.2:
+        return "23";
+      case 1.4:
+        return "24";
+      case 0.5:
+        return "25";
+      case 1.75:
+        return "26";
+      default:
+        Logger.log("Valor de recargo de equivalencia no reconocido: " + valor + ". Usando código por defecto 23");
+        return "23"; // Valor por defecto
+    }
+  }
+  
+  Logger.log("Tipo de withholding no reconocido: " + tipoWithHolding + ". Usando código por defecto 20");
+  return "20"; // Valor por defecto si no coincide
+}
+
 function guardarYGenerarInvoice(){
   let spreadsheet = SpreadsheetApp.getActive();
   let listadoestado_sheet = spreadsheet.getSheetByName('ListadoEstado');
@@ -1791,10 +1844,23 @@ function guardarYGenerarInvoice(){
     
     let withHoldingsSurChargesDto = [];
     if (retencionRate > 0) {
+      let codigoRetencion = obtenerIdRateWithHoldings(retencionRate * 100, 10);
+      Logger.log("Producto: " + descripcion + " - Retención: " + (retencionRate * 100) + "% - Código: " + codigoRetencion);
       withHoldingsSurChargesDto.push({
-        idRateWithHoldings: "20", // Código estándar
+        idRateWithHoldings: codigoRetencion, // Retención
         subTotalWithHoldings: subtotal,
         cuotaWithHoldings: withHoldingsAmount
+      });
+    }
+    
+    // Agregar recargo de equivalencia si existe
+    if (recargoEquivalenciaRate > 0) {
+      let codigoRecargo = obtenerIdRateWithHoldings(recargoEquivalenciaRate * 100, 11);
+      Logger.log("Producto: " + descripcion + " - Recargo: " + (recargoEquivalenciaRate * 100) + "% - Código: " + codigoRecargo);
+      withHoldingsSurChargesDto.push({
+        idRateWithHoldings: codigoRecargo, // Recargo de equivalencia
+        subTotalWithHoldings: subtotal,
+        cuotaWithHoldings: surChargesAmount
       });
     }
     

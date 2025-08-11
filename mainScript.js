@@ -778,8 +778,13 @@ function onEdit(e) {
       let taxSectionStartRow = getTaxSectionStartRow(hojaActual); // Assuming products end at column H
       let posRowTotalProductos=taxSectionStartRow-3//poscion (row) de Total productos
       Logger.log("taxSectionStartRow "+taxSectionStartRow)
-
-      if (colEditada === columnaContactos && rowEditada === rowContactos) {
+      let VerificartotalFilas = hojaActual.getRange("A15").getValue()
+      if(VerificartotalFilas==="Total filas"){
+        SpreadsheetApp.getUi().alert("Intenta no eliminar todas las filas de productos, ya que se puede generar un error en la factura");
+        limpiarHojaFactura()
+        
+      }
+      else if (colEditada === columnaContactos && rowEditada === rowContactos) {
         //celda de elegir contacto en hoja factura
         Logger.log("No se editó un contacto válido");
         verificarYCopiarContacto(e);
