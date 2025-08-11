@@ -1794,18 +1794,28 @@ function guardarYGenerarInvoice(){
     let descripcion = String(productoData[1] || "");
     let cantidad = Number(productoData[2]) || 1;
     let precioUnitario = Number(productoData[3]) || 0;
-    let subtotal = Number(productoData[5]) || 0;
+    // subtotal en hoja (col F) YA tiene el descuento aplicado.
+    // Para evitar doble descuento en el PDF/servicio, calculamos explícitamente
+    // el bruto (antes de descuento) y la base neta (después de descuento).
+    let subtotalHoja = Number(productoData[5]) || 0; // con descuento
     let ivaRate = Number(productoData[6]) || 0;
     let descuentoRate = Number(productoData[7]) || 0;
     let retencionRate = Number(productoData[8]) || 0;
     let recargoEquivalenciaRate = Number(productoData[9]) || 0;
     let totalLinea = Number(productoData[10]) || 0;
+
+    // Utilidades de redondeo a 2 decimales para evitar flotantes extensos
+    const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+    // Calcular valores base
+    let baseBruta = round2(precioUnitario * cantidad); // antes de descuento
+    let discountAmount = round2(baseBruta * descuentoRate);
+    let baseNeta = round2(baseBruta - discountAmount); // después de descuento
     
-    // Calcular valores
-    let taxAmount = subtotal * ivaRate;
-    let withHoldingsAmount = subtotal * retencionRate;
-    let surChargesAmount = subtotal * recargoEquivalenciaRate;
-    let discountAmount = subtotal * descuentoRate;
+    // Calcular valores (igual que en la hoja): sobre la base neta
+    let taxAmount = round2(baseNeta * ivaRate);
+    let withHoldingsAmount = round2(baseNeta * retencionRate);
+    let surChargesAmount = round2(baseNeta * recargoEquivalenciaRate);
     
     // Validar campos obligatorios
     if (!descripcion || descripcion.trim() === "") {
@@ -1824,7 +1834,7 @@ function guardarYGenerarInvoice(){
       taxes.push({
         taxName: "IVA",
         rate: ivaRate * 100, // Convertir a porcentaje
-        taxBase: subtotal,
+        taxBase: baseNeta,
         valueTax: taxAmount
       });
       
@@ -1838,8 +1848,8 @@ function guardarYGenerarInvoice(){
           valueTax: 0
         };
       }
-      taxGroups[rateKey].taxBase += subtotal;
-      taxGroups[rateKey].valueTax += taxAmount;
+      taxGroups[rateKey].taxBase = round2(taxGroups[rateKey].taxBase + baseNeta);
+      taxGroups[rateKey].valueTax = round2(taxGroups[rateKey].valueTax + taxAmount);
     }
     
     let withHoldingsSurChargesDto = [];
@@ -1848,7 +1858,7 @@ function guardarYGenerarInvoice(){
       Logger.log("Producto: " + descripcion + " - Retención: " + (retencionRate * 100) + "% - Código: " + codigoRetencion);
       withHoldingsSurChargesDto.push({
         idRateWithHoldings: codigoRetencion, // Retención
-        subTotalWithHoldings: subtotal,
+        subTotalWithHoldings: baseNeta,
         cuotaWithHoldings: withHoldingsAmount
       });
     }
@@ -1859,7 +1869,7 @@ function guardarYGenerarInvoice(){
       Logger.log("Producto: " + descripcion + " - Recargo: " + (recargoEquivalenciaRate * 100) + "% - Código: " + codigoRecargo);
       withHoldingsSurChargesDto.push({
         idRateWithHoldings: codigoRecargo, // Recargo de equivalencia
-        subTotalWithHoldings: subtotal,
+        subTotalWithHoldings: baseNeta,
         cuotaWithHoldings: surChargesAmount
       });
     }
@@ -1869,7 +1879,7 @@ function guardarYGenerarInvoice(){
       discountDtoModules.push({
         discountName: "Descuento aplicado",
         discountRate: descuentoRate * 100, // Convertir a porcentaje
-        discountBase: subtotal,
+        discountBase: baseBruta,
         valueDiscount: discountAmount
       });
     }
@@ -1881,8 +1891,10 @@ function guardarYGenerarInvoice(){
       description: String(descripcion).substring(0, 100),
       unitPrice: String(precioUnitario), // Como string según factura.json
       quantity: String(cantidad), // Como string según factura.json
-      subTotal: subtotal,
-      totalTax: taxAmount + surChargesAmount, // Total de impuestos
+      // IMPORTANTE: Enviar subTotal BRUTO (antes de descuento) para que el servicio
+      // aplique los módulos de descuento y no descuente doble.
+      subTotal: baseBruta,
+      totalTax: round2(taxAmount + surChargesAmount), // Total de impuestos
       totalwithHoldings: withHoldingsAmount,
       totalSurCharges: surChargesAmount,
       totaldiscount: discountAmount,
@@ -1899,12 +1911,14 @@ function guardarYGenerarInvoice(){
     products.push(producto);
     
     // Acumular totales
-    totalSubTotal += subtotal;
-    totalTaxBase += subtotal;
-    totalTax += taxAmount;
-    totalWithHoldings += withHoldingsAmount;
-    totalSurCharges += surChargesAmount;
-    totalDiscounts += discountAmount;
+    // totalSubTotal: suma de subTotal BRUTO (igual a hoja: Valor bruto sin impuestos)
+    totalSubTotal = round2(totalSubTotal + baseBruta);
+    // totalTaxBase: solicitado por el usuario como "Valor bruto" -> usar base BRUTA
+    totalTaxBase = round2(totalTaxBase + baseBruta);
+    totalTax = round2(totalTax + taxAmount);
+    totalWithHoldings = round2(totalWithHoldings + withHoldingsAmount);
+    totalSurCharges = round2(totalSurCharges + surChargesAmount);
+    totalDiscounts = round2(totalDiscounts + discountAmount);
   }
   
   // Crear fieldTaxations desde taxGroups
@@ -1988,6 +2002,7 @@ function guardarYGenerarInvoice(){
   
   // Calcular totales finales
   let sumTotalSubTotalAndTax = totalSubTotal + totalTax + totalSurCharges;
+  // Neto a pagar = Total factura - Retenciones
   let sumTotalNetPayable = totalFactura - totalWithHoldings;
   
   // Crear el JSON con estructura EXACTA de factura.json
@@ -2018,8 +2033,10 @@ function guardarYGenerarInvoice(){
     sumTotalExemptBase: 0,
     sumTotalDiscount: totalDiscounts,
     sumTotalCharge: cargoTotal,
-    sumTotalTotal: sumTotalNetPayable,
-    sumTotalNetPayable: totalFactura,
+    // Total de la factura
+    sumTotalTotal: totalFactura,
+    // Neto a pagar segun esquema: Total - Retenciones
+    sumTotalNetPayable: sumTotalNetPayable,
     invoiceTypeId: 0, // Según factura.json
     invoiceRectificativeTypeId: 0,
     typeRectificativeId: 0,

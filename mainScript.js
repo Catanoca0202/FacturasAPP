@@ -1273,7 +1273,8 @@ function calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRo
   let rowParaTotalFactura=taxSectionStartRow+12
   hojaActual.getRange("B"+String(rowParaTotalFactura)).setValue("=SUM(K15:K"+String(lastRowProducto)+")+C"+String(rowParaTotales)+"-B"+String(rowDescuentos))
 
-
+  //valorBruto
+  hojaActual.getRange("E"+String(rowParaTotalFactura)).setValue("=SUMPRODUCT(C15:C"+String(lastRowProducto)+";D15:D"+String(lastRowProducto)+")")
 
 }
 
