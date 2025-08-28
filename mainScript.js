@@ -891,6 +891,27 @@ function onEdit(e) {
         }
         Logger.log("dentro de fecha calcular")
         CalcularDiasOFecha("Dias")
+        // Refrescar datos clave como cuando se elige el cliente
+        obtenerFechaYHoraActual();
+        let hojaInfoUsuario = spreadsheet.getSheetByName('Datos de emisor');
+        let iban = hojaInfoUsuario.getRange("B10").getValue();
+        factura_sheet.getRange("B11").setValue(iban);
+        generarNumeroFactura();
+      }else if (colEditada == 5 && rowEditada == 4) {
+        // Medio de pago editado (E4): refrescar datos clave y fechas
+        obtenerFechaYHoraActual();
+        CalcularDiasOFecha("Dias");
+        let hojaInfoUsuario = spreadsheet.getSheetByName('Datos de emisor');
+        let iban = hojaInfoUsuario.getRange("B10").getValue();
+        factura_sheet.getRange("B11").setValue(iban);
+        generarNumeroFactura();
+      }else if (colEditada == 7 && rowEditada == 5) {
+        // Forma de pago editada (G5): refrescar datos clave
+        obtenerFechaYHoraActual();
+        let hojaInfoUsuario = spreadsheet.getSheetByName('Datos de emisor');
+        let iban = hojaInfoUsuario.getRange("B10").getValue();
+        factura_sheet.getRange("B11").setValue(iban);
+        generarNumeroFactura();
       }else if(colEditada==7 && rowEditada==2){
         let valorFacturaNumero = celdaEditada.getValue();
         let coincideEstruct=cumpleEstructura(valorFacturaNumero)
@@ -923,7 +944,7 @@ function onEdit(e) {
       if (lastRowProducto===productStartRow){
         Logger.log("dentro de agg info para TOTLA pero last y start son iguales")
         // //ESTADO DEAFULT no se hace nada
-        hojaActual.getRange("B31").setValue("=SUM(K15)+C29-B18")
+        hojaActual.getRange("B31").setValue("=B32+C29-A29")
 
 
       }else{
@@ -1263,15 +1284,15 @@ function calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRo
   hojaActual.getRange("A"+String(rowParaTotales)).setValue("=SUMPRODUCT(F15:F"+String(lastRowProducto)+";I15:I"+String(lastRowProducto)+")")
 
   //total cargo equivalencia
-  hojaActual.getRange("B"+String(rowParaTotales)).setValue("=SUMPRODUCT(F15:F"+String(lastRowProducto)+";J15:J"+String(lastRowProducto)+")")
+  hojaActual.getRange("B"+String(rowParaTotales)).setValue("=SUMPRODUCT(F15:F"+String(lastRowProducto)+";J15:J"+String(lastRowProducto)+")*10")
 
   //total descuentos FACTURA
   let rowDescuentos=taxSectionStartRow-1
   hojaActual.getRange("D"+String(rowParaTotales)).setValue("=B"+String(rowDescuentos)+"+(SUMPRODUCT(D15:D"+String(lastRowProducto)+";C15:C"+String(lastRowProducto)+";H15:H"+String(lastRowProducto)+"))")
 
-  //totalfactura
+  //netopagar
   let rowParaTotalFactura=taxSectionStartRow+12
-  hojaActual.getRange("B"+String(rowParaTotalFactura)).setValue("=SUM(K15:K"+String(lastRowProducto)+")+C"+String(rowParaTotales)+"-B"+String(rowDescuentos))
+  //hojaActual.getRange("B"+String(rowParaTotalFactura)).setValue("=SUM(K15:K"+String(lastRowProducto)+")+C"+String(rowParaTotales)+"-B"+String(rowDescuentos))
 
   //valorBruto
   hojaActual.getRange("E"+String(rowParaTotalFactura)).setValue("=SUMPRODUCT(C15:C"+String(lastRowProducto)+";D15:D"+String(lastRowProducto)+")")

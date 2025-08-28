@@ -321,34 +321,40 @@ function verificarEstadoCarpeta(){
 function guardarFactura(){
   let spreadsheet = SpreadsheetApp.getActive();
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
-  let estadoVinculacion=hojaDatosEmisor.getRange("B16").getValue();
-  let estadoFactura=verificarEstadoValidoFactura();
-  if(estadoVinculacion=="Desvinculado"){
-    SpreadsheetApp.getUi().alert("Recuerda que antes de poder generar una factura es necesario haber vinculado tu cuenta de FacturasApp")
-  }
-  else if(estadoFactura.success){
-    //factura valida
-    // generar json
-    
-    let respuesta = verificarEstadoCarpeta()
-    let respuestaEstadoConsecutivo=verificarEstadoConsecutivo()
-    if(respuesta && respuestaEstadoConsecutivo){
-      guardarYGenerarInvoice()
-      guardarFacturaHistorial()
-      Logger.log("guardar factura")
-      enviarFactura()
-      limpiarHojaFactura()
-      
-    }else{
-      return
+  let estadoVinculacion = hojaDatosEmisor.getRange("B16").getValue();
+  let estadoFactura = verificarEstadoValidoFactura();
+  try {
+    if (estadoVinculacion == "Desvinculado") {
+      SpreadsheetApp.getUi().alert("Recuerda que antes de poder generar una factura es necesario haber vinculado tu cuenta de FacturasApp");
+      return;
     }
-
-    
-  }else{
-    SpreadsheetApp.getUi().alert("Error al generar factura. "+estadoFactura.message)
+    if (estadoFactura.success) {
+      // Validaciones previas a guardar
+      let carpetaOk = verificarEstadoCarpeta();
+      let consecutivoOk = verificarEstadoConsecutivo();
+      if (carpetaOk && consecutivoOk) {
+        guardarYGenerarInvoice();
+        guardarFacturaHistorial();
+        Logger.log("guardar factura");
+        enviarFactura();
+        limpiarHojaFactura();
+        return;
+      } else {
+        SpreadsheetApp.getUi().alert("No fue posible guardar la factura. Verifica la carpeta y el consecutivo configurados.");
+        return;
+      }
+    } else {
+      SpreadsheetApp.getUi().alert("Error al generar factura. " + estadoFactura.message);
+      return;
+    }
+  } catch (error) {
+    let mensaje = String(error && error.message ? error.message : error);
+    if (/TypePerson/i.test(mensaje)) {
+      mensaje = "Error en los datos del cliente: Tipo de persona inválido. Debe ser 'Autonomo' o 'Empresa'. Verifica la columna 'Tipo de persona' en la hoja Clientes.";
+    }
+    SpreadsheetApp.getUi().alert("No se pudo guardar/enviar la factura. " + mensaje);
+    Logger.log("guardarFactura error: " + mensaje);
   }
-  
-
 }
 function agregarFilaNueva(){
   // 1) Obtener el candado
@@ -1130,7 +1136,7 @@ function ProcesarFormularioFactura(data) {
       return 'Error al obtener el PDF desde FacturasApp';
     }
 
-    Logger.log("PDF descargado correctamente. URL: " + downloadUrl);
+   
     
     return downloadUrl;
   } catch (e) {
@@ -1548,20 +1554,31 @@ function obtenerFechaYHoraActual(){
   let spreadsheet = SpreadsheetApp.getActive();
   let sheet = spreadsheet.getSheetByName('Factura');
   let zonaHorariaEspaña = "Europe/Madrid"
-  let fecha = Utilities.formatDate(new Date(), zonaHorariaEspaña, "dd/MM/yyyy");
-  let hora= Utilities.formatDate(new Date(), zonaHorariaEspaña, "HH:mm:ss");
+  let hoy = new Date();
+  let fechaHoy = Utilities.formatDate(hoy, zonaHorariaEspaña, "dd/MM/yyyy");
+  let hora = Utilities.formatDate(hoy, zonaHorariaEspaña, "HH:mm:ss");
 
+  // Establecer fecha de emisión = hoy
   sheet.getRange("G4").setNumberFormat("dd/MM/yyyy");
-  sheet.getRange("G4").setValue(String(fecha))
-  sheet.getRange("G3").setValue(String(fecha))
+  sheet.getRange("G4").setValue(String(fechaHoy))
+
+  // Calcular fecha de pago sumando los días de vencimiento actuales (G6)
+  let diasVencimiento = Number(sheet.getRange("G6").getValue() || 0);
+  let fechaPagoDate = new Date(hoy);
+  if (!isNaN(diasVencimiento) && diasVencimiento >= 0) {
+    fechaPagoDate.setDate(fechaPagoDate.getDate() + diasVencimiento);
+  }
+  let fechaPago = Utilities.formatDate(fechaPagoDate, zonaHorariaEspaña, "dd/MM/yyyy");
+  sheet.getRange("G3").setNumberFormat("dd/MM/yyyy");
+  sheet.getRange("G3").setValue(String(fechaPago))
+
+  // Hora de emisión
   sheet.getRange("G7").setValue(hora)
 
-  
-  let valorFecha=sheet.getRange("G4").getValue();
-
+  let valorFecha = sheet.getRange("G4").getValue();
   let fechaFormateada = Utilities.formatDate(new Date(valorFecha), zonaHorariaEspaña, "dd/MM/yyyy");
   Logger.log("valorFecha "+valorFecha)
-  Logger.log("fecha "+fecha)
+  Logger.log("fecha "+fechaHoy)
   Logger.log("fechaFormateada "+fechaFormateada)
 
 }
@@ -1655,6 +1672,36 @@ function getInvoiceGeneralInformation() {
 
 
   return InvoiceGeneralInformation;
+}
+
+// Mapea el medio de pago textual (E4) al código idPayment requerido por RG
+function mapIdPaymentCode(medioPagoTxt){
+  if(!medioPagoTxt) return "ND"; // No definido
+  const normalizado = String(medioPagoTxt).toLowerCase().trim();
+  switch(normalizado){
+    case 'Efectivo':
+      return 'EF';
+    case 'Transferencia bancaria':
+      return 'TF';
+    case 'Tarjeta bancaria':
+    case 'tarjeta':
+      return 'TB';
+    case 'Domiciliación bancaria':
+    case 'Domiciliacion bancaria':
+      return 'DB';
+    case 'PayPal':
+      return 'PP';
+    case 'Talón':
+    case 'Talon':
+      return 'TL';
+    case 'Factoring':
+      return 'FR';
+    case 'Confirming':
+      return 'CF';
+    case 'No definido':
+    default:
+      return 'ND';
+  }
 }
 function getPaymentSummary(startingRowTaxation) {
   let spreadsheet = SpreadsheetApp.getActive();
@@ -1770,6 +1817,14 @@ function guardarYGenerarInvoice(){
   }
   if (isNaN(fechaVencimiento.getTime())) {
     fechaVencimiento = new Date();
+  }
+
+  // Recalcular invoiceExpiration coherente con días de vencimiento (G6)
+  let diasVencimiento = Number(prefactura_sheet.getRange("G6").getValue() || 0);
+  if (!isNaN(diasVencimiento) && diasVencimiento >= 0) {
+    let fv = new Date(fechaFactura);
+    fv.setDate(fv.getDate() + diasVencimiento);
+    fechaVencimiento = fv;
   }
 
   // Procesar productos con estructura completa
@@ -1948,13 +2003,15 @@ function guardarYGenerarInvoice(){
   
   // Obtener información completa del cliente
   let codigoCliente = String(prefactura_sheet.getRange("B3").getValue() || "CLIENTE001");
-  let nombreCliente=dividirString(cliente)
+  // 'cliente' viene de B2 y puede estar como "Nombre - Código". Extraemos el nombre limpio.
+  let nombreClienteArr = dividirString(cliente);
+  let nombreClienteLimpio = nombreClienteArr[0] || String(cliente);
   // Crear contactos con estructura completa
   let contacts = [{
     contactType: CustomerInformation.IdentificationType,
     personType: CustomerInformation.TypePerson, 
-    companyName: String(nombreCliente[0]).substring(0, 450),
-    customerCode: String(cliente).substring(0,20),//codigo
+    companyName: String(nombreClienteLimpio).substring(0, 450),
+    customerCode: String(codigoCliente).substring(0,20),
     identification: String(CustomerInformation.Identification || "12345678A").substring(0, 20),
     tradeName: String(cliente).substring(0, 450),
     regime: CustomerInformation.Regimen, // Según factura.json
@@ -2006,19 +2063,25 @@ function guardarYGenerarInvoice(){
   let sumTotalNetPayable = totalFactura - totalWithHoldings;
   
   // Crear el JSON con estructura EXACTA de factura.json
+  // Fechas coherentes con hoja: invoiceDate = G4, invoiceExpiration = días de G6
+  let diasExpiracion = Number(prefactura_sheet.getRange("G6").getValue() || 0);
+  if (isNaN(diasExpiracion) || diasExpiracion < 0) diasExpiracion = 0;
+  // idPayment dinámico según medio de pago (E4)
+  const medioPagoTxt = String(prefactura_sheet.getRange("E4").getValue() || "");
+  const idPaymentCode = mapIdPaymentCode(medioPagoTxt);
   let fieldInvoice = {
     textCustomerObservations: String(prefactura_sheet.getRange("D11").getValue() || "").substring(0, 350) || null,
     invoiceNumber: numeroFacturaValidado.substring(0, 50),
     currentNumber: currentNumber,
     invoiceDate: fechaFactura.toISOString(),
     invoiceTime: horaFactura,
-    invoiceExpiration: "2", // null
+    invoiceExpiration: String(diasExpiracion),
     invoiceIdTypeRegAEAT: "AI",// null
     invoiceIdTypeRegSIF: null,//null
     contactName: String(prefactura_sheet.getRange("G8").getValue()|| "").substring(0, 30) || "",
     contacts: contacts,
     products: products,
-    idPayment: "EF", // Según factura.json
+    idPayment: idPaymentCode,
     paymentNote: String(prefactura_sheet.getRange("D11").getValue() || "").substring(0, 300) || null,
     textObservations: String(prefactura_sheet.getRange("B10").getValue() || "").substring(0, 500) || null,
     idOperations: "N1", // Según factura.json
@@ -2547,11 +2610,16 @@ function capitalizarPrimeraPalabra(cadena) {
   return palabras.join(' ');
 }
 
-function dividirString(string) {
-  if (!string || typeof string !== "string") return ["", ""];
-  const partes = string.match(/^(.*?)([-+]?\d+.*)$/); // Divide texto y número
-  if (!partes) return [string, ""];
-  return [partes[1].trim(), partes[2].trim()];
+function dividirString(input) {
+  if (!input || typeof input !== "string") return ["", ""];
+  const s = String(input).trim();
+  // Caso común: "Nombre - Código" donde el código puede iniciar con letras (p.ej. Q2811001C)
+  let m = s.match(/^(.*?)-\s*([A-Za-z]*\d+[A-Za-z0-9]*)$/);
+  if (m) return [m[1].trim(), m[2].trim()];
+  // Respaldo: nombre seguido de una parte numérica sin guión
+  m = s.match(/^(.*?)([-+]?\d+.*)$/);
+  if (m) return [m[1].trim(), m[2].trim()];
+  return [s, ""];
 }
 
 function testWriteNIFToPlantilla() {

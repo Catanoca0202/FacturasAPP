@@ -44,16 +44,14 @@
 
           google.script.run
               .withSuccessHandler(function (url) {
-                  if (url === 'Factura no encontrada') {
-                      mostrarAlerta("Factura no encontrada, error: " + url);
-                  } else {
-                      console.log(url)
-                      
-                      const link = document.createElement('a');
-                      link.href = url;
-                      link.download = 'Factura_' + data.numFactura + '.pdf';
-                      link.click();
+                  if (!url || (typeof url === 'string' && (url === 'Factura no encontrada en el historial' || url === 'Factura no encontrada' || url.indexOf('no encontrada') !== -1 || url.indexOf('Error') === 0))) {
+                      mostrarAlerta('No se encontró la factura en el historial. Verifica el consecutivo ingresado.');
+                      return;
                   }
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = 'Factura_' + data.numFactura + '.pdf';
+                  link.click();
               })
               .ProcesarFormularioFactura(data);
       }
@@ -119,7 +117,7 @@
             <form class="row g-3 d-flex flex-column align-items-center">
               <div class="col-12 mb-3 w-100">
                 <label for="numFactura" class="form-label">Número de Factura</label>
-                <input type="text" id="numFactura" class="form-control text-center=" name="numFactura" required>
+                <input type="text" id="numFactura" class="form-control text-center" name="numFactura" required>
               </div>
               <div class="col-12">
                 <button type="button" class="btn btn-primary btn-lg w-100 btn-menu" onclick="handleSubmit()">

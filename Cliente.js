@@ -627,6 +627,12 @@ function verificarDatosObligatorios(e, tipoPersona) {
     tipoPersona = sheet.getRange("D" + String(rowEditada)).getValue(); // Columna 4 para Tipo Persona
   }
 
+  // Normalizar equivalencias: "Persona física" se trata como "Autonomo"
+  let tipoNorm = String(tipoPersona).toLowerCase();
+  if (tipoNorm === "persona física" || tipoNorm === "persona fisica" || tipoNorm === "persona física ") {
+    tipoPersona = "Autonomo";
+  }
+
   if (tipoPersona === "Autonomo") {
     columnasObligatorias = [3, 4, 5, 6,7, 8, 10, 12, 14,18, 21]; // Incluyendo "Nombre cliente" (columna 2)
   } else if (tipoPersona === "Empresa") {
@@ -692,7 +698,7 @@ function getIdentificationCode(IdentificationType) {
 
 function getTypePersonCode(TypePerson) {
   Logger.log("TypePerson"+TypePerson)
-  if (TypePerson === "Autonomo") {
+  if (TypePerson === "Autonomo" || TypePerson === "Persona física" || TypePerson === "Persona fisica") {
     return "01";
   } else if (TypePerson === "Empresa") {
     return "02";

@@ -29,8 +29,11 @@
             return;
         }
         google.script.run.withSuccessHandler(function(response) {
-          
-          mostrarAlerta("Respuesta: "+response)
+          if (!response || (typeof response === 'string' && (response.indexOf('Error') === 0 || response.indexOf('No se encontró') !== -1))) {
+            mostrarAlerta('No se encontró la factura en el historial. Verifica el consecutivo ingresado.');
+          } else {
+            mostrarAlerta('Envío realizado: ' + response);
+          }
         }).enviarEmailPostFactura(email,true,numFactura);
       }
       function openFactura() {
