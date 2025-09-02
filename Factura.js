@@ -592,12 +592,17 @@ function enviarFactura(){
     return;
   }
   
-  let opciones = {
-    "method": "post",
-    "contentType": "application/json",
-    "payload": jsonFieldInvoice,
-    "headers": {"X-API-KEY": APIkey},
-    'muteHttpExceptions': true
+  const opciones = {
+    method: 'post',
+    contentType: 'application/json; charset=utf-8',     // igual que Postman
+    payload: JSON.stringify(jsonFieldInvoice),          // SIEMPRE en string
+    headers: {
+      'X-API-KEY': APIkey,                              // requerido por la API
+      'Accept': 'application/json'                      // esperamos JSON
+    },
+    muteHttpExceptions: true,
+    followRedirects: true,
+    validateHttpsCertificates: true
   };
 
   try {
@@ -863,51 +868,70 @@ function obtenerPDFFactura(numeroFactura) {
 function obtenerPDFFacturaBase64(numeroFactura) {
   let spreadsheet = SpreadsheetApp.getActive();
   const scriptProps = PropertiesService.getDocumentProperties();
-  let ambiente = scriptProps.getProperty('Ambiente')
-  
-  // Nuevo endpoint para PDFInvoice
-  let Burl
-  if (ambiente=="Pruebas"){
-    Burl = "https://facturasapp-qa.cenet.ws/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/PDFInvoice" 
-  }else{
-    Burl = "https://www.facturasapp.com/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/PDFInvoice" ;
+  let ambiente = scriptProps.getProperty('Ambiente');
+
+  // Endpoint para PDFInvoice (puede devolver JSON con base64 ahora)
+  let Burl;
+  if (ambiente == "Pruebas") {
+    Burl = "https://facturasapp-qa.cenet.ws/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/PDFInvoice";
+  } else {
+    Burl = "https://www.facturasapp.com/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/PDFInvoice";
   }
 
   let params = {
-    invoiceNumber:String(numeroFactura)
-  }
+    invoiceNumber: String(numeroFactura)
+  };
 
-  let url = buildUrlWithParams(Burl,params)
-  
+  let url = buildUrlWithParams(Burl, params);
+
   let hojaDatos = spreadsheet.getSheetByName('Datos');
-  let APIkey = hojaDatos.getRange("I21").getValue()
-  
+  let APIkey = hojaDatos.getRange("I21").getValue();
+
   if (!APIkey) {
     Logger.log("Error: No se encontró la API Key");
     return null;
   }
-  
+
   let opciones = {
     "method": "post",
-    "headers": {"X-API-KEY": APIkey},
+    "headers": { "X-API-KEY": APIkey },
     'muteHttpExceptions': true
   };
 
   try {
     var respuesta = UrlFetchApp.fetch(url, opciones);
     let responseCode = respuesta.getResponseCode();
-    
-    if (responseCode === 200) {
-      // La respuesta debería ser el PDF como bytes
-      let pdfBlob = respuesta.getBlob();
-      let base64String = Utilities.base64Encode(pdfBlob.getBytes());
-      
-      return base64String;
-    } else {
+
+    if (responseCode !== 200) {
       let responseText = respuesta.getContentText();
       Logger.log("Error al obtener el PDF: " + responseText);
       return null;
     }
+
+    // Intentar detectar JSON y extraer 'toolObject'
+    let contentText = '';
+    try { contentText = respuesta.getContentText(); } catch (e) { contentText = ''; }
+
+    if (contentText && contentText.trim().startsWith('{')) {
+      try {
+        let json = JSON.parse(contentText);
+        // Estructura esperada: { id, messages, isError, toolObject }
+        if (json && json.isError === false && json.toolObject) {
+          return String(json.toolObject);
+        }
+        // Si viene error o falta toolObject, registrar mensaje
+        Logger.log("Respuesta JSON sin toolObject o con error: " + contentText);
+        return null;
+      } catch (parseErr) {
+        Logger.log("No fue posible parsear JSON de respuesta. Se intentará como binario. Error: " + parseErr);
+      }
+    }
+
+    // Compatibilidad: si no es JSON, asumir binario PDF y convertir a base64
+    let pdfBlob = respuesta.getBlob();
+    let base64String = Utilities.base64Encode(pdfBlob.getBytes());
+    return base64String;
+
   } catch (error) {
     Logger.log("Error al obtener el PDF: " + error.message);
     return null;
@@ -1884,16 +1908,17 @@ function guardarYGenerarInvoice(){
     }
     
     // Crear arrays de taxes, withHoldings y discounts según factura.json
-    let taxes = [];
+    // Siempre enviar un registro de impuesto IVA por producto.
+    // Si ivaRate es 0, se envía con rate 0 y valueTax 0.
+    let taxes = [{
+      taxName: "IVA",
+      rate: ivaRate * 100,
+      taxBase: baseNeta,
+      valueTax: taxAmount
+    }];
+    
+    // Agrupar para fieldTaxations solo cuando la tasa es > 0
     if (ivaRate > 0) {
-      taxes.push({
-        taxName: "IVA",
-        rate: ivaRate * 100, // Convertir a porcentaje
-        taxBase: baseNeta,
-        valueTax: taxAmount
-      });
-      
-      // Agrupar para fieldTaxations
       let rateKey = ivaRate * 100;
       if (!taxGroups[rateKey]) {
         taxGroups[rateKey] = {
@@ -1944,8 +1969,8 @@ function guardarYGenerarInvoice(){
       typeUse: "VEN",
       reference: String(referencia).substring(0, 50),
       description: String(descripcion).substring(0, 100),
-      unitPrice: String(precioUnitario), // Como string según factura.json
-      quantity: String(cantidad), // Como string según factura.json
+      unitPrice: Number(precioUnitario),
+      quantity: Number(cantidad),
       // IMPORTANTE: Enviar subTotal BRUTO (antes de descuento) para que el servicio
       // aplique los módulos de descuento y no descuente doble.
       subTotal: baseBruta,
@@ -1953,13 +1978,13 @@ function guardarYGenerarInvoice(){
       totalwithHoldings: withHoldingsAmount,
       totalSurCharges: surChargesAmount,
       totaldiscount: discountAmount,
-      taxes: taxes.length > 0 ? taxes : null,
+      taxes: taxes.length > 0 ? taxes : [],
       withHoldingsSurChargesDto: withHoldingsSurChargesDto.length > 0 ? withHoldingsSurChargesDto : [],
       discountDtoModules: discountDtoModules.length > 0 ? discountDtoModules : []
     };
     
     // Asignar null si los arrays están vacíos para mantener estructura
-    if (!producto.taxes || producto.taxes.length === 0) producto.taxes = null;
+    if (!producto.taxes || producto.taxes.length === 0) producto.taxes = [];
     if (!producto.withHoldingsSurChargesDto || producto.withHoldingsSurChargesDto.length === 0) producto.withHoldingsSurChargesDto = [];
     if (!producto.discountDtoModules || producto.discountDtoModules.length === 0) producto.discountDtoModules = [];
     
@@ -2012,6 +2037,7 @@ function guardarYGenerarInvoice(){
     personType: CustomerInformation.TypePerson, 
     companyName: String(nombreClienteLimpio).substring(0, 450),
     customerCode: String(codigoCliente).substring(0,20),
+    identificationType:CustomerInformation.DocumentIdentificationType,
     identification: String(CustomerInformation.Identification || "12345678A").substring(0, 20),
     tradeName: String(cliente).substring(0, 450),
     regime: CustomerInformation.Regimen, // Según factura.json
@@ -2086,9 +2112,9 @@ function guardarYGenerarInvoice(){
     textObservations: String(prefactura_sheet.getRange("B10").getValue() || "").substring(0, 500) || null,
     idOperations: "N1", // Según factura.json
     idOperationsExenta: "E3", // Según factura.json  
-    valueExemptBase: "0", // Como string según factura.json
+    valueExemptBase: 0,
     chargeAndDiscount: chargeAndDiscount, // Siempre incluir - nunca null
-    fieldTaxations: fieldTaxations.length > 0 ? fieldTaxations : null,
+    fieldTaxations: fieldTaxations.length > 0 ? fieldTaxations : [],
     sumTotalSubTotal: totalSubTotal,
     sumTotalTaxBase: totalTaxBase,
     sumTotalTax: totalTax,
@@ -2109,9 +2135,9 @@ function guardarYGenerarInvoice(){
     }
   };
   
-  // Mantener estructura completa - no eliminar campos (excepto fieldTaxations si está vacío)
+  // Mantener estructura completa - asegurar arreglo vacío cuando no hay impuestos
   if (!fieldInvoice.fieldTaxations || fieldInvoice.fieldTaxations.length === 0) {
-    fieldInvoice.fieldTaxations = null;
+    fieldInvoice.fieldTaxations = [];
   }
 
   // Guardar en el listado de estado

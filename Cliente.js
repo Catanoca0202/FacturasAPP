@@ -150,6 +150,12 @@ function activarCliente(cliente) {
 }
 
 function verificarDatosObligatoriosManual(sheet, row, tipoPersona) {
+  // Normalizar equivalencias: "Persona Física" se trata como "Autonomo"
+  let tipoNormManual = String(tipoPersona).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  if (tipoNormManual === "persona fisica") {
+    tipoPersona = "Autonomo";
+  }
+
   const columnasObligatorias = tipoPersona === "Autonomo" ? 
     [2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 17, 18, 19, 21] : // Para autónomos
     [2, 3, 4, 5, 6, 7, 8, 9, 14, 17, 18, 19, 21]; // Para empresas
@@ -527,7 +533,11 @@ function saveClientData(formData) {
     formData.email,
   ];
   let nombre=""
-  if(formData.tipoPersona=="Autonomo"){
+  // Tratar "Persona Física" como autónomo para construir el identificador único
+  let tipoNormSave = String(formData.tipoPersona)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().trim();
+  if(tipoNormSave==="autonomo" || tipoNormSave==="persona fisica"){
     let primerNombre=formData.primerNombre
     let apellido=formData.primerApellido
     nombre =primerNombre+" "+apellido
@@ -627,9 +637,11 @@ function verificarDatosObligatorios(e, tipoPersona) {
     tipoPersona = sheet.getRange("D" + String(rowEditada)).getValue(); // Columna 4 para Tipo Persona
   }
 
-  // Normalizar equivalencias: "Persona física" se trata como "Autonomo"
-  let tipoNorm = String(tipoPersona).toLowerCase();
-  if (tipoNorm === "persona física" || tipoNorm === "persona fisica" || tipoNorm === "persona física ") {
+  // Normalizar equivalencias: "Persona Física" se trata como "Autonomo"
+  let tipoNorm = String(tipoPersona)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().trim();
+  if (tipoNorm === "persona fisica") {
     tipoPersona = "Autonomo";
   }
 
@@ -696,11 +708,34 @@ function getIdentificationCode(IdentificationType) {
   }
 }
 
+function getIdentificationCodeDocument(IdentificationType) {
+  switch (IdentificationType) {
+    case "NIF-IVA":
+      return "02";
+    case "Pasaporte":
+      return "03";
+    case "Documento oficial de identificación expedido por":
+      return "04";
+    case "Certificado de residencia":
+      return "05";
+    case "Otro documento aprobado":
+      return "06";
+    case "No censado":
+      return "07";
+    default:
+      throw new Error("Valor inválido en el tipo de identificación. Debe ser uno de los valores permitidos.");
+  }
+}
+
 function getTypePersonCode(TypePerson) {
   Logger.log("TypePerson"+TypePerson)
-  if (TypePerson === "Autonomo" || TypePerson === "Persona física" || TypePerson === "Persona fisica") {
+  // Aceptar variaciones con/ sin tilde y espacios
+  let tipoNorm = String(TypePerson)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().trim();
+  if (tipoNorm === "autonomo" || tipoNorm === "persona fisica") {
     return "01";
-  } else if (TypePerson === "Empresa") {
+  } else if (tipoNorm === "empresa") {
     return "02";
   } else {
     throw new Error("Valor inválido para TypePerson. Debe ser 'Autonomo' o 'Empresa'.");
@@ -756,6 +791,9 @@ function getCustomerInformation(customer) {
   let IdentificationType=datos_sheet.getRange("AB2").getValue();
   IdentificationType=getIdentificationCode(IdentificationType)
 
+  let DocumentIdentificationType = datos_sheet.getRange("J2").getValue();
+  DocumentIdentificationType= getIdentificationCodeDocument(DocumentIdentificationType)
+
   let TypePerson=datos_sheet.getRange("L2").getValue();
   TypePerson=getTypePersonCode(TypePerson)
 
@@ -810,6 +848,7 @@ function getCustomerInformation(customer) {
   var CustomerInformation = {
     "IdentificationType": IdentificationType,
     "Identification": Identification,//.toString(),
+    "DocumentIdentificationType":DocumentIdentificationType,
     "DV": valorFecha,
     "RegistrationName": customer,
     "CountryCode": paisesCodigos[paisCliente],//cambia dependiendo del pais
