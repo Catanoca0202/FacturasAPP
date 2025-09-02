@@ -592,17 +592,12 @@ function enviarFactura(){
     return;
   }
   
-  const opciones = {
-    method: 'post',
-    contentType: 'application/json; charset=utf-8',     // igual que Postman
-    payload: JSON.stringify(jsonFieldInvoice),          // SIEMPRE en string
-    headers: {
-      'X-API-KEY': APIkey,                              // requerido por la API
-      'Accept': 'application/json'                      // esperamos JSON
-    },
-    muteHttpExceptions: true,
-    followRedirects: true,
-    validateHttpsCertificates: true
+  let opciones = {
+    "method": "post",
+    "contentType": "application/json",
+    "payload": jsonFieldInvoice,
+    "headers": {"X-API-KEY": APIkey},
+    'muteHttpExceptions': true
   };
 
   try {
@@ -1908,17 +1903,16 @@ function guardarYGenerarInvoice(){
     }
     
     // Crear arrays de taxes, withHoldings y discounts según factura.json
-    // Siempre enviar un registro de impuesto IVA por producto.
-    // Si ivaRate es 0, se envía con rate 0 y valueTax 0.
-    let taxes = [{
-      taxName: "IVA",
-      rate: ivaRate * 100,
-      taxBase: baseNeta,
-      valueTax: taxAmount
-    }];
-    
-    // Agrupar para fieldTaxations solo cuando la tasa es > 0
+    let taxes = [];
     if (ivaRate > 0) {
+      taxes.push({
+        taxName: "IVA",
+        rate: ivaRate * 100, // Convertir a porcentaje
+        taxBase: baseNeta,
+        valueTax: taxAmount
+      });
+      
+      // Agrupar para fieldTaxations
       let rateKey = ivaRate * 100;
       if (!taxGroups[rateKey]) {
         taxGroups[rateKey] = {
@@ -2112,7 +2106,7 @@ function guardarYGenerarInvoice(){
     textObservations: String(prefactura_sheet.getRange("B10").getValue() || "").substring(0, 500) || null,
     idOperations: "N1", // Según factura.json
     idOperationsExenta: "E3", // Según factura.json  
-    valueExemptBase: 0,
+    valueExemptBase: "0", // Como string según factura.json
     chargeAndDiscount: chargeAndDiscount, // Siempre incluir - nunca null
     fieldTaxations: fieldTaxations.length > 0 ? fieldTaxations : [],
     sumTotalSubTotal: totalSubTotal,
