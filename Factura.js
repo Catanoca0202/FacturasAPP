@@ -307,14 +307,13 @@ function verificarEstadoCarpeta(){
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
   let idCarpeta = hojaDatosEmisor.getRange("B15").getValue();  // Obtenemos el ID de la carpeta desde una celda
   Logger.log("idCarpeta "+idCarpeta)
-  if (idCarpeta==""){
-    //hoja toca ver si es la misma que esta en la google drive 
-    SpreadsheetApp.getUi().alert("Necesitas primero crear la carpeta en donde se guardaran las facturas, dirigete a la hoja Datos de emisor y crea la carpeta dandole click al boton crear carpeta")
-    return false
-  }else{
-    Logger.log("la carpeta si existe");
-    return true
+  // Ya no es obligatorio tener carpeta. Solo informar si falta, pero permitir continuar.
+  if (idCarpeta===""){
+    Logger.log("No hay carpeta configurada; se continuará sin guardar en Drive.");
+    return true;
   }
+  Logger.log("La carpeta existe (opcional)");
+  return true;
 
 }
 
@@ -330,9 +329,10 @@ function guardarFactura(){
     }
     if (estadoFactura.success) {
       // Validaciones previas a guardar
-      let carpetaOk = verificarEstadoCarpeta();
+      // Ya no se requiere carpeta; solo validar consecutivo
+      let carpetaOk = verificarEstadoCarpeta(); // siempre true, informativo
       let consecutivoOk = verificarEstadoConsecutivo();
-      if (carpetaOk && consecutivoOk) {
+      if (consecutivoOk) {
         guardarYGenerarInvoice();
         guardarFacturaHistorial();
         Logger.log("guardar factura");
@@ -340,7 +340,7 @@ function guardarFactura(){
         limpiarHojaFactura();
         return;
       } else {
-        SpreadsheetApp.getUi().alert("No fue posible guardar la factura. Verifica la carpeta y el consecutivo configurados.");
+        SpreadsheetApp.getUi().alert("No fue posible guardar la factura. Verifica el consecutivo configurado.");
         return;
       }
     } else {
@@ -1533,10 +1533,17 @@ function generarNumeroFactura(){
     let numeroActual=0
     if (numeroMayor==-Infinity){
       const scriptProperties = PropertiesService.getDocumentProperties();
-      numero = scriptProperties.getProperty('NumeroConescutivo');  // Ej: "123"
-      letra  = scriptProperties.getProperty('LetraConescutivo');   // Ej: "abc"
-      let consecutivo = letra+numero
-      numeroActual =consecutivo
+      const nuevoPrefijo = scriptProperties.getProperty('ConsecutivoPlantillaPrefijo');
+      const nuevoDigitos = scriptProperties.getProperty('ConsecutivoPlantillaDigitos');
+      let prefijo = nuevoPrefijo || scriptProperties.getProperty('LetraConescutivo') || "";
+      let numeroPlantilla = scriptProperties.getProperty('NumeroConescutivo') || "0";
+      let digitos = nuevoDigitos ? Number(nuevoDigitos) : String(numeroPlantilla).length;
+      numeroActual = parseInt(String(numeroPlantilla),10);
+      if(!isFinite(numeroActual)){
+        numeroActual = 0;
+      }
+      // Construimos un original coherente para mantener el padding
+      ultimoConsecutivo = String(prefijo) + String(numeroActual).padStart(digitos,'0');
     }else{
       numeroActual = numeroMayor + 1;
     }
@@ -1555,17 +1562,16 @@ function obtenerParteNumerica(str) {
 
 // Genera el nuevo número con el mismo formato del original
 function generarNuevoConsecutivo(original, nuevoNumero) {
-  let match = original.match(/^(\D*)(\d+)$/); // Captura el prefijo y la parte numérica
-  
+  // Aceptar cualquier prefijo (incluye letras, números y símbolos) y separar el sufijo numérico final
+  const match = String(original).match(/^(.*?)(\d+)$/);
   if (!match) {
-    return String(nuevoNumero); // Si no hay formato reconocible, devuelve solo el número
+    return String(nuevoNumero);
   }
 
-  let prefijo = match[1]; // Parte no numérica (ejemplo: "uuu", "xyz-")
-  let parteNumerica = match[2]; // Parte numérica original (ejemplo: "000001")
-  
-  let nuevoNumeroStr = String(nuevoNumero).padStart(parteNumerica.length, '0'); // Mantiene los ceros iniciales
-  
+  const prefijo = match[1];
+  const parteNumerica = match[2];
+
+  const nuevoNumeroStr = String(nuevoNumero).padStart(parteNumerica.length, '0');
   return prefijo + nuevoNumeroStr;
 }
 

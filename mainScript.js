@@ -102,7 +102,7 @@ function iniciarHojasFactura() {
     });
 
   SpreadsheetApp.getUi().alert("Hojas instaladas satisfactoriamente.");
-  SpreadsheetApp.getUi().alert("Recuerda que antes de utilizar FacturasApp debes de crear la carpeta donde se guardarán las facturas. Dirígete a la hoja Datos de emisor y dale clic en el botón crear carpeta.");
+  //SpreadsheetApp.getUi().alert("Recuerda que antes de utilizar FacturasApp debes de crear la carpeta donde se guardarán las facturas. Dirígete a la hoja Datos de emisor y dale clic en el botón crear carpeta.");
 }
 
 function reinstalarHojaDatos(ss, plantilla) {
@@ -1780,11 +1780,12 @@ function verificarConsecutivo(entrada, isNumero) {
   }
 
   if (isNumero) {
-    // Solo dígitos, de 1 a 10 caracteres
-    regex = /^\d{1,10}$/;
+    // Uno o más dígitos
+    regex = /^\d+$/;
   } else {
-    // Cualquier carácter excepto dígitos, de 1 a 10 caracteres
-    regex = /^[^0-9]{1,10}$/;
+    // Cualquier cadena con al menos un caracter (permite letras, números y símbolos)
+    // Evitamos que sea solo dígitos para distinguir de la parte numérica
+    regex = /^(?=.*\D).+$/;
   }
 
   return regex.test(entrada);
@@ -1793,8 +1794,9 @@ function verificarConsecutivo(entrada, isNumero) {
 function guardarConsecutivo(){
   let spreadsheet = SpreadsheetApp.getActive();
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
-  let letra=hojaDatosEmisor.getRange(24,1).getValue()
-  let numero = hojaDatosEmisor.getRange(24,3).getValue()
+  // Usar getDisplayValue para preservar ceros a la izquierda
+  let letra = String(hojaDatosEmisor.getRange(24,1).getDisplayValue() || '').trim();
+  let numero = String(hojaDatosEmisor.getRange(24,3).getDisplayValue() || '').trim();
   const scriptProperties = PropertiesService.getDocumentProperties();
   if(verificarConsecutivo(letra,false)){
     Logger.log("letra valida")
@@ -1802,9 +1804,17 @@ function guardarConsecutivo(){
       Logger.log("numero valido")
       Logger.log("numero "+numero)
       Logger.log("letra "+letra)
+      // Guardamos valores antiguos por compatibilidad
       scriptProperties.setProperties({
-        'NumeroConescutivo': numero,
-        'LetraConescutivo': letra
+        'NumeroConescutivo': String(numero),
+        'LetraConescutivo': String(letra)
+      });
+      // También guardamos una plantilla unificada y la longitud del sufijo numérico
+      const plantilla = String(letra);
+      const longitudNumerica = String(numero).length;
+      scriptProperties.setProperties({
+        'ConsecutivoPlantillaPrefijo': plantilla,
+        'ConsecutivoPlantillaDigitos': String(longitudNumerica)
       });
       SpreadsheetApp.getUi().alert('Consecutivo válido y guardado');
     }else{
@@ -1824,8 +1834,18 @@ function cumpleEstructura(str) {
   
   try {
     const scriptProperties = PropertiesService.getDocumentProperties();
+    // Compatibilidad con propiedades antiguas
     numero = scriptProperties.getProperty('NumeroConescutivo');  // Ej: "123"
     letra  = scriptProperties.getProperty('LetraConescutivo');   // Ej: "abc"
+
+    // Nuevas propiedades opcionales
+    const nuevoPrefijo = scriptProperties.getProperty('ConsecutivoPlantillaPrefijo');
+    const nuevoDigitos = scriptProperties.getProperty('ConsecutivoPlantillaDigitos');
+
+    if (nuevoPrefijo && nuevoDigitos) {
+      letra = nuevoPrefijo;
+      numero = new Array(Number(nuevoDigitos)).fill('0').join('');
+    }
   } catch (err) {
     Logger.log('Error leyendo propiedades: %s', err.message);
     return false;            // Maneja el error según tu caso
@@ -1839,16 +1859,15 @@ function cumpleEstructura(str) {
   /* -------------------------- */
 
   // Calculamos la longitud de "numero", que será la cantidad de dígitos esperados
-  const lengthNumeros = numero.length;
+  const lengthNumeros = String(numero).length;
 
-  // Escapamos "letra" para evitar que caracteres especiales rompan la expresión
-  const letraEscapada = letra.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Escapamos el prefijo para expresión regular
+  const prefijoEscapado = String(letra).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  // Construimos la expresión regular ^<letraEscapada>\d{lengthNumeros}$
-  const regex = new RegExp(`^${letraEscapada}\\d{${lengthNumeros}}$`);
+  // Cualquier prefijo (con letras, números o símbolos) seguido de lengthNumeros dígitos
+  const regex = new RegExp(`^${prefijoEscapado}\\d{${lengthNumeros}}$`);
 
-  // Verificamos si "str" cumple esa estructura
-  return regex.test(str);
+  return regex.test(String(str));
 }
 
 
