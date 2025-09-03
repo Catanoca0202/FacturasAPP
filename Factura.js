@@ -1851,9 +1851,15 @@ function guardarYGenerarInvoice(){
   let totalTaxBase = 0;
   let totalTax = 0;
   let totalSubTotal = 0;
+  // Acumuladores explícitos para validaciones
+  let sumIvaAmount = 0;            // Suma de IVA (CuotaRepercutida)
+  let sumRecargoAmount = 0;        // Suma de Recargo Equivalencia
+  let hasAnyTaxOrSurcharge = false;
   let totalWithHoldings = 0;
   let totalSurCharges = 0;
   let totalDiscounts = 0;
+  // Utilidad de redondeo a 2 decimales disponible en todo el bloque
+  const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
   
   // Crear array para fieldTaxations (resumen de impuestos)
   let fieldTaxations = [];
@@ -1877,9 +1883,6 @@ function guardarYGenerarInvoice(){
     let retencionRate = Number(productoData[8]) || 0;
     let recargoEquivalenciaRate = Number(productoData[9]) || 0;
     let totalLinea = Number(productoData[10]) || 0;
-
-    // Utilidades de redondeo a 2 decimales para evitar flotantes extensos
-    const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
     // Calcular valores base
     let baseBruta = round2(precioUnitario * cantidad); // antes de descuento
@@ -1925,6 +1928,10 @@ function guardarYGenerarInvoice(){
       taxGroups[rateKey].taxBase = round2(taxGroups[rateKey].taxBase + baseNeta);
       taxGroups[rateKey].valueTax = round2(taxGroups[rateKey].valueTax + taxAmount);
     }
+    // Acumular para totales y regla de validación
+    sumIvaAmount = round2(sumIvaAmount + taxAmount);
+    sumRecargoAmount = round2(sumRecargoAmount + surChargesAmount);
+    if (taxAmount > 0 || surChargesAmount > 0) hasAnyTaxOrSurcharge = true;
     
     let withHoldingsSurChargesDto = [];
     if (retencionRate > 0) {
@@ -1968,7 +1975,7 @@ function guardarYGenerarInvoice(){
       // IMPORTANTE: Enviar subTotal BRUTO (antes de descuento) para que el servicio
       // aplique los módulos de descuento y no descuente doble.
       subTotal: baseBruta,
-      totalTax: round2(taxAmount + surChargesAmount), // Total de impuestos
+      totalTax: round2(taxAmount + surChargesAmount), // Cuota total (IVA + Recargo)
       totalwithHoldings: withHoldingsAmount,
       totalSurCharges: surChargesAmount,
       totaldiscount: discountAmount,
@@ -1989,11 +1996,13 @@ function guardarYGenerarInvoice(){
     totalSubTotal = round2(totalSubTotal + baseBruta);
     // totalTaxBase: solicitado por el usuario como "Valor bruto" -> usar base BRUTA
     totalTaxBase = round2(totalTaxBase + baseBruta);
-    totalTax = round2(totalTax + taxAmount);
+    // totalTax se calculará después del bucle con sumIvaAmount + sumRecargoAmount
     totalWithHoldings = round2(totalWithHoldings + withHoldingsAmount);
     totalSurCharges = round2(totalSurCharges + surChargesAmount);
     totalDiscounts = round2(totalDiscounts + discountAmount);
   }
+  // Ajustar totalTax para que sea la suma de IVA + Recargo (CuotaTotal)
+  totalTax = round2(sumIvaAmount + sumRecargoAmount);
   
   // Crear fieldTaxations desde taxGroups
   for (let rate in taxGroups) {
@@ -2105,8 +2114,9 @@ function guardarYGenerarInvoice(){
     paymentNote: String(prefactura_sheet.getRange("D11").getValue() || "").substring(0, 300) || null,
     textObservations: String(prefactura_sheet.getRange("B10").getValue() || "").substring(0, 500) || null,
     idOperations: "N1", // Según factura.json
-    idOperationsExenta: "E3", // Según factura.json  
-    valueExemptBase: "0", // Como string según factura.json
+    // Si hay impuestos (IVA o recargo) no es exenta: usar E0. Si no hay impuestos, E3
+    idOperationsExenta: (hasAnyTaxOrSurcharge) ? "E0" : "E3",
+    valueExemptBase: 0,
     chargeAndDiscount: chargeAndDiscount, // Siempre incluir - nunca null
     fieldTaxations: fieldTaxations.length > 0 ? fieldTaxations : [],
     sumTotalSubTotal: totalSubTotal,
