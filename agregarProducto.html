@@ -92,6 +92,41 @@
       function showMenuPrincipal() {
         google.script.run.showSidebar();
       }
+      // --- IVA ↔ Recargo 2025 ---
+      const IVA_RECARGO_2025 = { '21': '5,20', '10': '1,40', '5': '0,50', '4': '0,50', '0': '0' };
+      function buildRecargoOptions() {
+        const ivaSel = document.getElementById('iva');
+        const recSel = document.getElementById('recargo');
+        const iva = ivaSel ? ivaSel.value : '';
+        const permitido = IVA_RECARGO_2025[iva] || null;
+        // reconstruir opciones
+        recSel.innerHTML = '';
+        recSel.add(new Option('Seleccione', 'Seleccione'));
+        if (permitido !== null) {
+          const label = permitido === '0' ? '0,00%' : `${permitido}%`;
+          recSel.add(new Option(label, permitido));
+        }
+        recSel.value = 'Seleccione';
+      }
+      function validateRecargoAgainstIva() {
+        const iva = document.getElementById('iva').value;
+        const permitido = IVA_RECARGO_2025[iva] || null;
+        const recSel = document.getElementById('recargo');
+        const elegido = recSel.value;
+        if (elegido !== 'Seleccione' && permitido !== null && elegido !== permitido) {
+          mostrarAlerta('El recargo de equivalencia elegido no es válido para el IVA seleccionado. Se restablecerá al valor por defecto.');
+          recSel.value = 'Seleccione';
+        }
+      }
+      document.addEventListener('DOMContentLoaded', () => {
+        const ivaSel = document.getElementById('iva');
+        const recSel = document.getElementById('recargo');
+        if (ivaSel && recSel) {
+          buildRecargoOptions();
+          ivaSel.addEventListener('change', buildRecargoOptions);
+          recSel.addEventListener('change', validateRecargoAgainstIva);
+        }
+      });
     </script>
   </head>
 

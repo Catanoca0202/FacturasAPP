@@ -593,7 +593,19 @@ function processForm(data) {
     const nombre = data.nombre;
     const valorUnitario = parseFloat(data.valorUnitario);
     let retenciones=String(data.retenciones+"%")
-    let recargo=String(data.recargo+"%")
+    // Enforce IVA↔Recargo rule (2025)
+    const ivaNumForRule = parsePercentToNumberES(data.iva);
+    const permitidoNum = recargoPermitidoParaIva(ivaNumForRule);
+    let recargo="";
+    if (data.recargo && String(data.recargo).toLowerCase() !== 'seleccione'){
+      const recargoNum = parsePercentToNumberES(data.recargo);
+      if (permitidoNum !== null && recargoNum !== null && Math.abs(recargoNum - permitidoNum) <= 0.0001){
+        recargo = formatPercentES(permitidoNum);
+      }else{
+        SpreadsheetApp.getUi().alert("El recargo de equivalencia elegido no es válido para el IVA seleccionado. Se guardará sin recargo.");
+        recargo = "";
+      }
+    }
     Logger.log("retenciones"+retenciones)
     Logger.log("recargo"+recargo)
     const iva = String(data.iva+"%");
@@ -754,6 +766,61 @@ function mostrarAlertaDesdeServidor(mensaje) {
   SpreadsheetApp.getUi().alert(mensaje);
 }
 
+
+/** Utilidades de IVA y Recargo (2025) **/
+function parsePercentToNumberES(value) {
+  // Acepta números, strings con "," o "." y con/sin "%". Devuelve número (por ejemplo 5.2)
+  if (value === null || typeof value === 'undefined') return null;
+  if (typeof value === 'number') {
+    // A veces se almacena 0.05 para 5%
+    return value > 0 && value < 1 ? value * 100 : value;
+  }
+  const str = String(value).trim().replace('%', '').replace(',', '.');
+  if (str === '') return null;
+  const num = Number(str);
+  if (isNaN(num)) return null;
+  return num;
+}
+
+function formatPercentES(num) {
+  if (num === null || typeof num === 'undefined') return '';
+  if (num === 0) return '0%';
+  const fixed = Number(num).toFixed(2).replace('.', ',');
+  return `${fixed}%`;
+}
+
+// Mapa oficial 2025 de recargo permitido por IVA
+// Nota: mantenemos 4% -> 0,50% por compatibilidad con productos existentes
+const IVA_RECARGO_MAP_2025 = {
+  '21': 5.2,
+  '10': 1.4,
+  '5': 0.5,
+  '4': 0.5,
+  '0': 0
+};
+
+function recargoPermitidoParaIva(ivaNum) {
+  if (ivaNum === null) return null;
+  const key = String(Math.round(ivaNum));
+  return Object.prototype.hasOwnProperty.call(IVA_RECARGO_MAP_2025, key)
+    ? IVA_RECARGO_MAP_2025[key]
+    : null;
+}
+
+function aplicarValidacionRecargoEnFila(hoja, fila, ivaNum) {
+  const permitido = recargoPermitidoParaIva(ivaNum);
+  const rangoRecargo = hoja.getRange(fila, 9); // Columna I (Recargo)
+  if (permitido === null) {
+    rangoRecargo.clearDataValidations();
+    return;
+  }
+  const lista = [formatPercentES(permitido)];
+  const regla = SpreadsheetApp.newDataValidation()
+    .requireValueInList(lista, true)
+    .setAllowInvalid(true)
+    .build();
+  rangoRecargo.setDataValidation(regla);
+}
 
 function onEdit(e) {
   const lock = LockService.getScriptLock();
@@ -1017,6 +1084,32 @@ function onEdit(e) {
           celdaEditada.setValue("");
           verificarDatosObligatoriosProductos(e)
           throw new Error('por favor poner un Numero de Identificacion unico');
+        }
+      }
+      // Ajustar validación de Recargo al cambiar IVA en hoja Productos
+      if (colEditada==5 && rowEditada>1){
+        const ivaDisplay = hojaActual.getRange(rowEditada, 5).getDisplayValue();
+        const ivaNum = parsePercentToNumberES(ivaDisplay);
+        aplicarValidacionRecargoEnFila(hojaActual, rowEditada, ivaNum);
+        // Si el recargo existente no coincide con el permitido, limpiarlo
+        const recargoDisplay = hojaActual.getRange(rowEditada, 9).getDisplayValue();
+        const recargoNum = parsePercentToNumberES(recargoDisplay);
+        const permitido = recargoPermitidoParaIva(ivaNum);
+        if (permitido !== null && recargoNum !== null && Math.abs(recargoNum - permitido) > 0.0001){
+          hojaActual.getRange(rowEditada, 9).setValue("");
+        }
+      }
+      // Validar recargo al editarlo: si no coincide con el permitido por IVA, advertir y resetear a default (vacío)
+      if (colEditada==9 && rowEditada>1){
+        const ivaDisplay = hojaActual.getRange(rowEditada, 5).getDisplayValue();
+        const recargoDisplay = hojaActual.getRange(rowEditada, 9).getDisplayValue();
+        const ivaNum = parsePercentToNumberES(ivaDisplay);
+        const recargoNum = parsePercentToNumberES(recargoDisplay);
+        const permitido = recargoPermitidoParaIva(ivaNum);
+        aplicarValidacionRecargoEnFila(hojaActual, rowEditada, ivaNum);
+        if (permitido !== null && recargoNum !== null && Math.abs(recargoNum - permitido) > 0.0001){
+          SpreadsheetApp.getUi().alert('El recargo de equivalencia elegido no es válido para el IVA seleccionado. Se restablecerá al valor por defecto.');
+          hojaActual.getRange(rowEditada, 9).setValue("");
         }
       }
     }else if(hojaActual.getName() === "Datos de emisor"){

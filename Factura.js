@@ -1869,7 +1869,8 @@ function guardarYGenerarInvoice(){
   
   // Crear array para fieldTaxations (resumen de impuestos)
   let fieldTaxations = [];
-  let taxGroups = {};
+  let taxGroups = {};            // IVA agrupado por porcentaje
+  let recargoTaxGroups = {};     // Recargo equivalencia agrupado por porcentaje
   
   for (let i = 15; i < 15 + cantidadProductos; i++) {
     let filaActual = "A" + String(i) + ":K" + String(i);
@@ -1959,6 +1960,19 @@ function guardarYGenerarInvoice(){
         subTotalWithHoldings: baseNeta,
         cuotaWithHoldings: surChargesAmount
       });
+
+      // Agrupar recargo de equivalencia para fieldTaxations
+      let recargoRateKey = recargoEquivalenciaRate * 100;
+      if (!recargoTaxGroups[recargoRateKey]) {
+        recargoTaxGroups[recargoRateKey] = {
+          taxName: "RecargoEquivalencia",
+          rate: recargoRateKey,
+          taxBase: 0,
+          valueTax: 0
+        };
+      }
+      recargoTaxGroups[recargoRateKey].taxBase = round2(recargoTaxGroups[recargoRateKey].taxBase + baseNeta);
+      recargoTaxGroups[recargoRateKey].valueTax = round2(recargoTaxGroups[recargoRateKey].valueTax + surChargesAmount);
     }
     
     let discountDtoModules = [];
@@ -2010,9 +2024,12 @@ function guardarYGenerarInvoice(){
   // Ajustar totalTax para que sea la suma de IVA + Recargo (CuotaTotal)
   totalTax = round2(sumIvaAmount + sumRecargoAmount);
   
-  // Crear fieldTaxations desde taxGroups
+  // Crear fieldTaxations desde grupos (IVA + Recargo Equivalencia)
   for (let rate in taxGroups) {
     fieldTaxations.push(taxGroups[rate]);
+  }
+  for (let rate in recargoTaxGroups) {
+    fieldTaxations.push(recargoTaxGroups[rate]);
   }
 
   // Obtener totales de la factura
