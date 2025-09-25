@@ -55,11 +55,11 @@ function iniciarHojasFactura() {
   Logger.log("Inicio instalación de hojas");
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const plantillaID = "1qxbXlhH4RpCOsObk91wsuu4k8jarVK34XXRUlKaKS1U";
+  const plantillaID = "1-ZkL7SKO8IqBwgfj9bta1ELuZoXcelp4K1a_Xd2FA0c";
   const plantilla = SpreadsheetApp.openById(plantillaID);
 
-  const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Clientes", "Factura", "Historial Facturas Data", "ClientesInvalidos", "Historial Facturas","Facturas ID", "Copia de Plantilla", "ListadoEstado", "Plantilla", "Celdas plantilla", "Copia de Plantilla", "Copia de Factura","Datos"];
-  const hojasBloqueadasEInvisibles = ["ListadoEstado", "Plantilla", "Celdas plantilla", "Historial Facturas Data", "Facturas ID", "Datos", "ClientesInvalidos", "Copia de Plantilla", "Copia de Factura"];
+  const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Clientes", "Factura", "Historial Facturas Data", "ClientesInvalidos", "Historial Facturas","Facturas ID", "ListadoEstado", "Celdas plantilla", "Copia de Factura","Datos"];
+  const hojasBloqueadasEInvisibles = ["ListadoEstado","Celdas plantilla", "Historial Facturas Data", "Facturas ID", "Datos", "ClientesInvalidos", "Copia de Factura"];
 
 
 
@@ -505,7 +505,7 @@ function eliminarHojasFactura() {
   let respuesta = ui.alert('Recuerda que al desinstalar las hojas se eliminará toda la información de las mismas. Esta función solo debe ejecutarse si tienes un problema irreparable con las hojas. ¿Estás seguro de continuar?', ui.ButtonSet.YES_NO);
   if (respuesta == ui.Button.YES) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Historial Facturas", "Clientes", "Factura", "Historial Facturas Data", "Facturas ID", "Datos", "Copia de Plantilla", "ListadoEstado", "Plantilla", "Celdas plantilla", "ClientesInvalidos", "Copia de Plantilla", "Copia de Factura"];
+    const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Historial Facturas", "Clientes", "Factura", "Historial Facturas Data", "Facturas ID", "Datos", "ListadoEstado", "Celdas plantilla", "ClientesInvalidos", "Copia de Factura"];
 
     // Crear una hoja nueva en blanco
     let nuevaHoja = ss.getSheetByName("Hoja en blanco");
@@ -719,64 +719,11 @@ function processForm(data) {
   }
 }
 
-function generatePdfFromPlantilla() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName('Copia de Plantilla');
-  var celdaNumFactura = ss.getSheetByName('Factura').getRange('A9').getValue();
-  var numFactura = celdaNumFactura.substring(20);
-
-  if (!sheet) {
-    throw new Error('La hoja Plantilla no existe.');
-  }
-
-  var sheetId = sheet.getSheetId();
-  var url = ss.getUrl().replace(/edit$/, '') + 'export?exportFormat=pdf&format=pdf' +
-    '&gid=' + sheetId +
-    '&size=A4' +  // Tamaño del papel
-    '&portrait=true' +  // Orientación vertical
-    '&fitw=true' +  // Ajustar a ancho de la página
-    '&sheetnames=false&printtitle=false' +  // Opciones de impresión
-    '&pagenumbers=false&gridlines=false' +  // Más opciones de impresión
-    '&fzr=false' +  // Aislar filas congeladas
-    '&top_margin=0.8' +  // Margen superior
-    '&bottom_margin=0.00' +  // Margen inferior
-    '&left_margin=0.50' +  // Margen izquierdo
-    '&right_margin=0.50' +  // Margen derecho
-    '&horizontal_alignment=CENTER' +  // Alineación horizontal
-    '&vertical_alignment=TOP';  // Alineación vertical
-
-  var token = ScriptApp.getOAuthToken();
-
-  try {
-    var response = UrlFetchApp.fetch(url, {
-      headers: {
-        'Authorization': 'Bearer ' + token
-      },
-      muteHttpExceptions: true
-    });
-
-    if (response.getResponseCode() === 200) {
-      var pdfBlob = response.getBlob().setName('Factura '&numFactura&'.pdf');
-      return pdfBlob;
-    } else {
-      Logger.log('Error ' + response.getResponseCode() + ': ' + response.getContentText());
-      throw new Error('Error ' + response.getResponseCode() + ': ' + response.getContentText());
-    }
-  } catch (e) {
-    Logger.log('Exception: ' + e.message);
-    throw new Error('Exception: ' + e.message);
-  }
-}
 
 
 
-function getPdfUrl() {
-  var pdfBlob = generatePdfFromPlantilla();
-  var base64Data = Utilities.base64Encode(pdfBlob.getBytes());
-  var contentType = pdfBlob.getContentType();
-  var name = pdfBlob.getName();
-  return `data:${contentType};base64,${base64Data}`;
-}
+
+
 
 function sendPdfByEmail(email) {
   let hojaDatosEmisor = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Datos de emisor');
@@ -1402,13 +1349,9 @@ function eliminarTotalidadInformacion(){
   borrarInfoHoja(hojaListadoEstado)
   borrarInfoHoja(ClientesInvalidos)
   borrarInfoHoja(hojaDatosEmisor)
-  eliminarCarpetaConDriveAPI()
   hojaDatosEmisor.getRange("B16").setBackground('#FFC7C7')
   hojaDatosEmisor.getRange("B16").setValue("Desvinculado")
   SpreadsheetApp.getUi().alert('Informacion eliminada correctamente');
-
-
-  //falta borrar carpeta esa con pdfs
 }
 
 function borrarInfoHoja(hoja){
