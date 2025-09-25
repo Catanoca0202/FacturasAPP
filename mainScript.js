@@ -674,7 +674,7 @@ function processForm(data) {
       tarifaImpuestoRange.setNumberFormat('0.00%');
     }
 
-    const precioConImpuestoFormula = `=IF(AND(F${newRow}<>"",H${newRow}<>""),F${newRow}*(1+H${newRow}),"")`;
+    const precioConImpuestoFormula = `=IF(AND(F${newRow}<>"";H${newRow}<>"");F${newRow}*(1+H${newRow});"")`;
     sheet.getRange(newRow, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO).setFormula(precioConImpuestoFormula);
     sheet.getRange(newRow, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO).setNumberFormat('€#,##0.00');
 
@@ -1022,23 +1022,23 @@ function onEdit(e) {
             factura_sheet.getRange("A"+String(i)).setValue(dictInformacionProducto["codigo Producto"])
             factura_sheet.getRange("D"+String(i)).setValue(0)//unitario preciounitario
             factura_sheet.getRange("G"+String(i)).setValue(dictInformacionProducto["IVA"])//IVA
-            
-            factura_sheet.getRange("I"+String(i)).setValue(dictInformacionProducto["retencion"])//Retencion
-            factura_sheet.getRange("J"+String(i)).setValue(dictInformacionProducto["Recargo de equivalencia"])//Recargo de equivalencia
+            const recargoLinea = dictInformacionProducto["Recargo de equivalencia"];
+            factura_sheet.getRange("I"+String(i)).setValue(recargoLinea);//Tarifa recargo
+            const totalFormula = `=IF(F${i}="";0;F${i}*(1+G${i}+I${i}))`;
+            factura_sheet.getRange("J"+String(i)).setValue(totalFormula);
           }else{
             factura_sheet.getRange("A"+String(i)).setValue(dictInformacionProducto["codigo Producto"])
             factura_sheet.getRange("E"+String(i)).setValue("=D"+String(i)+"+(D"+String(i)+"*G"+String(i)+")")//AGG COSA DE CON IVA 
             factura_sheet.getRange("F"+String(i)).setValue("=(D"+String(i)+")*C"+String(i)+"-((D"+String(i)+")*C"+String(i)+")*H"+String(i))//subtotal
             factura_sheet.getRange("D"+String(i)).setValue(dictInformacionProducto["valor Unitario"])//valor unitario
             factura_sheet.getRange("G"+String(i)).setValue(dictInformacionProducto["IVA"])//IVA
-            
-            factura_sheet.getRange("I"+String(i)).setValue(dictInformacionProducto["retencion"])//Retencion
-            factura_sheet.getRange("J"+String(i)).setValue(dictInformacionProducto["Recargo de equivalencia"])//Recargo de equivalencia
-            // factura_sheet.getRange("K"+String(i)).setValue("=(((F"+String(i)+"-(F"+String(i)+"*H"+String(i)+"))+((F"+String(i)+"-(F"+String(i)+"*H"+String(i)+"))*G"+String(i)+")-((F"+String(i)+"-(F"+String(i)+"*H"+String(i)+"))*I"+String(i)+")+((F"+String(i)+"-(F"+String(i)+"*H"+String(i)+"))*J"+String(i)+")))")//total linea
-            factura_sheet.getRange("K"+String(i)).setValue("=(((F"+String(i)+")+(F"+String(i)+"*G"+String(i)+")-(F"+String(i)+"*I"+String(i)+")+(F"+String(i)+"*J"+String(i)+")))")//total linea
+            const recargoLinea = dictInformacionProducto["Recargo de equivalencia"];
+            factura_sheet.getRange("I"+String(i)).setValue(recargoLinea);//Tarifa recargo
+            const totalFormula = `=IF(F${i}="";0;F${i}*(1+G${i}+I${i}))`;
+            factura_sheet.getRange("J"+String(i)).setValue(totalFormula);//total linea
           }
         }
-        
+
         }
 
       }else if(colEditada==8 && rowEditada >= productStartRow && rowEditada < posRowTotalProductos) {
@@ -1110,7 +1110,7 @@ function onEdit(e) {
             throw new Error('por favor poner un Numero de Identificacion unico');
           }
       }
-      }else if(colEditada==12 && rowEditada >= productStartRow && rowEditada < posRowTotalProductos){
+      }else if(colEditada==11 && rowEditada >= productStartRow && rowEditada < posRowTotalProductos){
         Logger.log("dentro eliminar")
       }else if(colEditada==7 && (rowEditada ==4 || rowEditada ==3) ){
         Logger.log("dentro de fecha calcular2")
@@ -1500,7 +1500,7 @@ function calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRo
   let rowTotalBaseImponibleEIvaGeneral=taxSectionStartRow+7
   hojaActual.getRange("A"+String(rowParaFormulaBaseImponible)).setValue("=ARRAYFORMULA(SUMIF(G15:G"+String(lastRowProducto)+"; B"+String(rowParaFormulaBaseImponible)+":B"+String(rowEspacioIvasAgrupacion)+"; F15:F"+String(lastRowProducto)+"))")
   //BASE imponilbre recargo
-  hojaActual.getRange("E"+String(rowParaFormulaBaseImponible)).setValue("=ARRAYFORMULA(SUMIF(J15:J"+String(lastRowProducto)+"; F"+String(rowParaFormulaBaseImponible)+":F"+String(rowEspacioIvasAgrupacion)+"; F15:F"+String(lastRowProducto)+"))")
+  hojaActual.getRange("E"+String(rowParaFormulaBaseImponible)).setValue("=ARRAYFORMULA(SUMIF(I15:I"+String(lastRowProducto)+"; F"+String(rowParaFormulaBaseImponible)+":F"+String(rowEspacioIvasAgrupacion)+"; F15:F"+String(lastRowProducto)+"))")
 
     //total base imponible e iva genberal
     hojaActual.getRange("A"+String(rowTotalBaseImponibleEIvaGeneral)).setValue("=SUM(A"+String(rowParaFormulaBaseImponible)+":A"+String(rowEspacioIvasAgrupacion)+")")
@@ -1513,15 +1513,17 @@ function calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRo
   //IVA%
   hojaActual.getRange("B"+String(rowParaFormulaBaseImponible)).setValue("=UNIQUE(G15:G"+String(lastRowProducto)+")")
   //RECARGO %
-  hojaActual.getRange("F"+String(rowParaFormulaBaseImponible)).setValue("=UNIQUE(J15:J"+String(lastRowProducto)+")")
+  hojaActual.getRange("F"+String(rowParaFormulaBaseImponible)).setValue("=UNIQUE(I15:I"+String(lastRowProducto)+")")
 
 
   let rowParaTotales=taxSectionStartRow+10
   //total retenciones
-  hojaActual.getRange("A"+String(rowParaTotales)).setValue("=SUMPRODUCT(F15:F"+String(lastRowProducto)+";I15:I"+String(lastRowProducto)+")")
+  const irpfCellAbs = "$F$" + String(taxSectionStartRow - 1);
+  const totalBaseCellAbs = "$A$" + String(rowTotalBaseImponibleEIvaGeneral);
+  hojaActual.getRange("A"+String(rowParaTotales)).setValue("=IF("+irpfCellAbs+"=\"\";0;"+totalBaseCellAbs+"*"+irpfCellAbs+")")
 
   //total cargo equivalencia
-  hojaActual.getRange("B"+String(rowParaTotales)).setValue("=SUMPRODUCT(F15:F"+String(lastRowProducto)+";J15:J"+String(lastRowProducto)+")*10")
+  hojaActual.getRange("B"+String(rowParaTotales)).setValue("=SUMPRODUCT(F15:F"+String(lastRowProducto)+";I15:I"+String(lastRowProducto)+")*10")
 
   //total descuentos FACTURA
   let rowDescuentos=taxSectionStartRow-1
@@ -1529,7 +1531,7 @@ function calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRo
 
   //netopagar
   let rowParaTotalFactura=taxSectionStartRow+12
-  //hojaActual.getRange("B"+String(rowParaTotalFactura)).setValue("=SUM(K15:K"+String(lastRowProducto)+")+C"+String(rowParaTotales)+"-B"+String(rowDescuentos))
+  //hojaActual.getRange("B"+String(rowParaTotalFactura)).setValue("=SUM(J15:J"+String(lastRowProducto)+")+C"+String(rowParaTotales)+"-B"+String(rowDescuentos))
 
   //valorBruto
   hojaActual.getRange("E"+String(rowParaTotalFactura)).setValue("=SUMPRODUCT(C15:C"+String(lastRowProducto)+";D15:D"+String(lastRowProducto)+")")

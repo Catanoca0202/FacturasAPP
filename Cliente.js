@@ -668,7 +668,7 @@ function verificarDatosObligatoriosProductos(e){
   if (estaCompleto) {
     sheet.getRange(rowEditada, PRODUCT_COLUMNS.VALOR_UNITARIO).setNumberFormat('€#,##0.00');
     sheet.getRange(rowEditada, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO)
-      .setFormula(`=IF(AND(F${rowEditada}<>"",H${rowEditada}<>""),F${rowEditada}*(1+H${rowEditada}),"")`);
+      .setFormula(`=IF(AND(F${rowEditada}<>"";H${rowEditada}<>"");F${rowEditada}*(1+H${rowEditada});"")`);
     sheet.getRange(rowEditada, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO).setNumberFormat('€#,##0.00');
   }
 }
