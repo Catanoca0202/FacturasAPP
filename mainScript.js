@@ -1205,11 +1205,13 @@ function onEdit(e) {
       if (colEditada === PRODUCT_COLUMNS.TARIFA_IMPUESTO){
         sincronizarRecargoSegunIva(hojaActual, rowEditada);
         verificarDatosObligatoriosProductos(e);
+        agregarCodigoIdentificador(e);
       }
 
       if (colEditada === PRODUCT_COLUMNS.CHECK_RECARGO){
         manejarCheckboxRecargo(hojaActual, rowEditada);
         verificarDatosObligatoriosProductos(e);
+        agregarCodigoIdentificador(e);
       }
 
       if (colEditada === PRODUCT_COLUMNS.TIPO_RETENCION){
@@ -1223,6 +1225,7 @@ function onEdit(e) {
           hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.TIPO_RETENCION).setValue(RETENCION_RECARGO_LABEL);
         }
         verificarDatosObligatoriosProductos(e);
+        agregarCodigoIdentificador(e);
       }
 
       if (colEditada === PRODUCT_COLUMNS.TARIFA_RETENCION){
@@ -1247,6 +1250,7 @@ function onEdit(e) {
           }
         }
         verificarDatosObligatoriosProductos(e);
+        agregarCodigoIdentificador(e);
       }
     }else if(hojaActual.getName() === "Datos de emisor"){
       Logger.log("datos emisor")
