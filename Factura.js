@@ -1458,16 +1458,27 @@ function inicarFacturaNueva(){
 }
 
 function limpiarYEliminarFila(numeroFila,hoja,hojaTax){
-  //funcion para el boton que se va a agregar al final del producto
-  if (numeroFila>20 && numeroFila<hojaTax){
-    hoja.deleteRow(numeroFila)
-  }else{
-    hoja.getRange("A"+String(numeroFila)).setValue("");//producto
-    hoja.getRange("B"+String(numeroFila)).setValue("");//ref
-    hoja.getRange("C"+String(numeroFila)).setValue("");//cantidad
-    hoja.getRange("D"+String(numeroFila)).setValue(0);//CON IVa
-    hoja.getRange("E"+String(numeroFila)).setValue(0);//sin iva
-    //sheet.getRange("C"+String(posicionTaxInfo)).setValue(valorEnPorcentaje);
+  const productStartRow = 15;
+  if (numeroFila >= hojaTax) {
+    return;
+  }
+
+  const checkboxColumn = 12; // Columna "Eliminar"
+
+  if (numeroFila > productStartRow && numeroFila < hojaTax) {
+    hoja.deleteRow(numeroFila);
+  } else {
+    const rangoFila = hoja.getRange(numeroFila, 1, 1, checkboxColumn);
+    rangoFila.clearContent();
+    hoja.getRange(numeroFila, 4).setValue(0);
+    hoja.getRange(numeroFila, 5).setValue(0);
+    hoja.getRange(numeroFila, 6).setValue(0);
+    hoja.getRange(numeroFila, 7).setValue("");
+    hoja.getRange(numeroFila, 8).setValue("0%");
+    hoja.getRange(numeroFila, 9).setValue("");
+    hoja.getRange(numeroFila, 10).setValue(0);
+    hoja.getRange(numeroFila, 11).setValue(0);
+    hoja.getRange(numeroFila, checkboxColumn).setValue(false);
   }
 }
 

@@ -30,6 +30,7 @@ const PRODUCT_COLUMNS = {
 const RETENCION_IRPF_TIPOS = ['IRPF'];
 const RETENCION_IRPF_TARIFAS = [formatPercentES(7), formatPercentES(15), formatPercentES(19)];
 const RETENCION_RECARGO_LABEL = 'Recargo de equivalencia';
+const FACTURA_CHECKBOX_COL = 11; // Columna "Eliminar" en hoja Factura
 
 function OnOpenVariablesGlobales(){
   var spreadsheet = SpreadsheetApp.getActive();
@@ -1110,8 +1111,6 @@ function onEdit(e) {
             throw new Error('por favor poner un Numero de Identificacion unico');
           }
       }
-      }else if(colEditada==11 && rowEditada >= productStartRow && rowEditada < posRowTotalProductos){
-        Logger.log("dentro eliminar")
       }else if(colEditada==7 && (rowEditada ==4 || rowEditada ==3) ){
         Logger.log("dentro de fecha calcular2")
         CalcularDiasOFecha("Fecha")
@@ -1306,32 +1305,54 @@ function eliminarProductos() {
   const ss = SpreadsheetApp.getActive();
   const sh = ss.getSheetByName('Factura');
 
-  const productStartRow = 15;                       // Primera fila de productos
-  const taxSectionStartRow = getTaxSectionStartRow(sh);
-  const lastProductRow = taxSectionStartRow - 4;    // Última fila de productos
+  const productStartRow = 15; 
+  let taxSectionStartRow = getTaxSectionStartRow(sh);
+  let lastProductRow = getLastProductRow(sh, productStartRow, taxSectionStartRow);
 
-  const totalProductos = lastProductRow - productStartRow + 1;
+  let totalProductos = lastProductRow - productStartRow + 1;
   if (totalProductos <= 1) {
     SpreadsheetApp.getUi().alert('No puedes eliminar filas cuando solo hay un producto en la factura');
     return;
   }
 
-  const range = sh.getRange(`L${productStartRow}:L${lastProductRow}`);
+  const range = sh.getRange(productStartRow, FACTURA_CHECKBOX_COL, totalProductos, 1);
   const values = range.getValues();
-  const seleccionados = values.reduce((n, [v]) => n + (v === true ? 1 : 0), 0);
+  let rowsSeleccionadas = [];
 
-  // Evita borrar todos
+  for (let i = 0; i < values.length; i++) {
+    let celda = values[i][0];
+    if (celda && typeof celda === 'object' && 'value' in celda) {
+      celda = celda.value;
+    }
+    const normalizado = celda === true || String(celda).toLowerCase() === 'true';
+    if (normalizado) {
+      rowsSeleccionadas.push(productStartRow + i);
+    }
+  }
+
+  rowsSeleccionadas = [...new Set(rowsSeleccionadas)];
+
+  const seleccionados = rowsSeleccionadas.length;
+
+  if (seleccionados === 0) {
+    SpreadsheetApp.getUi().alert('Selecciona al menos una fila a eliminar (columna Eliminar).');
+    return;
+  }
+
   if (seleccionados >= totalProductos) {
     SpreadsheetApp.getUi().alert('Debes dejar al menos un producto en la factura');
     return;
   }
 
-  // Borra desde abajo para que no se desplacen los índices
-  for (let i = values.length - 1; i >= 0; i--) {
-    if (values[i][0] === true) {
-      sh.deleteRow(i + productStartRow);
-    }
-  }
+  rowsSeleccionadas.sort((a,b) => b - a);
+  rowsSeleccionadas.forEach(row => {
+    sh.deleteRow(row);
+  });
+
+  taxSectionStartRow = getTaxSectionStartRow(sh);
+  lastProductRow = getLastProductRow(sh, productStartRow, taxSectionStartRow);
+  calcularImporteYTotal(lastProductRow, productStartRow, taxSectionStartRow, sh);
+  updateTotalProductCounter(lastProductRow, productStartRow, sh, taxSectionStartRow);
 }
 
 function DesvincularFacturasApp(){
@@ -1518,7 +1539,7 @@ function calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRo
 
   let rowParaTotales=taxSectionStartRow+10
   //total retenciones
-  const irpfCellAbs = "$F$" + String(taxSectionStartRow - 1);
+  const irpfCellAbs = "$F$" + String(taxSectionStartRow - 2);
   const totalBaseCellAbs = "$A$" + String(rowTotalBaseImponibleEIvaGeneral);
   hojaActual.getRange("A"+String(rowParaTotales)).setValue("=IF("+irpfCellAbs+"=\"\";0;"+totalBaseCellAbs+"*"+irpfCellAbs+")")
 
