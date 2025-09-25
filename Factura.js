@@ -1457,30 +1457,7 @@ function inicarFacturaNueva(){
   obtenerFechaYHoraActual();
 }
 
-function limpiarYEliminarFila(numeroFila,hoja,hojaTax){
-  const productStartRow = 15;
-  if (numeroFila >= hojaTax) {
-    return;
-  }
 
-  const checkboxColumn = 12; // Columna "Eliminar"
-
-  if (numeroFila > productStartRow && numeroFila < hojaTax) {
-    hoja.deleteRow(numeroFila);
-  } else {
-    const rangoFila = hoja.getRange(numeroFila, 1, 1, checkboxColumn);
-    rangoFila.clearContent();
-    hoja.getRange(numeroFila, 4).setValue(0);
-    hoja.getRange(numeroFila, 5).setValue(0);
-    hoja.getRange(numeroFila, 6).setValue(0);
-    hoja.getRange(numeroFila, 7).setValue("");
-    hoja.getRange(numeroFila, 8).setValue("0%");
-    hoja.getRange(numeroFila, 9).setValue("");
-    hoja.getRange(numeroFila, 10).setValue(0);
-    hoja.getRange(numeroFila, 11).setValue(0);
-    hoja.getRange(numeroFila, checkboxColumn).setValue(false);
-  }
-}
 
 function verificarYCopiarContacto(e) {
   let hojaFacturas = e.source.getSheetByName('Factura');
