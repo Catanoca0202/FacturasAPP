@@ -571,55 +571,105 @@ function agregarUltimoProducto(refe){
 
 
 function verificarDatosObligatoriosProductos(e){
-  let sheet = e.source.getActiveSheet();
-  let range = e.range;
-  let rowEditada = range.getRow();
-  let colEditada = range.getColumn();
-  let ultimaColumnaPermitida = 9;
-  let  columnasObligatorias= [ 2, 3, 4,5];
-  let estadosDefault = [""];
-  let todasLasColumnas=[1,2,3,4,5,6,5,6,7,8,9]
+  const sheet = e.source.getActiveSheet();
+  const rowEditada = e.range.getRow();
+  const colEditada = e.range.getColumn();
+  const columnasObligatorias = [
+    PRODUCT_COLUMNS.CODIGO_REFERENCIA,
+    PRODUCT_COLUMNS.NOMBRE,
+    PRODUCT_COLUMNS.TIPO_PRODUCTO,
+    PRODUCT_COLUMNS.TIPO_USO,
+    PRODUCT_COLUMNS.VALOR_UNITARIO,
+    PRODUCT_COLUMNS.TIPO_IMPUESTO,
+    PRODUCT_COLUMNS.TARIFA_IMPUESTO
+  ];
+  const columnasARevisar = columnasObligatorias.concat([
+    PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO,
+    PRODUCT_COLUMNS.TIPO_RETENCION,
+    PRODUCT_COLUMNS.TARIFA_RETENCION
+  ]);
+  const estadosDefault = ["", "Seleccione", "Selecciona una opción"];
+  const estadosDefaultLower = estadosDefault.map(item => item.toLowerCase());
 
-  if (rowEditada > 1 && colEditada <= ultimaColumnaPermitida) {
-    let estaCompleto = true;
-    let estaVacioOPredeterminado = true;
+  if (rowEditada <= 1) {
+    return;
+  }
 
-    // Borrar el color de fondo de todas las celdas obligatorias antes de la verificación
-    for (let i = 0; i < todasLasColumnas.length; i++) {
-      sheet.getRange(rowEditada, todasLasColumnas[i]).setBackground(null);
+  // Limpiar fondos previos
+  columnasARevisar.forEach(columna => {
+    sheet.getRange(rowEditada, columna).setBackground(null);
+  });
+
+  if (colEditada > PRODUCT_COLUMNS.IDENTIFICADOR_UNICO) {
+    return;
+  }
+
+  let estaCompleto = true;
+  let estaTotalmenteVacio = true;
+
+  columnasObligatorias.forEach(columna => {
+    const valor = sheet.getRange(rowEditada, columna).getDisplayValue().trim();
+    const valorLower = valor.toLowerCase();
+    if (valor !== "") {
+      estaTotalmenteVacio = false;
+    }
+    if (estadosDefault.includes(valor) || estadosDefaultLower.includes(valorLower)) {
+      estaCompleto = false;
+      sheet.getRange(rowEditada, columna).setBackground('#FFC7C7');
+    }
+  });
+
+  const esRecargo = sheet.getRange(rowEditada, PRODUCT_COLUMNS.CHECK_RECARGO).getValue() === true;
+  const tipoRetencion = sheet.getRange(rowEditada, PRODUCT_COLUMNS.TIPO_RETENCION).getDisplayValue().trim();
+  const tarifaRetencionDisplay = sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RETENCION).getDisplayValue().trim();
+
+  if (esRecargo) {
+    const ivaNum = parsePercentToNumberES(sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_IMPUESTO).getDisplayValue());
+    const esperado = recargoPermitidoParaIva(ivaNum);
+    const tarifaNum = parsePercentToNumberES(tarifaRetencionDisplay);
+
+    if (tipoRetencion !== RETENCION_RECARGO_LABEL) {
+      estaCompleto = false;
+      sheet.getRange(rowEditada, PRODUCT_COLUMNS.TIPO_RETENCION).setBackground('#FFC7C7');
     }
 
-    // Verificar celdas obligatorias
-    for (let i = 0; i < columnasObligatorias.length; i++) {
-      let valorDeCelda = sheet.getRange(rowEditada, columnasObligatorias[i]).getValue();
-      // if(i==5){
-      //   if(valorDeCelda==""){
-      //     sheet.getRange(rowEditada, columnasObligatorias[i]).setBackground('#FFC7C7'); // Resaltar en rojo claro
-      //   }else{
-      //     estaVacioOPredeterminado = false;
-      //   }
-      // }
-      if (estadosDefault.includes(valorDeCelda)) {
+    if (esperado === null || tarifaNum === null || Math.abs(tarifaNum - esperado) > 0.0001) {
+      estaCompleto = false;
+      sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RETENCION).setBackground('#FFC7C7');
+    }
+  } else if (tipoRetencion !== "") {
+    if (tipoRetencion === RETENCION_RECARGO_LABEL) {
+      estaCompleto = false;
+      sheet.getRange(rowEditada, PRODUCT_COLUMNS.TIPO_RETENCION).setBackground('#FFC7C7');
+    }
+
+    if (tipoRetencion === 'IRPF') {
+      const tarifaNum = parsePercentToNumberES(tarifaRetencionDisplay);
+      const permitido = RETENCION_IRPF_TARIFAS
+        .map(valor => parsePercentToNumberES(valor))
+        .some(valor => Math.abs(valor - tarifaNum) < 0.0001);
+      if (!permitido) {
         estaCompleto = false;
-        sheet.getRange(rowEditada, columnasObligatorias[i]).setBackground('#FFC7C7'); // Resaltar en rojo claro
-      } else {
-        estaVacioOPredeterminado = false;
+        sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RETENCION).setBackground('#FFC7C7');
       }
     }
+  }
 
-    // Actualizar el estado en la primera columna
-    if (estaVacioOPredeterminado) {
-      sheet.getRange(rowEditada, 1).clearContent(); // Limpiar contenido de "Estado"
-    } else {
-      let status = estaCompleto ? "Valido" : "No Valido";
-      if (status=="Valido"){
-        sheet.getRange(rowEditada, 6).setValue("=D"+rowEditada+"*E"+rowEditada+"+D"+rowEditada); // Guarda el precio con IVA
+  if (estaTotalmenteVacio) {
+    sheet.getRange(rowEditada, PRODUCT_COLUMNS.ESTADO).clearContent();
+    sheet.getRange(rowEditada, PRODUCT_COLUMNS.IDENTIFICADOR_UNICO).clearContent();
+    sheet.getRange(rowEditada, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO).clearContent();
+    return;
+  }
 
-    
-        sheet.getRange(rowEditada, 7).setValue("=F"+rowEditada+"-D"+rowEditada); // Guarda el valor de los impuestos
-      }
-      sheet.getRange(rowEditada, 1).setValue(status); // Establecer valor en "Estado"
-    }
+  const estado = estaCompleto ? 'Valido' : 'No Valido';
+  sheet.getRange(rowEditada, PRODUCT_COLUMNS.ESTADO).setValue(estado);
+
+  if (estaCompleto) {
+    sheet.getRange(rowEditada, PRODUCT_COLUMNS.VALOR_UNITARIO).setNumberFormat('€#,##0.00');
+    sheet.getRange(rowEditada, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO)
+      .setFormula(`=IF(AND(F${rowEditada}<>"",H${rowEditada}<>""),F${rowEditada}*(1+H${rowEditada}),"")`);
+    sheet.getRange(rowEditada, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO).setNumberFormat('€#,##0.00');
   }
 }
 
@@ -907,4 +957,3 @@ function obtenerInformacionCliente(cliente) {
 
   return informacionCliente;
 }
-

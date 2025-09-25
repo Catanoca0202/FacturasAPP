@@ -43,7 +43,7 @@ function obtenerInformacionProducto(producto) {
     var spreadsheet = SpreadsheetApp.getActive();
     var hojaProductos = spreadsheet.getSheetByName('Productos');
     var ultimaFila = hojaProductos.getLastRow();
-    var valores = hojaProductos.getRange(2, 10, ultimaFila - 1, 1).getValues();
+    var valores = hojaProductos.getRange(2, 13, ultimaFila - 1, 1).getValues();
   
     // Filtrar los productos que coincidan con el término de búsqueda
     var productosFiltrados = valores
