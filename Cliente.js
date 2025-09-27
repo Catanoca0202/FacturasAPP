@@ -3,31 +3,31 @@
 // var factura_sheet= spreadsheet.getSheetByName("Factura")
 
 function showNuevaClienteDesdeFactura() {
-  var html = HtmlService.createHtmlOutputFromFile('menuAgregarClienteDesdeF').setTitle("Nuevo Producto")
+  var html = HtmlService.createHtmlOutputFromFile('menuAgregarClienteDesdeF').setTitle("Nuevo Contacto")
   SpreadsheetApp.getUi()
     .showSidebar(html);
 }
 
 function showNuevaProductoDesdeFactura(){
-  var html = HtmlService.createHtmlOutputFromFile('agregarProductoDesdeF').setTitle("Nuevo Cliente")
+  var html = HtmlService.createHtmlOutputFromFile('agregarProductoDesdeF').setTitle("Nuevo Producto")
   SpreadsheetApp.getUi()
     .showSidebar(html);
 }
 
 function showNuevaClienteV2() {
-  var html = HtmlService.createHtmlOutputFromFile('menuAgregarCliente').setTitle("Nuevo Cliente")
+  var html = HtmlService.createHtmlOutputFromFile('menuAgregarCliente').setTitle("Nuevo Contacto")
   SpreadsheetApp.getUi()
     .showSidebar(html);
 }
 
 function showInactivarCliente() {
-  var html = HtmlService.createHtmlOutputFromFile('menuInactivarCliente').setTitle("Inactivar Cliente")
+  var html = HtmlService.createHtmlOutputFromFile('menuInactivarCliente').setTitle("Inactivar Contacto")
   SpreadsheetApp.getUi()
     .showSidebar(html);
 }
 
 function showActivarCliente() {
-  var html = HtmlService.createHtmlOutputFromFile('menuActivarCliente').setTitle("Activar Cliente")
+  var html = HtmlService.createHtmlOutputFromFile('menuActivarCliente').setTitle("Activar Contacto")
   SpreadsheetApp.getUi()
     .showSidebar(html);
 }
@@ -227,6 +227,7 @@ function buscarClientes(terminoBusqueda,hojaA) {
 function buscarPaises(terminoBusqueda) {
   let spreadsheet = SpreadsheetApp.getActive();
   let datos_sheet = spreadsheet.getSheetByName('Datos');
+  // Original: listado en columna A, filas 25..(25+169-1)
   let paises = datos_sheet.getRange(25, 1, 169, 1).getValues();
   var resultados = [];
 
@@ -252,6 +253,54 @@ function buscarPaises(terminoBusqueda) {
 
   // Devuelve los resultados
   return resultados;
+}
+
+function getListaPaises(){
+  let spreadsheet = SpreadsheetApp.getActive();
+  let datos_sheet = spreadsheet.getSheetByName('Datos');
+  if(!datos_sheet){
+    return [];
+  }
+  // Alterno para formulario: Datos!D26:D275 (250 filas) nombres
+  const startRow = 26;
+  const numRows = 250;
+  const values = datos_sheet.getRange(startRow, 4, numRows, 1).getValues();
+  return values.flat().filter(function(v){ return v !== '' && v !== null; });
+}
+
+function buscarPaisesFormulario(terminoBusqueda){
+  let spreadsheet = SpreadsheetApp.getActive();
+  let datos_sheet = spreadsheet.getSheetByName('Datos');
+  // Datos!D26:D275 (250 filas) nombres de país
+  let paises = datos_sheet.getRange(26, 4, 250, 1).getValues();
+  var resultados = [];
+
+  if (terminoBusqueda === "") {
+    return resultados;
+  }
+
+  terminoBusqueda = quitarTildes(terminoBusqueda.toLowerCase());
+  for (var i = 0; i < paises.length; i++) {
+    var valor = paises[i][0];
+    let valorNormalizado = quitarTildes(String(valor).toLowerCase());
+    if (valorNormalizado.indexOf(terminoBusqueda) !== -1) {
+      resultados.push(valor);
+    }
+  }
+  return resultados;
+}
+
+function emailEsValido(email){
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(String(email || '').trim());
+}
+
+function paisEsValido(pais){
+  if(!pais){ return false; }
+  const lista = getListaPaises();
+  const normalizar = function(s){ return quitarTildes(String(s||'').trim().toLowerCase()); };
+  const buscado = normalizar(pais);
+  return lista.some(function(p){ return normalizar(p) === buscado; });
 }
 
 function quitarTildes(texto) {
@@ -481,6 +530,24 @@ function saveClientData(formData) {
     throw new Error('La hoja "Clientes" no existe.');
   }
 
+  // Validaciones de seguridad del lado del servidor
+  if(!emailEsValido(formData.email)){
+    return { success: false, message: 'Por favor ingrese un email válido.' };
+  }
+
+  if(!paisEsValido(formData.pais)){
+    return { success: false, message: 'Por favor seleccione un país de la lista.' };
+  }
+
+  // Provincias/poblaciones: validar solo si vienen informadas
+  if(formData.provincia && !existeProvincia(formData.pais, formData.provincia)){
+    return { success: false, message: 'Por favor seleccione una provincia válida para el país.' };
+  }
+
+  if(formData.poblacion && !existePoblacion(formData.pais, formData.provincia, formData.poblacion)){
+    return { success: false, message: 'Por favor seleccione una población válida para la provincia.' };
+  }
+
   let existe = verificarCodigo(formData.numeroIdentificacion, "Clientes", false);
   let existeC=verificarCodigo(formData.codigoContacto, "Clientes", false,null,"codigo");
   if (existe) {
@@ -517,8 +584,8 @@ function saveClientData(formData) {
     formData.segundoNombre,
     formData.primerApellido,
     formData.segundoApellido,
-    formData.pais,
-    formData.provincia,
+    formData.pais || getNombrePaisPorCodigo(PropertiesService.getDocumentProperties().getProperty('paisCodigoSeleccionado')),
+    formData.provincia || getNombreProvinciaPorCodigo(PropertiesService.getDocumentProperties().getProperty('paisCodigoSeleccionado'), PropertiesService.getDocumentProperties().getProperty('provCodigoSeleccionado')),
     formData.poblacion,
     formData.direccion,
     formData.codigoPostal,
@@ -669,7 +736,6 @@ function verificarDatosObligatorios(e, tipoPersona) {
 
 
 function crearContacto(){
-  Logger.log("imprima algo")
   showNuevaClienteDesdeFactura()
 
 }

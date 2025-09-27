@@ -37,8 +37,8 @@ function iniciarHojasFactura() {
   const plantillaID = "1qxbXlhH4RpCOsObk91wsuu4k8jarVK34XXRUlKaKS1U";
   const plantilla = SpreadsheetApp.openById(plantillaID);
 
-  const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Clientes", "Factura", "Historial Facturas Data", "ClientesInvalidos", "Historial Facturas","Facturas ID", "Copia de Plantilla", "ListadoEstado", "Plantilla", "Celdas plantilla", "Copia de Plantilla", "Copia de Factura","Datos"];
-  const hojasBloqueadasEInvisibles = ["ListadoEstado", "Plantilla", "Celdas plantilla", "Historial Facturas Data", "Facturas ID", "Datos", "ClientesInvalidos", "Copia de Plantilla", "Copia de Factura"];
+  const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Clientes", "Factura", "Historial Facturas Data", "ClientesInvalidos", "Historial Facturas","Facturas ID", "ListadoEstado", "Copia de Factura","Datos"];
+  const hojasBloqueadasEInvisibles = ["ListadoEstado", "Historial Facturas Data", "Facturas ID", "Datos", "ClientesInvalidos", "Copia de Factura"];
 
 
 
@@ -484,7 +484,7 @@ function eliminarHojasFactura() {
   let respuesta = ui.alert('Recuerda que al desinstalar las hojas se eliminará toda la información de las mismas. Esta función solo debe ejecutarse si tienes un problema irreparable con las hojas. ¿Estás seguro de continuar?', ui.ButtonSet.YES_NO);
   if (respuesta == ui.Button.YES) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Historial Facturas", "Clientes", "Factura", "Historial Facturas Data", "Facturas ID", "Datos", "Copia de Plantilla", "ListadoEstado", "Plantilla", "Celdas plantilla", "ClientesInvalidos", "Copia de Plantilla", "Copia de Factura"];
+    const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Historial Facturas", "Clientes", "Factura", "Historial Facturas Data", "Facturas ID", "Datos", "ListadoEstado", "ClientesInvalidos", "Copia de Factura"];
 
     // Crear una hoja nueva en blanco
     let nuevaHoja = ss.getSheetByName("Hoja en blanco");
@@ -525,6 +525,8 @@ function agregarDataValidations() {
   const rangoDropdownProductoF = hojaFacturas.getRange("B15");
   const rangoDropdownCopiaFacturaCliente=HojaValorescopiaFactura.getRange("B2:C2")
   const rangoDropdownCopiaFacturaProducto=HojaValorescopiaFactura.getRange("B15")
+  // Nuevo: dropdown de País en Clientes (columna N)
+  const rangoDropdownPaisClientes = hojaValoresC.getRange("N2:N1000");
 
   // Rango de valores para los dropdowns
   const rangoValoresClienteInvalido = hojaValoresCInvalidos.getRange("V2:V1000");
@@ -532,12 +534,18 @@ function agregarDataValidations() {
   const rangoValoresProductosDatos = hojaValoresP.getRange("J2:J1000");
   const rangoValoresClienteFactura = hojaValoresC.getRange("$B$2:$B$1000");
   const rangoValoresProductosFactura = hojaValoresP.getRange("$J$2:$J$1000");
+  // Nuevo: lista de países desde Datos (D26:D275)
+  const rangoValoresPaises = hojaDatos.getRange("$D$26:$D$275");
 
   // Crear y aplicar validaciones
   const reglas = [
     {
       rango: rangoDropdownCliente,
       valores: rangoValoresClienteDatos
+    },
+    {
+      rango: rangoDropdownPaisClientes,
+      valores: rangoValoresPaises
     },
     {
       rango: rangoDropdownClienteInvalido,

@@ -17,6 +17,33 @@
 
   </head>
   <script>
+    let listaPaises = [];
+    let debounceTimers = {};
+    let cacheProvincias = [];
+    let cachePoblaciones = [];
+
+    window.addEventListener('load', function() {
+      if (google && google.script && google.script.run) {
+        google.script.run.withSuccessHandler(function(paises) {
+          listaPaises = Array.isArray(paises) ? paises : [];
+        }).getListaPaises();
+      }
+    });
+
+    function normalizarTextoPais(str) {
+      return String(str || '').trim().toLowerCase();
+    }
+
+    function validarPaisValor(valor) {
+      const v = normalizarTextoPais(valor);
+      return listaPaises.some(p => normalizarTextoPais(p) === v);
+    }
+
+    function validarEmailValor(valor) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return emailRegex.test(String(valor || '').trim());
+    }
+
     function writeDocument(htmlOutput) {
       document.open();
       document.write(htmlOutput);
@@ -31,15 +58,30 @@
         google.script.run.showSidebar();
       }
 
+    function quitarTildes(texto) {
+      return String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
     function buscarPais() {
-      var input = document.getElementById('pais').value;
-      google.script.run.withSuccessHandler(mostrarResultados).buscarPaises(input);
+      const input = document.getElementById('pais').value;
+      const q = quitarTildes(input).toLowerCase();
+      const max = 20;
+      const resultados = [];
+      if (!q) {
+        document.querySelector('.result-box').innerHTML = '';
+        return;
+      }
+      for (let i = 0; i < listaPaises.length && resultados.length < max; i++) {
+        const p = listaPaises[i];
+        if (quitarTildes(p).toLowerCase().indexOf(q) !== -1) resultados.push(p);
+      }
+      mostrarResultados(resultados);
     }
     function mostrarResultados(paises) {
-      var resultBox = document.querySelector('.result-box');
+      const resultBox = document.querySelector('.result-box');
       resultBox.innerHTML = '';
       paises.forEach(function(pais) {
-        var div = document.createElement('div');
+        const div = document.createElement('div');
         div.textContent = pais;
         div.onclick = function() {
           seleccionarPAIS(pais);
@@ -51,7 +93,90 @@
     function seleccionarPAIS(pais) {
       document.getElementById('pais').value = pais;
       var resultBox = document.querySelector('.result-box');
-      resultBox.innerHTML = ''; // Limpiar los resultados
+      resultBox.innerHTML = '';
+      document.getElementById('provincia').value = '';
+      document.getElementById('poblacion').value = '';
+      document.querySelector('.result-box-provincia').innerHTML = '';
+      document.querySelector('.result-box-poblacion').innerHTML = '';
+      if (google && google.script && google.script.run) {
+        google.script.run.withSuccessHandler(function(lista){
+          cacheProvincias = Array.isArray(lista) ? lista : [];
+          document.querySelector('.result-box-provincia').innerHTML = '';
+        }).prepararProvincias(pais);
+      }
+    }
+
+    function debounce(key, fn, delay) {
+      if (debounceTimers[key]) clearTimeout(debounceTimers[key]);
+      debounceTimers[key] = setTimeout(fn, delay);
+    }
+
+    function buscarProvincia() {
+      const pais = document.getElementById('pais').value.trim();
+      const query = document.getElementById('provincia').value.trim();
+      const box = document.querySelector('.result-box-provincia');
+      if (!pais) { box.innerHTML = ''; return; }
+      const q = quitarTildes(query).toLowerCase();
+      let lista = cacheProvincias;
+      if (q) {
+        lista = cacheProvincias.filter(function(p){
+          return quitarTildes(p).toLowerCase().indexOf(q)!==-1;
+        });
+      }
+      mostrarResultadosProvincia(lista.slice(0, 30));
+    }
+    function mostrarResultadosProvincia(provincias) {
+      const box = document.querySelector('.result-box-provincia');
+      box.innerHTML = '';
+      provincias.forEach(function(pro) {
+        const div = document.createElement('div');
+        div.textContent = pro;
+        div.onclick = function(){ seleccionarProvincia(pro); };
+        box.appendChild(div);
+      });
+    }
+    function seleccionarProvincia(prov) {
+      document.getElementById('provincia').value = prov;
+      document.querySelector('.result-box-provincia').innerHTML = '';
+      document.getElementById('poblacion').value = '';
+      document.querySelector('.result-box-poblacion').innerHTML = '';
+      const pais = document.getElementById('pais').value.trim();
+      if (google && google.script && google.script.run && pais) {
+        google.script.run.withSuccessHandler(function(lista){
+          cachePoblaciones = Array.isArray(lista) ? lista : [];
+          document.querySelector('.result-box-poblacion').innerHTML = '';
+        }).prepararPoblaciones(pais, prov);
+      }
+    }
+
+    function buscarPoblacion() {
+      const pais = document.getElementById('pais').value.trim();
+      const provincia = document.getElementById('provincia').value.trim();
+      const query = document.getElementById('poblacion').value.trim();
+      const box = document.querySelector('.result-box-poblacion');
+      if (!pais || !provincia) { box.innerHTML=''; return; }
+      const q = quitarTildes(query).toLowerCase();
+      let lista = cachePoblaciones;
+      if (q) {
+        lista = cachePoblaciones.filter(function(p){
+          return quitarTildes(p).toLowerCase().indexOf(q)!==-1;
+        });
+      }
+      mostrarResultadosPoblacion(lista.slice(0,30));
+    }
+    function mostrarResultadosPoblacion(pobs) {
+      const box = document.querySelector('.result-box-poblacion');
+      box.innerHTML = '';
+      pobs.forEach(function(p) {
+        const div = document.createElement('div');
+        div.textContent = p;
+        div.onclick = function(){ seleccionarPoblacion(p); };
+        box.appendChild(div);
+      });
+    }
+    function seleccionarPoblacion(p) {
+      document.getElementById('poblacion').value = p;
+      document.querySelector('.result-box-poblacion').innerHTML = '';
     }
 
     function verificarDatosObligatorios() {
@@ -80,6 +205,25 @@
 
   function saveData() {
   if (verificarDatosObligatorios()) {
+    // Validaciones adicionales: email y país
+    const emailField = document.getElementById('email');
+    const paisField = document.getElementById('pais');
+    const emailVal = emailField.value.trim();
+    const paisVal = paisField.value.trim();
+
+    emailField.style.backgroundColor = '';
+    paisField.style.backgroundColor = '';
+    if (!validarEmailValor(emailVal)) {
+      emailField.style.backgroundColor = '#FFC7C7';
+      mostrarAlerta('Por favor ingrese un email válido.');
+      return;
+    }
+    if (!validarPaisValor(paisVal)) {
+      paisField.style.backgroundColor = '#FFC7C7';
+      mostrarAlerta('Por favor seleccione un país de la lista.');
+      return;
+    }
+
     const formData = {
     
       tipoContacto: document.getElementById('tipoContacto').value,
