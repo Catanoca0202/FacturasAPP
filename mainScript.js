@@ -852,14 +852,18 @@ function onEdit(e) {
             factura_sheet.getRange("D"+String(i)).setValue(0)//unitario preciounitario
             factura_sheet.getRange("E"+String(i)).setValue(dictInformacionProducto["IVA"])//IVA
             
-            factura_sheet.getRange("G"+String(i)).setValue(dictInformacionProducto["retencion"])//Retencion
+            factura_sheet.getRange("H"+String(i)).setValue(dictInformacionProducto["retencion"])//Retencion
             factura_sheet.getRange("J"+String(i)).setValue(dictInformacionProducto["Recargo de equivalencia"])//Recargo de equivalencia
           }else{
             factura_sheet.getRange("A"+String(i)).setValue(dictInformacionProducto["codigo Producto"])
             factura_sheet.getRange("F"+String(i)).setValue("=(D"+String(i)+")*C"+String(i))//Valor impuestos
             factura_sheet.getRange("D"+String(i)).setValue(dictInformacionProducto["valor Unitario"])//valor unitario
-
+            factura_sheet.getRange("I"+String(i)).setValue(dictInformacionProducto["Recargo de equivalencia"])//Recargo de equivalencia
             factura_sheet.getRange("G"+String(i)).setValue(dictInformacionProducto["retencion"])//Retencion
+            //falta revisar todo esto
+            
+            
+            
             //factura_sheet.getRange("J"+String(i)).setValue(dictInformacionProducto["Recargo de equivalencia"])//Recargo de equivalencia
             factura_sheet.getRange("J"+String(i)).setValue("=((F"+String(i)+"+(F"+String(i)+"*G"+String(i)+")-(F"+String(i)+"*I"+String(i)+")+(F"+String(i)+"*J"+String(i)+"))-(F"+String(i)+"*H"+String(i)+"))")//total linea
           }
