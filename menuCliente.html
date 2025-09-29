@@ -32,6 +32,9 @@
     function showMenuPrincipal() {
           google.script.run.showSidebar();
     }
+    function abrirSoporte() {
+      window.open('https://soporte.facturasapp.com/hc/es-es/articles/34324157226907-Canales-de-Atenci%C3%B3n');
+    }
     </script>
   </head>
 
@@ -43,10 +46,11 @@
       <img src="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/images/logoAssistant.png" alt="">
     </div>
 
-    <div class="mt-4 px-4 gx-0 d-flex flex-column">
-              <a onclick="showMenuPrincipal()" href="#" class="btn btn-outline-secondary btn-fluid"><i class="icon-left"></i> <span>Regresar</span></a>
-            <h2 class="mt-4">Clientes</h2>
+    <div class="mt-4 px-4 gx-0 d-flex justify-content-between align-items-center">
+              <a onclick="showMenuPrincipal()" href="#" class="btn btn-outline-secondary btn-sm me-2" style="min-width: 120px;"><i class="icon-left"></i> <span>Regresar</span></a>
+              <a onclick="abrirSoporte()" href="#" class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;" data-bs-toggle="tooltip" data-bs-placement="top" title="Soporte"><i class="icon-info"></i></a>
     </div>
+    <h2 class="mt-4 text-center">Contactos</h2>
   </header>
 
 

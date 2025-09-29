@@ -125,6 +125,161 @@ function getPoblaciones(pais, provincia, query, limit) {
     }
 }
 
+// NUEVO: Provincias como "Nombre-codProv-codPais" para un país
+function getProvinciasJoin(pais, limit){
+    try{
+        var ss = SpreadsheetApp.getActive();
+        var hoja = ss.getSheetByName('Datos');
+        if(!hoja){ return []; }
+        var codigoPais = getCodigoPais(pais);
+        if(!codigoPais){ return []; }
+        var values = hoja.getRange(26, 6, 5110 - 26 + 1, 3).getValues(); // F:G:H
+        var res = [];
+        var max = Math.max(1, Number(limit||300));
+        for (var i=0;i<values.length && res.length<max;i++){
+            var codPais = values[i][0];
+            var codProv = values[i][1];
+            var nomProv = values[i][2];
+            if(!codPais || !codProv || !nomProv) continue;
+            if(String(codPais)===String(codigoPais)){
+                res.push(String(nomProv)+"-"+String(codProv)+"-"+String(codigoPais));
+            }
+        }
+        return Array.from(new Set(res));
+    }catch(e){
+        return [];
+    }
+}
+
+// NUEVO: Poblaciones como "Nombre-codPob-codProv-codPais" por códigos
+function getPoblacionesJoinByCodigo(codigoPais, codigoProvincia, query, limit){
+    try{
+        var ss = SpreadsheetApp.getActive();
+        var hoja = ss.getSheetByName('Datos');
+        if(!hoja){ return []; }
+        var startRow = 26;
+        var lastRow = 150659;
+        var numRows = lastRow - startRow + 1;
+        var cache = CacheService.getScriptCache();
+        var cacheKey = 'pobl_join_' + String(codigoPais) + '_' + String(codigoProvincia);
+        var cached = cache.get(cacheKey);
+        var lista = null;
+        if(cached){ try{ lista = JSON.parse(cached); }catch(err){ lista=null; } }
+        if(!lista){
+            var colProvRange = hoja.getRange(startRow, 12, numRows, 1); // L
+            var matches = colProvRange.createTextFinder(String(codigoProvincia)).matchEntireCell(true).findAll();
+            lista = [];
+            for (var m=0;m<matches.length;m++){
+                var rowIdx = matches[m].getRow();
+                var codPaisR = hoja.getRange(rowIdx, 9).getValue(); // I
+                if(String(codPaisR)!==String(codigoPais)) continue;
+                var codPob = hoja.getRange(rowIdx, 13).getValue(); // M
+                var nombre = hoja.getRange(rowIdx, 14).getValue(); // N
+                if(nombre && codPob){
+                    lista.push(String(nombre)+"-"+String(codPob)+"-"+String(codigoProvincia)+"-"+String(codigoPais));
+                }
+            }
+            try{ cache.put(cacheKey, JSON.stringify(lista), 21600); }catch(err){}
+        }
+        var normQuery = normalizarTexto(query);
+        var resultados = [];
+        var max = Math.max(1, Number(limit||300));
+        for (var j=0;j<lista.length && resultados.length<max;j++){
+            var item = lista[j];
+            var nombre = item.split('-')[0];
+            if(!normQuery || normalizarTexto(nombre).indexOf(normQuery)!==-1){
+                resultados.push(item);
+            }
+        }
+        return Array.from(new Set(resultados));
+    }catch(e){
+        return [];
+    }
+}
+
+// Construye hojas de listas unidas y rangos con nombre para validación rápida
+function buildCatJoinIndices(){
+    var ss = SpreadsheetApp.getActive();
+    var datos = ss.getSheetByName('Datos');
+    if(!datos){ throw new Error('Hoja Datos no existe'); }
+
+    // Crear/limpiar hojas destino
+    var shProv = ss.getSheetByName('CatJoinProv');
+    if(!shProv){ shProv = ss.insertSheet('CatJoinProv'); }
+    shProv.clear();
+    var shPob = ss.getSheetByName('CatJoinPob');
+    if(!shPob){ shPob = ss.insertSheet('CatJoinPob'); }
+    shPob.clear();
+
+    // Provincias agrupadas por país
+    var provValues = datos.getRange(26, 6, 5110 - 26 + 1, 3).getValues(); // F:G:H
+    var mapProv = {};
+    for (var i=0;i<provValues.length;i++){
+        var codPais = provValues[i][0];
+        var codProv = provValues[i][1];
+        var nomProv = provValues[i][2];
+        if(!codPais || !codProv || !nomProv) continue;
+        var key = String(codPais);
+        if(!mapProv[key]) mapProv[key] = [];
+        mapProv[key].push(String(nomProv)+"-"+String(codProv)+"-"+String(codPais));
+    }
+    var rowProv = 1;
+    var paisKeys = Object.keys(mapProv).sort(function(a,b){return Number(a)-Number(b)});
+    paisKeys.forEach(function(codPais){
+        var arr = Array.from(new Set(mapProv[codPais]));
+        if(arr.length===0) return;
+        shProv.getRange(rowProv,1).setValue('#Prov_'+codPais);
+        rowProv++;
+        shProv.getRange(rowProv,1,arr.length,1).setValues(arr.map(function(v){return [v]}));
+        try{
+            var r = shProv.getRange(rowProv,1,arr.length,1);
+            ss.setNamedRange('Prov_'+codPais, r);
+        }catch(e){}
+        rowProv += arr.length + 1;
+    });
+
+    // Poblaciones agrupadas por país+provincia
+    var startRow = 26;
+    var lastRow = 150659;
+    var numRows = lastRow - startRow + 1;
+    var poblValsPais = datos.getRange(startRow, 9, numRows, 1).getValues();   // I: country
+    var poblValsProv = datos.getRange(startRow, 12, numRows, 1).getValues();  // L: province
+    var poblValsCod = datos.getRange(startRow, 13, numRows, 1).getValues();   // M: population code
+    var poblValsNom = datos.getRange(startRow, 14, numRows, 1).getValues();   // N: name
+    var mapPob = {};
+    for (var j=0;j<numRows;j++){
+        var cPais = poblValsPais[j][0];
+        var cProv = poblValsProv[j][0];
+        var cPob = poblValsCod[j][0];
+        var nPob = poblValsNom[j][0];
+        if(!cPais || !cProv || !cPob || !nPob) continue;
+        var k = String(cPais)+'_'+String(cProv);
+        if(!mapPob[k]) mapPob[k] = [];
+        mapPob[k].push(String(nPob)+'-'+String(cPob)+'-'+String(cProv)+'-'+String(cPais));
+    }
+    var rowPob = 1;
+    var pobKeys = Object.keys(mapPob);
+    pobKeys.sort(function(a,b){
+        var pa = a.split('_'); var pb = b.split('_');
+        var ca = Number(pa[0]) - Number(pb[0]);
+        return ca !== 0 ? ca : (Number(pa[1]) - Number(pb[1]));
+    });
+    pobKeys.forEach(function(key){
+        var arr = Array.from(new Set(mapPob[key]));
+        if(arr.length===0) return;
+        shPob.getRange(rowPob,1).setValue('#Pob_'+key);
+        rowPob++;
+        shPob.getRange(rowPob,1,arr.length,1).setValues(arr.map(function(v){return [v]}));
+        try{
+            var r2 = shPob.getRange(rowPob,1,arr.length,1);
+            ss.setNamedRange('Pob_'+key, r2);
+        }catch(e){}
+        rowPob += arr.length + 1;
+    });
+
+    return {provKeys:paisKeys.length, pobKeys:pobKeys.length};
+}
+
 function existeProvincia(pais, provincia) {
     try {
         var lista = getProvincias(pais, provincia, 1000);

@@ -6,7 +6,7 @@
     <meta name="description" content="">
     <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
     <meta name="generator" content="Hugo 0.84.0">
-    <title>Activar Cliente</title>
+    <title>Activar Contacto</title>
 
     <!-- Bootstrap core CSS -->
     <link href="https://facturasapp.com/Publico/google-sheets-resources/css/bootstrap.css" rel="stylesheet">
@@ -24,10 +24,11 @@
       <img src="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/images/logoAssistant.png" alt="Logo">
     </div>
 
-    <div class="mt-4 px-4 gx-0 d-flex flex-column">
-              <a href="#"  onclick="Back()" class="btn btn-outline-secondary btn-fluid"><i class="icon-left"></i> <span>Regresar</span></a>
-            <h2 class="mt-4">Activar cliente</h2>
+    <div class="mt-4 px-4 gx-0 d-flex justify-content-between align-items-center">
+              <a href="#"  onclick="Back()" class="btn btn-outline-secondary btn-sm me-2" style="min-width: 120px;"><i class="icon-left"></i> <span>Regresar</span></a>
+              <a onclick="abrirSoporte()" href="#" class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;" data-bs-toggle="tooltip" data-bs-placement="top" title="Soporte"><i class="icon-info"></i></a>
     </div>
+    <h2 class="mt-4 text-center">Activar contacto</h2>
   </header>
 
 
@@ -35,15 +36,15 @@
 
     <div class="row py-3 px-4 mt-3 gx-0">
       <div class="col-12 py-4">
-        <p>Selecciona un cliente de tu lista para activarlo.</p>
+        <p>Selecciona un contacto de tu lista para activarlo.</p>
       </div>
 
       <div class="col-12 px-0">
         <form class="row g-3" id="productForm">
             <div class="col-10">
-                <label for="clientesInactivos" class="form-label">Buscar Cliente</label>
+                <label for="clientesInactivos" class="form-label">Buscar Contacto</label>
                 <select id="clientesInactivos" class="form-control form-control-lg">
-                  <option value="">Seleccione un cliente</option>
+                  <option value="">Seleccione un contacto</option>
                   <!-- Las opciones de clientes se agregarán aquí -->
                 </select>
             </div>
@@ -115,7 +116,10 @@
 
     // Cargar los clientes inactivos al cargar la página
     document.addEventListener('DOMContentLoaded', cargarClientesInactivos);
+    function abrirSoporte() {
+      window.open('https://soporte.facturasapp.com/hc/es-es/articles/34324157226907-Canales-de-Atenci%C3%B3n');
+    }
 </script>
-
+  
   </body>
 </html>

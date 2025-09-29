@@ -35,7 +35,7 @@ function showActivarCliente() {
 function inactivarCliente(cliente){
   let spreadsheet = SpreadsheetApp.getActive();
   let hojaClientesInactivos=spreadsheet.getSheetByName('ClientesInvalidos');
-  let hojaClietnes=spreadsheet.getSheetByName("Clientes")
+  let hojaClietnes=spreadsheet.getSheetByName("Contactos")
   let datos_sheet = spreadsheet.getSheetByName('Datos');
   Logger.log(cliente)
   datos_sheet.getRange("H2").setValue(cliente)
@@ -102,7 +102,7 @@ function activarCliente(cliente) {
   let spreadsheet = SpreadsheetApp.getActive();
   let datos_sheet = spreadsheet.getSheetByName('Datos');
   let hojaClientesInactivos = spreadsheet.getSheetByName('ClientesInvalidos');
-  let hojaClietnes = spreadsheet.getSheetByName("Clientes");
+  let hojaClietnes = spreadsheet.getSheetByName("Contactos");
   Logger.log(cliente);
 
   datos_sheet.getRange("I6").setValue(cliente);
@@ -138,7 +138,7 @@ function activarCliente(cliente) {
     
   ];
 
-  // Agregar cliente a la hoja 'Clientes'
+  // Agregar cliente a la hoja 'Contactos'
   hojaClietnes.getRange(rowMaximaClientes, 1, 1, values.length).setValues([values]);
 
   // Verificar datos obligatorios después de agregar el cliente
@@ -190,7 +190,7 @@ function buscarClientes(terminoBusqueda,hojaA) {
   var resultados = [];
 
   if(hojaA==="Inactivar"){
-    var sheet = spreadsheet.getSheetByName('Clientes');
+    var sheet = spreadsheet.getSheetByName('Contactos');
   }else{
 
     var sheet = spreadsheet.getSheetByName('ClientesInvalidos');
@@ -525,9 +525,9 @@ function obtenerTipoDePersona(e){
 }
 
 function saveClientData(formData) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Clientes');
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Contactos');
   if (!sheet) {
-    throw new Error('La hoja "Clientes" no existe.');
+    throw new Error('La hoja "Contactos" no existe.');
   }
 
   // Validaciones de seguridad del lado del servidor
@@ -548,8 +548,8 @@ function saveClientData(formData) {
     return { success: false, message: 'Por favor seleccione una población válida para la provincia.' };
   }
 
-  let existe = verificarCodigo(formData.numeroIdentificacion, "Clientes", false);
-  let existeC=verificarCodigo(formData.codigoContacto, "Clientes", false,null,"codigo");
+  let existe = verificarCodigo(formData.numeroIdentificacion, "Contactos", false);
+  let existeC=verificarCodigo(formData.codigoContacto, "Contactos", false,null,"codigo");
   if (existe) {
     return { success: false, message: 'El Número de Identificación ya existe. Por favor ingrese un número único.' };
   }else if(existeC){
@@ -670,10 +670,7 @@ function verificarDatosObligatoriosProductos(e){
     } else {
       let status = estaCompleto ? "Valido" : "No Valido";
       if (status=="Valido"){
-        sheet.getRange(rowEditada, 6).setValue("=D"+rowEditada+"*E"+rowEditada+"+D"+rowEditada); // Guarda el precio con IVA
-
-    
-        sheet.getRange(rowEditada, 7).setValue("=F"+rowEditada+"-D"+rowEditada); // Guarda el valor de los impuestos
+        sheet.getRange(rowEditada, 9).setValue("=F"+rowEditada+"*H"+rowEditada+"+F"+rowEditada); // Guarda el precio con IVA    
       }
       sheet.getRange(rowEditada, 1).setValue(status); // Establecer valor en "Estado"
     }
@@ -802,7 +799,7 @@ function getCustomerInformation(customer) {
   var paisCliente= datos_sheet.getRange("S2").getValue();
 
   if (IdentificationType == "#NUM!") {
-    Browser.msgBox("ERROR: Seleccione Tipo de Identificacion en Clientes")
+    Browser.msgBox("ERROR: Seleccione Tipo de Identificacion en Contactos")
     return;
   }
   let valorFecha=ObtenerFecha()

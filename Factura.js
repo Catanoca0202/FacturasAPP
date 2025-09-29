@@ -914,10 +914,10 @@ function verificarCodigo(codigo, nombreHoja, inHoja,lineEditada=null,codigoV="")
     let pruebaPostRow=0
     Logger.log(lastActiveRow+"last acitrive row")
     // Determinar la columna y el rango según el tipo de hoja
-    if (nombreHoja === "Clientes" && codigoV!=="codigo") {
+    if (nombreHoja === "Contactos" && codigoV!=="codigo") {
       columna = 6; // Columna para el identificador de clientes
       rangeDatos = sheet.getRange(2, columna, lastActiveRow - (inHoja ? 2 : 1));
-    }else if(nombreHoja==="Clientes" && codigoV==="codigo"){
+    }else if(nombreHoja==="Contactos" && codigoV==="codigo"){
       columna = 7;//columna codigo
       rangeDatos = sheet.getRange(2, columna, lastActiveRow - (inHoja ? 2 : 1));
     } else if (nombreHoja === "Productos") {
@@ -942,8 +942,6 @@ function verificarCodigo(codigo, nombreHoja, inHoja,lineEditada=null,codigoV="")
     Logger.log(codigoNumero)
     // Verificar si algún valor en datos es exactamente igual al código
     for (let i = 0; i < datos.length; i++) {
-      Logger.log("Datos i; "+"i:"+i+"datos: "+datos[i])
-      
       if (datos[i] === codigoNumero) {
         if(i===lineEditada-2){
           Logger.log("dentro de continue")
@@ -1132,7 +1130,7 @@ function limpiarYEliminarFila(numeroFila,hoja,hojaTax){
 
 function verificarYCopiarContacto(e) {
   let hojaFacturas = e.source.getSheetByName('Factura');
-  let hojaContactos = e.source.getSheetByName('Clientes');
+  let hojaContactos = e.source.getSheetByName('Contactos');
   let celdaEditada = e.range;
 
 
