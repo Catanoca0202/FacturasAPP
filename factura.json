@@ -1,0 +1,106 @@
+{
+    "textCustomerObservations": "Observaciones de Datos de Facturación",
+    "invoiceNumber": "RRR90",
+    "currentNumber": 1,
+    "invoiceDate": "2025-05-15T21:25:44.564Z",
+    "invoiceTime": "09:34:12.0880000",
+    "invoiceExpiration": "2",
+    "invoiceIdTypeRegAEAT": "AI",
+    "invoiceIdTypeRegSIF": null,
+    "contactName": "Juan Camilo Tautiva Ardila",
+    "contacts": [
+        {
+            "contactType": "01",
+            "personType": "01",
+            "companyName": "Lina Maria Castro",
+            "customerCode": "CC-37535677",
+            "identification": "37535677",
+            "tradeName": "Juan Soluciones",
+            "regime": "03",
+            "country": "207",
+            "province": "5102",
+            "population": "32653",
+            "addressCustomer": "Calle falsa 123",
+            "postalCodeCustomer": "100100",
+            "phoneCustomer": "3204367070",
+            "webSite": "lindamar.co",
+            "emailCustomer": "lindamar19@gmail.com"
+        }
+    ],
+    "products": [
+        {
+            "typeUse": "VEN",
+            "reference": "TV LG",
+            "description": "Televisor de 50 pulgadas",
+            "unitPrice": "2599999",
+            "quantity": "4",
+            "subTotal": 10399996,
+            "totalTax": 11335995.64,
+            "totalwithHoldings": 727999.72,
+            "totalSurCharges": 0,
+            "totaldiscount": 519999.8,
+            "taxes": [
+                {
+                    "taxName": "IVA",
+                    "rate": 21,
+                    "taxBase": 10399996,
+                    "valueTax": 2183999.16
+                }
+            ],
+            "withHoldingsSurChargesDto": [
+                {
+                    "idRateWithHoldings": "20",
+                    "subTotalWithHoldings": 10399996,
+                    "cuotaWithHoldings": 727999.72
+                }
+            ],
+            "discountDtoModules": [
+                {
+                    "discountName": "Viernes de gangazos",
+                    "discountRate": 5,
+                    "discountBase": 10399996,
+                    "valueDiscount": 519999.8
+                }
+            ]
+        }
+    ],
+    "idPayment": "EF",
+    "paymentNote": "Observaciones datos de pago",
+    "textObservations": "Otra vez observaciones",
+    "idOperations": "N1",
+    "idOperationsExenta": "E3",
+    "valueExemptBase": "0",
+    "chargeAndDiscount": [
+        {
+            "idtypeFeeDiscount": "CG",
+            "idTypeValueFeeDiscount": "PJ",
+            "baseFeeDiscount": 10399996,
+            "valueFeeDiscount": 1,
+            "totalFeeDiscount": 103999.96
+        }
+    ],
+    "fieldTaxations": [
+        {
+            "taxName": "IVA",
+            "rate": 21,
+            "taxBase": 10399996,
+            "valueTax": 2183999.16
+        }
+    ],
+    "sumTotalSubTotal": 10399996,
+    "sumTotalTaxBase": 10399996,
+    "sumTotalTax": 2183999.16,
+    "sumTotalSubTotalAndTax": 12583995.16,
+    "sumTotalExemptBase": 0,
+    "sumTotalDiscount": 519999.8,
+    "sumTotalCharge": 103999.96,
+    "sumTotalTotal": 12167995.32,
+    "sumTotalNetPayable": 11439995.6,
+    "invoiceTypeId": 0,
+    "invoiceRectificativeTypeId": 0,
+    "typeRectificativeId": 0,
+    "aditionalData": {
+        "invoiceId": 0,
+        "startInvoiceId": 0
+    }
+}

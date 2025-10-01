@@ -143,17 +143,20 @@ function cambiarConfiguracionRegional() {
 }
 
 
-function IniciarFacturasApp() {
-  let respuesta = verficiarPropietario()
-  if (respuesta) {
-    const ui = SpreadsheetApp.getUi();
-    const response = ui.alert(
-      "Instalación",
-      "¿Desea instalar o reinstalar la aplicación?",
-      ui.ButtonSet.YES_NO
-    );
+function IniciarFacturasApp(){
+  let ui = SpreadsheetApp.getUi();
+  
+  let hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Datos de emisor");
 
-    if (response == ui.Button.YES) {
+  if (hoja==null){
+    iniciarHojasFactura()
+    OnOpenSheetInicio()
+    agregarDataValidations()
+    cambiarConfiguracionRegional()
+
+  }else{
+    let respuesta = ui.alert('Si vuelves a instalar, solo se instalaran las hojas no existan o que hayan sido eliminadas?', ui.ButtonSet.YES_NO);
+    if (respuesta == ui.Button.YES) {
       iniciarHojasFactura()
       OnOpenSheetInicio()
       agregarDataValidations()
@@ -179,25 +182,9 @@ function onOpen(e) {
   // }
   Logger.log("ScriptApp.AuthMode.NONE")
   ui.createAddonMenu()
-    .addItem('Inicio', 'showSidebar2')
-    .addItem('Instalar', 'IniciarFacturasApp')
-    .addItem("Desinstalar", "eliminarHojasFactura").addToUi();
-
-  // https://developers.google.com/apps-script/guides/menus
-
-
-
-  //showSidebar()
-
-  Logger.log("no entra a ")
-  //var ss = SpreadsheetApp.getActiveSpreadsheet();
-
-  // var sheet = ss.getSheetByName("Inicio");
-  // SpreadsheetApp.setActiveSheet(sheet);
-
-  // OnOpenVariablesGlobales()
-  // OnOpenSheetInicio()
-  return;
+  .addItem('Inicio', 'showSidebar2')
+  .addItem('Instalar', 'IniciarFacturasApp')
+  .addItem("Desinstalar","eliminarHojasFactura").addToUi();
 }
 
 // function installableOnOpen(e) {
@@ -247,8 +234,8 @@ function showSidebar() {
 }
 
 function showSidebar2() {
-  const usuario = obtenerUsuario()
-  const propietario = obtenerPropietario()
+  const usuario =obtenerUsuario()
+  const propietario= obtenerPropietario()
   console.log("showSidebar2 Enters");
   let ui = SpreadsheetApp.getUi();
   console.log("setActiveSheet2 Inicio");
@@ -259,9 +246,9 @@ function showSidebar2() {
   // var sheet =  SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Inicio");
   // SpreadsheetApp.setActiveSheet(sheet);
   let hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Datos de emisor");
-  Logger.log("hoja " + hoja)
-  Logger.log(typeof (hoja))
-  if (hoja == null) {
+  Logger.log("hoja "+hoja)
+  Logger.log(typeof(hoja))
+  if(hoja==null){
     let respuesta = ui.alert('Primero debes de instalar las hojas necesarias ¿Deseas instalarlas ya?', ui.ButtonSet.YES_NO);
     if (respuesta == ui.Button.YES) {
       iniciarHojasFactura()
@@ -270,12 +257,12 @@ function showSidebar2() {
     } else {
       return
     }
-  } else {
+  }else{
     var template = HtmlService.createTemplateFromFile('main');
-    template.emailPropietario = propietario
+    template.emailPropietario=propietario
     const html = template.evaluate().setTitle('Menú');
     SpreadsheetApp.getUi().showSidebar(html);
-    console.log("showSidebar Exits");
+    console.log("showSidebar Exits"); 
 
   }
 }
@@ -292,6 +279,23 @@ function showVincularCuenta() {
     .setTitle('Vincular cuenta');
   SpreadsheetApp.getUi()
     .showSidebar(html);
+}
+
+function showVincularParaEnviar() {
+  var html = HtmlService.createHtmlOutputFromFile('menuVincularEnvio')
+    .setTitle('Vincular para enviar');
+  SpreadsheetApp.getUi()
+    .showSidebar(html);
+}
+
+function isVinculado() {
+  try {
+    const hoja = SpreadsheetApp.getActive().getSheetByName('Datos de emisor');
+    const estado = String(hoja.getRange('B16').getValue() || '').toLowerCase();
+    return estado === 'vinculado';
+  } catch (err) {
+    return false;
+  }
 }
 
 function showEliminarInfo() {
@@ -638,29 +642,29 @@ function processForm(data) {
     // Columnas J..M: Recargo, Tarifa recargo, Retención, Tarifa retención
     const esProductoTipo = (tipoProducto === 'Producto');
     let recargoFrac = 0;
-    if (aplicarRecargo && !esProductoTipo) {
+    // Recargo solo aplica para Producto (opcional). Servicio: bloqueado y 0.
+    if (aplicarRecargo && esProductoTipo) {
       const ivaPct = Math.round(tarifaImpuestoPct);
       if (ivaPct === 21) recargoFrac = 0.052;
       else if (ivaPct === 10) recargoFrac = 0.014;
       else if (ivaPct === 4) recargoFrac = 0.005;
       else recargoFrac = 0;
     }
-    // Forzar sin recargo si es Producto
-    if (esProductoTipo) {
+    if (!esProductoTipo) {
       aplicarRecargo = false;
       recargoFrac = 0;
     }
     sheet.getRange(newRow, 10).setValue(aplicarRecargo);                   // J: Recargo (checkbox)
     sheet.getRange(newRow, 11).setValue(recargoFrac).setNumberFormat('0%'); // K: Tarifa recargo
 
-    // Apariencia de J y K según tipo (gris si Producto)
+    // Apariencia de J y K según tipo (gris si Servicio)
     const jRangeNew = sheet.getRange(newRow, 10);
     const kRangeNew = sheet.getRange(newRow, 11);
     const gris = '#e0e0e0';
     const blanco = '#ffffff';
-    if (esProductoTipo) {
+    if (!esProductoTipo) {
       jRangeNew.setValue(false);
-      jRangeNew.setNote('No aplica para tipo Producto');
+      jRangeNew.setNote('No aplica para tipo Servicio');
       jRangeNew.setBackground(gris);
       kRangeNew.setValue(0);
       kRangeNew.setBackground(gris);
@@ -878,7 +882,7 @@ function onEdit(e) {
               } else {
                 factura_sheet.getRange("I" + String(i)).setValue("0"); // Recargo en 0
               }
-              factura_sheet.getRange("J" + String(i)).setValue("=(E" + String(i) + "+F" + String(i) + "-G" + String(i) + "-(E" + String(i) + "*H" + String(i) + ")+I" + String(i) + ")"); // Importe
+              factura_sheet.getRange("J" + String(i)).setValue("=(E" + String(i) + "+F" + String(i) + "+I" + String(i) + ")"); // Importe de linea
             } else {
               factura_sheet.getRange("A" + String(i)).setValue(dictInformacionProducto["codigo Producto"]);
               factura_sheet.getRange("D" + String(i)).setValue(dictInformacionProducto["valor Unitario"]); // Precio unitario
@@ -894,7 +898,7 @@ function onEdit(e) {
               } else {
                 factura_sheet.getRange("I" + String(i)).setValue("0"); // Recargo en 0
               }
-              factura_sheet.getRange("J" + String(i)).setValue("=(E" + String(i) + "+F" + String(i) + "-G" + String(i) + "-(E" + String(i) + "*H" + String(i) + ")+I" + String(i) + ")"); // Importe
+              factura_sheet.getRange("J" + String(i)).setValue("=(E" + String(i) + "+F" + String(i) + "+I" + String(i) + ")"); // Importe de linea
             }
           }
 
@@ -950,7 +954,7 @@ function onEdit(e) {
       if (lastRowProducto === productStartRow) {
         Logger.log("dentro de agg info para TOTLA pero last y start son iguales")
         // //ESTADO DEAFULT no se hace nada
-        hojaActual.getRange("B31").setValue("=SUM(J15)+C29-B18")
+        hojaActual.getRange("B31").setValue("=J15-A15-D29+C29")
         // Asegurar actualización de tablas y totales también con 1 producto
         calcularImporteYTotal(lastRowProducto, productStartRow, taxSectionStartRow, hojaActual)
       } else {
@@ -1254,48 +1258,44 @@ function aplicarReglaRecargoProductos(e) {
 
     // Columna D (4): Tipo producto; Columna J (10): Checkbox recargo
     const tipoProducto = String(hoja.getRange(fila, 4).getValue() || '');
-    const esProducto = /producto/i.test(tipoProducto);
+  const esProducto = /producto/i.test(tipoProducto);
     const jRange = hoja.getRange(fila, 10); // checkbox recargo (J)
     const kRange = hoja.getRange(fila, 11); // porcentaje recargo (K)
     const ivaRange = hoja.getRange(fila, 8); // H: Tarifa IVA (fracción)
     const gris = '#e0e0e0';
     const blanco = '#ffffff';
 
-    if (esProducto) {
-      // Deshabilitar J y K visualmente y lógicamente SIEMPRE que cambie D o al abrir onEdit
-      const wasTrue = jRange.getValue() === true;
-      jRange.setValue(false);
-      jRange.setNote('No aplica para tipo Producto');
-      jRange.setBackground(gris);
-      kRange.setValue(0);
-      kRange.setBackground(gris);
-      // También desactivar validaciones si existieran en K
-      try { kRange.clearDataValidations(); } catch (_err) { }
-      if (col === 10 && wasTrue) {
-        SpreadsheetApp.getUi().alert('La tarifa de recargo no aplica para tipo Producto. Se desmarcará.');
-      }
-    } else {
-      // Habilitar J y K visualmente
-      jRange.setBackground(blanco);
-      kRange.setBackground(blanco);
-      jRange.setNote('');
-      // Si el usuario marca J, poner recargo según IVA de la fila
-      try {
-        const marcado = jRange.getValue() === true;
-        if (marcado) {
-          const ivaFrac = Number(ivaRange.getValue() || 0);
-          let recargoFrac = 0;
-          const ivaPct = Math.round(ivaFrac * 100);
-          if (ivaPct === 21) recargoFrac = 0.052;
-          else if (ivaPct === 10) recargoFrac = 0.014;
-          else if (ivaPct === 4) recargoFrac = 0.005;
-          else recargoFrac = 0;
-          kRange.setValue(recargoFrac).setNumberFormat('0%');
-        } else {
-          // Desmarcado: dejar el valor actual o 0, sin bloquear
-        }
-      } catch (err) { Logger.log('Auto recargo por IVA: ' + err); }
+  if (!esProducto) {
+    // Servicio: bloquear recargo
+    const wasTrue = jRange.getValue() === true;
+    jRange.setValue(false);
+    jRange.setNote('No aplica para tipo Servicio');
+    jRange.setBackground(gris);
+    kRange.setValue(0);
+    kRange.setBackground(gris);
+    try { kRange.clearDataValidations(); } catch (_err) { }
+    if (col === 10 && wasTrue) {
+      SpreadsheetApp.getUi().alert('La tarifa de recargo no aplica para tipo Servicio. Se desmarcará.');
     }
+  } else {
+    // Producto: permitir recargo opcional
+    jRange.setBackground(blanco);
+    kRange.setBackground(blanco);
+    jRange.setNote('');
+    try {
+      const marcado = jRange.getValue() === true;
+      if (marcado) {
+        const ivaFrac = Number(ivaRange.getValue() || 0);
+        let recargoFrac = 0;
+        const ivaPct = Math.round(ivaFrac * 100);
+        if (ivaPct === 21) recargoFrac = 0.052;
+        else if (ivaPct === 10) recargoFrac = 0.014;
+        else if (ivaPct === 4) recargoFrac = 0.005;
+        else recargoFrac = 0;
+        kRange.setValue(recargoFrac).setNumberFormat('0%');
+      }
+    } catch (err) { Logger.log('Auto recargo por IVA: ' + err); }
+  }
   } catch (err) {
     Logger.log('Error aplicarReglaRecargoProductos: ' + err);
   }
@@ -1369,38 +1369,70 @@ function validarEmailDeCelda(e) {
 }
 
 function eliminarProductos() {
-  //mirar cuando solo hay 1 fila
-  let spreadsheet = SpreadsheetApp.getActive();
-  let factura_sheet = spreadsheet.getSheetByName('Factura');
-  const productStartRow = 15; // prodcutos empeiza aca
-  let taxSectionStartRow = getTaxSectionStartRow(factura_sheet); // Assuming products end at column H
-  let posRowTerminaProductos = taxSectionStartRow - 4//poscion (row) de Total productos
-  Logger.log("posRowTotalProductos" + posRowTerminaProductos)
-  if (posRowTerminaProductos == 15) {
-    SpreadsheetApp.getUi().alert('No puedes eliminar hojas cuando solo hay un producto en la factura');
-  } else {
-    let range = factura_sheet.getRange("L15:L" + String(posRowTerminaProductos))
-    let values = range.getValues()
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName('Factura');
 
-    for (let i = values.length - 1; i >= 0; i--) {
-      if (values[i][0] === true) {
-        Logger.log(i + productStartRow)
-        factura_sheet.deleteRow(i + productStartRow); // Elimina la fila correspondiente
-      }
+  const productStartRow = 15; 
+  let taxSectionStartRow = getTaxSectionStartRow(sh);
+  let lastProductRow = getLastProductRow(sh, productStartRow, taxSectionStartRow);
+
+  let totalProductos = lastProductRow - productStartRow + 1;
+  if (totalProductos <= 1) {
+    SpreadsheetApp.getUi().alert('No puedes eliminar filas cuando solo hay un producto en la factura');
+    return;
+  }
+
+  const range = sh.getRange(productStartRow, FACTURA_CHECKBOX_COL, totalProductos, 1);
+  const values = range.getValues();
+  let rowsSeleccionadas = [];
+
+  for (let i = 0; i < values.length; i++) {
+    let celda = values[i][0];
+    if (celda && typeof celda === 'object' && 'value' in celda) {
+      celda = celda.value;
+    }
+    const normalizado = celda === true || String(celda).toLowerCase() === 'true';
+    if (normalizado) {
+      rowsSeleccionadas.push(productStartRow + i);
     }
   }
+
+  rowsSeleccionadas = [...new Set(rowsSeleccionadas)];
+
+  const seleccionados = rowsSeleccionadas.length;
+
+  if (seleccionados === 0) {
+    SpreadsheetApp.getUi().alert('Selecciona al menos una fila a eliminar (columna Eliminar).');
+    return;
+  }
+
+  if (seleccionados >= totalProductos) {
+    SpreadsheetApp.getUi().alert('Debes dejar al menos un producto en la factura');
+    return;
+  }
+
+  rowsSeleccionadas.sort((a,b) => b - a);
+  rowsSeleccionadas.forEach(row => {
+    sh.deleteRow(row);
+  });
+
+  taxSectionStartRow = getTaxSectionStartRow(sh);
+  lastProductRow = getLastProductRow(sh, productStartRow, taxSectionStartRow);
+  calcularImporteYTotal(lastProductRow, productStartRow, taxSectionStartRow, sh);
+  updateTotalProductCounter(lastProductRow, productStartRow, sh, taxSectionStartRow);
 }
+
 
 function DesvincularFacturasApp() {
   Logger.log("Desvincular")
   let spreadsheet = SpreadsheetApp.getActive();
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
-  let estadoVinculacion = hojaDatosEmisor.getRange("B15").getValue();
+  let estadoVinculacion = hojaDatosEmisor.getRange("B16").getValue();
   if (estadoVinculacion == "Desvinculado") {
     SpreadsheetApp.getUi().alert('Tu estado ya es Desvinculado');
   } else {
-    hojaDatosEmisor.getRange("B15").setBackground('#FFC7C7')
-    hojaDatosEmisor.getRange("B15").setValue("Desvinculado")
+    hojaDatosEmisor.getRange("B16").setBackground('#FFC7C7')
+    hojaDatosEmisor.getRange("B16").setValue("Desvinculado")
     SpreadsheetApp.getUi().alert('Haz desvinculado exitosamente facturasApp ');
   }
 }
@@ -1437,8 +1469,8 @@ function eliminarTotalidadInformacion() {
   borrarInfoHoja(ClientesInvalidos)
   borrarInfoHoja(hojaDatosEmisor)
   eliminarCarpetaConDriveAPI()
-  hojaDatosEmisor.getRange("B15").setBackground('#FFC7C7')
-  hojaDatosEmisor.getRange("B15").setValue("Desvinculado")
+  hojaDatosEmisor.getRange("B16").setBackground('#FFC7C7')
+  hojaDatosEmisor.getRange("B16").setValue("Desvinculado")
   SpreadsheetApp.getUi().alert('Informacion eliminada correctamente');
 
 
@@ -1595,6 +1627,7 @@ function calcularImporteYTotal(lastRowProducto, productStartRow, taxSectionStart
   hojaActual.getRange("C" + String(rowTotalBaseImponibleEIvaGeneral)).setValue("=SUM(C" + String(rowParaFormulaBaseImponible) + ":C" + String(rowEspacioIvasAgrupacion) + ")")
 
   let rowParaTotales = taxSectionStartRow + 10
+
   //total retenciones
   hojaActual.getRange("A" + String(rowParaTotales)).setValue("=SUM(G15:G" + String(lastRowProducto) + ")")
 
@@ -1603,13 +1636,22 @@ function calcularImporteYTotal(lastRowProducto, productStartRow, taxSectionStart
 
   //total descuentos FACTURA
   let rowDescuentos = taxSectionStartRow - 1
-  hojaActual.getRange("D" + String(rowParaTotales)).setValue("=B" + String(rowDescuentos) + "+(SUMPRODUCT(F15:F" + String(lastRowProducto) + ";H15:H" + String(lastRowProducto) + "))")
+  hojaActual.getRange("D" + String(rowParaTotales)).setValue("=B" + String(rowDescuentos) + "+(SUMPRODUCT(E15:E" + String(lastRowProducto) + ";H15:H" + String(lastRowProducto) + "))")
 
   //totalfactura
   let rowParaTotalFactura = taxSectionStartRow + 12
-  hojaActual.getRange("B" + String(rowParaTotalFactura)).setValue("=SUM(J15:J" + String(lastRowProducto) + ")+C" + String(rowParaTotales) + "-D" + String(rowParaTotales))
+
+  // Importe total = suma de importes de línea (que ya incluyen IVA y Recargo)
+  hojaActual.getRange("B" + String(rowParaTotalFactura+1)).setValue("=SUM(J15:J" + String(lastRowProducto) + ")")
   // valor bruto = suma de subtotales de productos (columna F)
+
+  // neto a pagar = total factura - descuentos - retenciones
+  hojaActual.getRange("B" + String(rowParaTotalFactura)).setValue("=B" + String(rowParaTotalFactura+1) + "-A" + String(rowParaTotales) + "-D" + String(rowParaTotales) + "+C" + String(rowParaTotales))
+  
+
+
   hojaActual.getRange("F" + String(rowParaTotalFactura)).setValue("=SUM(E15:E" + String(lastRowProducto) + ")")
+
   // limpiar posible residuo previo en G
   try { hojaActual.getRange("G" + String(rowParaTotalFactura)).clearContent(); } catch (_e) { }
 
@@ -2120,6 +2162,13 @@ function getDelivery() {
 
 }
 
+function showModoFacturacion() {
+  var html = HtmlService.createHtmlOutputFromFile('modoFacturacion')
+    .setTitle('Modo de facturación')
+    .setWidth(400);
+  SpreadsheetApp.getUi().showSidebar(html);
+}
+
 function getMeasureUnitCode(measureName) {
   var range = unidades_sheet.getRange("E1");
 
@@ -2247,8 +2296,8 @@ function verificarConsecutivo(entrada, isNumero) {
 function guardarConsecutivo() {
   let spreadsheet = SpreadsheetApp.getActive();
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
-  let letra = hojaDatosEmisor.getRange(23, 1).getValue()
-  let numero = hojaDatosEmisor.getRange(23, 3).getValue()
+  let letra = hojaDatosEmisor.getRange(24, 1).getValue()
+  let numero = hojaDatosEmisor.getRange(24, 3).getValue()
   const scriptProperties = PropertiesService.getDocumentProperties();
   if (verificarConsecutivo(letra, false)) {
     Logger.log("letra valida")
@@ -2301,4 +2350,33 @@ function cumpleEstructura(str) {
 
   // Verificamos si "str" cumple esa estructura
   return regex.test(str);
+}
+
+function cambiarAmbienete(){
+  let spreadsheet = SpreadsheetApp.getActive();
+  let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
+
+  Logger.log("cambiar ambiente")
+  let ui = SpreadsheetApp.getUi();
+  let respuesta = ui.alert('Estas seguro de que quieres cambiar el ambiente?, tendras que volver a inicar sesion', ui.ButtonSet.YES_NO);
+  if (respuesta == ui.Button.YES){
+    //DesvincularFacturasApp()
+    let AmbienteActual = hojaDatosEmisor.getRange("C1002").getValue()
+    if (AmbienteActual == "Produccion"){
+      AmbienteActual = "Pruebas"
+    } else {
+      AmbienteActual = "Produccion"
+    }
+    Logger.log("Ambiente actual "+AmbienteActual)
+    const scriptProps = PropertiesService.getDocumentProperties();
+    scriptProps.setProperties({
+      'Ambiente': AmbienteActual
+    });
+    showVincularCuenta()
+    DesvincularFacturasApp()
+    hojaDatosEmisor.getRange("C1002").setValue(AmbienteActual)
+
+  } else {
+    ui.alert('No se ha cambiado el ambiente');
+  }
 }

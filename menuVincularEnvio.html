@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en" class="h-100">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
+    <meta name="generator" content="Hugo 0.84.0">
+    <title>Vincular cuenta · FacturasApp</title>
+
+    <link href="https://facturasapp.com/Publico/google-sheets-resources/css/bootstrap.css" rel="stylesheet">
+    <link href="https://facturasapp.com/Publico/google-sheets-resources/css/custom.css" rel="stylesheet">
+    <link href="https://facturasapp.com/Publico/google-sheets-resources/css/fontello-codes.css" rel="stylesheet">
+  </head>
+  <script>
+    function Back() {
+      google.script.run.showNuevaFactura();
+    }
+    function showMenuPrincipal() {
+      google.script.run.showSidebar();
+    }
+    function obtenerToken() {
+      let contra = document.getElementById('Contra').value;
+      let usuario = document.getElementById("Usuario").value;
+      google.script.run.withSuccessHandler(() => {
+        // Iniciar polling inmediato tras intento de vinculación
+        iniciarPolling();
+      }).obtenerAPIkey(usuario, contra);
+    }
+    function generarToken() {
+      window.open("https://www.facturasapp.com/Publico/registro");
+    }
+    function togglePasswordVisibility() {
+      const passwordField = document.getElementById('Contra');
+      const checkbox = document.getElementById('togglePassword');
+      passwordField.type = checkbox.checked ? 'text' : 'password';
+    }
+    function abrirSoporte() {
+      window.open('https://soporte.facturasapp.com/hc/es-es/articles/34324157226907-Canales-de-Atenci%C3%B3n');
+    }
+    let pollTimer = null;
+    function iniciarPolling() {
+      if (pollTimer) return;
+      pollTimer = setInterval(() => {
+        google.script.run.withSuccessHandler(function(res){
+          if (res === true) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+            google.script.run.showNuevaFactura();
+          }
+        }).isVinculado();
+      }, 1500);
+    }
+    document.addEventListener('DOMContentLoaded', iniciarPolling);
+  </script>
+  <body class="d-flex h-100">
+
+<div class="assistant-container d-flex w-100 h-100 mx-auto flex-column">
+
+   <header class="mb-auto">
+    <div id="logo" class="d-flex justify-content-center bg-primary">
+      <img src="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/images/logoAssistant.png" alt="">
+    </div>
+
+    <div class="mt-4 px-4 gx-0 d-flex justify-content-between align-items-center">
+              <a href="#"  onclick="Back()" class="btn btn-outline-secondary btn-sm me-2" style="min-width: 120px;"><i class="icon-left"></i> <span>Regresar</span></a>
+              <a onclick="abrirSoporte()" href="#" class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;" data-bs-toggle="tooltip" data-bs-placement="top" title="Soporte"><i class="icon-info"></i></a>
+    </div>
+    <h2 class="mt-4 text-center">Vincular para enviar factura</h2>
+  </header>
+
+ <main>
+
+    <div class="row py-3 px-4 gx-0">
+        <div class="col-12 py-4">
+          <p class="fs-6">Ingresa tus credenciales para vincular tu cuenta. Al completar la vinculación, volverás automáticamente a Nueva factura.</p>
+        </div>
+
+        <div class="col-12 px-0">
+            <form class="row g-3" id="clientForm">
+                <div class="col-12">
+                    <label for="Usuario" class="form-label">Usuario</label>
+                    <input type="text" class="form-control" id="Usuario" placeholder="Ingresa tu usuario">
+                </div>
+
+
+                <div class="col-md-12">
+                  <label for="Contra" class="form-label">Contraseña</label>
+                  <input type="password" class="form-control" id="Contra" placeholder="Ingresa tu contraseña">
+                </div>
+
+                <div class="col-md-6">
+                  <div class="form-check mb-3">
+                    <input type="checkbox" class="form-check-input" id="togglePassword" onclick="togglePasswordVisibility()">
+                    <label class="form-check-label" for="togglePassword">Mostrar contraseña</label>
+                  </div>
+                </div>
+
+
+            </form>
+        </div>
+    </div>
+
+
+  </main>
+
+
+  <footer class="mt-auto">
+    <div class="row p-4 gx-0">
+      <div class="col-6 pe-1">
+        <a href="#" onclick="showMenuPrincipal()" class="btn btn-outline-primary btn-lg w-100 btn-menu">
+          <span class="">Inicio</span>
+          <i class="icon-24-outlined-other-location-home"style="font-size: 20px;"></i>
+        </a>
+      </div>
+      <div class="col-6 ps-1">
+        <a href="#" onclick="obtenerToken()" class="btn btn-primary btn-lg w-100 btn-menu">
+          <span class="">Vincular</span>
+          <i class="icon-24-outlined-editor-other-link-2-1" style="font-size: 20px;"></i>
+        </a>
+      </div>
+    </div>
+  </footer>
+
+
+
+</div>
+
+
+  </body>
+</html>
+
+

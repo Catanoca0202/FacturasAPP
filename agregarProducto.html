@@ -155,7 +155,7 @@
       const tarifaRecargo = document.getElementById('tarifaRecargo');
       if (!tipoProducto || !aplicarRecargo || !tarifaRecargo) return;
       const isServicio = (String(tipoProducto.value).toLowerCase() === 'servicio');
-      if (!isServicio) {
+      if (isServicio) {
         aplicarRecargo.checked = false;
         aplicarRecargo.disabled = true;
         tarifaRecargo.value = '0';
@@ -244,6 +244,13 @@
                 required>
             </div>
 
+            <div class="col-12">
+              <div class="form-check mt-2">
+                <input class="form-check-input" type="checkbox" id="aplicarRecargo" name="aplicarRecargo">
+                <label class="form-check-label" for="aplicarRecargo">Aplicar recargo de equivalencia</label>
+              </div>
+            </div>
+
             <div class="col-6">
               <label for="tipoImpuesto" class="form-label">Tipo de impuesto</label>
               <select id="tipoImpuesto" name="tipoImpuesto" class="form-select form-select-lg" required>
@@ -263,23 +270,19 @@
             </div>
 
             <div class="col-12">
-              <div class="form-check mt-2">
-                <input class="form-check-input" type="checkbox" id="aplicarRecargo" name="aplicarRecargo">
-                <label class="form-check-label" for="aplicarRecargo">Aplicar recargo de equivalencia</label>
-              </div>
+              <label for="retenciones" class="form-label">Tarifa retención</label>
+              <select id="retenciones" name="retenciones" class="form-select form-select-lg">
+                <option selected>Seleccione</option>
+                <option value="7">7%</option>
+                <option value="15">15%</option>
+                <option value="19">19%</option>
+              </select>
             </div>
 
-            <div class="col-6">
+            <div class="col-12">
               <label for="tarifaRecargo" class="form-label">Tarifa recargo equivalencia</label>
               <input type="text" class="form-control form-control-lg" id="tarifaRecargo" name="tarifaRecargo" value="0"
                 readonly>
-            </div>
-
-            <div class="col-6">
-              <label for="retenciones" class="form-label">Tarifa retención</label>
-              <select id="retenciones" name="retenciones" class="form-select form-select-lg">
-                <option value="">Selecciona una opción</option>
-              </select>
             </div>
 
           </form>

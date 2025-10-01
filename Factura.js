@@ -295,51 +295,128 @@ function verificarEstadoValidoFactura() {
 
 
 
-function verificarEstadoCarpeta() {
-  let spreadsheet = SpreadsheetApp.getActive();
-  let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
-  let idCarpeta = hojaDatosEmisor.getRange("B14").getValue();  // Obtenemos el ID de la carpeta desde una celda
-  Logger.log("idCarpeta " + idCarpeta)
-  if (idCarpeta == "") {
-    //hoja toca ver si es la misma que esta en la google drive 
-    SpreadsheetApp.getUi().alert("Necesitas primero crear la carpeta en donde se guardaran las facutras, dirigete a la hoja Datos de emisor y crea la carpeta dandole click al boton crear carpeta")
-    return false
-  } else {
-    Logger.log("la carpeta si existe");
-    return true
+function verificarEstadoValidoFactura() {
+  const spreadsheet = SpreadsheetApp.getActive();
+  const hojaFactura = spreadsheet.getSheetByName('Factura');
+
+  let estaValido = { success: true, message: "" };
+
+  // Campos a verificar
+  const clienteActual = hojaFactura.getRange("B2").getValue();
+  const numFactura = hojaFactura.getRange("G2").getValue();
+  const fechaPago = hojaFactura.getRange("G3").getValue();
+  const fechaEmision = hojaFactura.getRange("G4").getValue();
+  const formaPago = hojaFactura.getRange("G5").getValue();
+  const asesor = hojaFactura.getRange("G8").getValue();
+
+
+  // Verificar cliente
+  if (!clienteActual || clienteActual === "") {
+    estaValido.success = false;
+    estaValido.message = "El cliente actual no está definido.";
+    return estaValido;
   }
 
-}
-
-function guardarFactura() {
-  let spreadsheet = SpreadsheetApp.getActive();
-  let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
-  let estadoVinculacion = hojaDatosEmisor.getRange("B15").getValue();
-  let estadoFactura = verificarEstadoValidoFactura();
-  if (estadoVinculacion == "Desvinculado") {
-    SpreadsheetApp.getUi().alert("Recuerda que antes de poder generar una factura es necesario haber vinculado tu cuenta de FacturasApp")
+  // Verificar número de factura
+  if (!numFactura || numFactura === "") {
+    estaValido.success = false;
+    estaValido.message = "El número de factura no está definido.";
+    return estaValido;
   }
-  else if (estadoFactura.success) {
-    //factura valida
-    // generar json
 
-    let respuesta = verificarEstadoCarpeta()
-    if (respuesta) {
-      guardarYGenerarInvoice()
-      guardarFacturaHistorial()
-      limpiarHojaFactura()
+  // Verificar fecha de pago
+  if (!fechaPago || fechaPago === "") {
+    estaValido.success = false;
+    estaValido.message = "La fecha de pago no está definida.";
+    return estaValido;
+  }
 
-    } else {
-      return
+  // Verificar fecha de emisión
+  if (!fechaEmision || fechaEmision === "") {
+    estaValido.success = false;
+    estaValido.message = "La fecha de emisión no está definida.";
+    return estaValido;
+  }
+
+  // Verificar que la fecha de emisión no sea posterior a la fecha de pago
+  if (new Date(fechaEmision) > new Date(fechaPago)) {
+    estaValido.success = false;
+    estaValido.message = "La fecha de emisión no puede ser posterior a la fecha de pago.";
+    return estaValido;
+  }
+
+  // Verificar forma de pago
+  if (!formaPago || formaPago === "") {
+    estaValido.success = false;
+    estaValido.message = "La forma de pago no está definida.";
+    return estaValido;
+  }
+
+  if (!asesor || asesor === "") {
+    estaValido.success = false;
+    estaValido.message = "Asesor no está definida. Si no tienes asesor, escribe el nombre del contacto en la casilla correspodiente ";
+    return estaValido;
+  }
+
+
+
+  // Verificar productos
+  const totalProductos = hojaFactura.getRange("A16").getValue();
+  if (totalProductos === "Total filas") {
+    const valorTotalProductos = hojaFactura.getRange("B16").getValue();
+    if (valorTotalProductos === 0 || valorTotalProductos === "") {
+      estaValido.success = false;
+      estaValido.message = "No se han agregado productos a la factura.";
+      return estaValido;
     }
-
-
-  } else {
-    SpreadsheetApp.getUi().alert("Error al generar facutra. " + estadoFactura.message)
   }
 
-
+  // Si pasa todas las validaciones, está válido
+  estaValido.success = true;
+  estaValido.message = "Factura válida para guardar.";
+  return estaValido;
 }
+
+
+function guardarFactura(){
+  let spreadsheet = SpreadsheetApp.getActive();
+  let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
+  let estadoVinculacion = hojaDatosEmisor.getRange("B16").getValue();
+  let estadoFactura = verificarEstadoValidoFactura();
+  try {
+    if (estadoVinculacion == "Desvinculado") {
+      SpreadsheetApp.getUi().alert("Recuerda que antes de poder generar una factura es necesario haber vinculado tu cuenta de FacturasApp");
+      try { showVincularParaEnviar(); } catch (_) {}
+      return;
+    }
+    if (estadoFactura.success) {
+      // Validaciones previas a guardar: solo validar consecutivo
+      let consecutivoOk = verificarEstadoConsecutivo();
+      if (consecutivoOk) {
+        guardarYGenerarInvoice();
+        guardarFacturaHistorial();
+        Logger.log("guardar factura");
+        enviarFactura();
+        limpiarHojaFactura();
+        return;
+      } else {
+        SpreadsheetApp.getUi().alert("No fue posible guardar la factura. Verifica el consecutivo configurado.");
+        return;
+      }
+    } else {
+      SpreadsheetApp.getUi().alert("Error al generar factura. " + estadoFactura.message);
+      return;
+    }
+  } catch (error) {
+    let mensaje = String(error && error.message ? error.message : error);
+    if (/TypePerson/i.test(mensaje)) {
+      mensaje = "Error en los datos del cliente: Tipo de persona inválido. Debe ser 'Autonomo' o 'Empresa'. Verifica la columna 'Tipo de persona' en la hoja Clientes.";
+    }
+    SpreadsheetApp.getUi().alert("No se pudo guardar/enviar la factura. " + mensaje);
+    Logger.log("guardarFactura error: " + mensaje);
+  }
+}
+
 function agregarFilaNueva() {
   // 1) Obtener el candado
   const lock = LockService.getScriptLock();
@@ -413,8 +490,8 @@ function agregarProductoDesdeFactura(cantidad, producto) {
     if (recForFormula !== "0" && recForFormula !== "0,0") {
       factura_sheet.getRange("I15").setValue("=(E15*" + recForFormula + ")") // Recargo de equivalencia
     }
-    // Importe línea
-    factura_sheet.getRange("J15").setValue("=(E15+F15-G15-(E15*H15)+I15)")
+    // Importe línea = Subtotal + IVA + Recargo (sin retenciones ni descuentos)
+    factura_sheet.getRange("J15").setValue("=(E15+F15+I15)")
 
   } else {
     hojaFactura.insertRowAfter(lastProductRow)
@@ -435,8 +512,8 @@ function agregarProductoDesdeFactura(cantidad, producto) {
     if (recForFormula !== "0" && recForFormula !== "0,0") {
       factura_sheet.getRange("I" + String(rowParaDatos)).setValue("=(E" + String(rowParaDatos) + "*" + recForFormula + ")")//Recargo de equivalencia
     }
-    // Importe = Subtotal (E) + Impuestos (F) - Retención (G) - Descuento (E*H) + Recargo (I)
-    factura_sheet.getRange("J" + String(rowParaDatos)).setValue("=(E" + String(rowParaDatos) + "+F" + String(rowParaDatos) + "-G" + String(rowParaDatos) + "-(E" + String(rowParaDatos) + "*H" + String(rowParaDatos) + ")+I" + String(rowParaDatos) + ")")//total linea
+    // Importe línea = Subtotal + IVA + Recargo (sin retenciones ni descuentos)
+    factura_sheet.getRange("J" + String(rowParaDatos)).setValue("=(E" + String(rowParaDatos) + "+F" + String(rowParaDatos) + "+I" + String(rowParaDatos) + ")")//total linea
 
   }
 
@@ -449,6 +526,21 @@ function agregarProductoDesdeFactura(cantidad, producto) {
 
   updateTotalProductCounter(rowParaDatos, productStartRow, hojaFactura, rowParaTotalTaxes);
   calcularImporteYTotal(rowParaDatos, productStartRow, rowParaTotalTaxes, hojaFactura)
+}
+
+function verificarEstadoConsecutivo(){
+  const scriptProperties = PropertiesService.getDocumentProperties();
+  numero = scriptProperties.getProperty('NumeroConescutivo');  // Ej: "123"
+  letra  = scriptProperties.getProperty('LetraConescutivo');   // Ej: "abc"
+  Logger.log("numero "+numero)
+  Logger.log("letra "+letra)  
+  if (numero==null || letra==null || numero=="" || letra==""){
+    SpreadsheetApp.getUi().alert("Recuerda que antes de poder generar una factura es necesario guardado un nuevo consecutivo, dirígete a la hoja Datos de emisor y crea un nuevo consecutivo dándole click al botón crear consecutivo")
+    return false
+  }else{
+    Logger.log("la consecutivo si existe");
+    return true
+  }
 }
 
 function onImageClick() {
@@ -480,7 +572,7 @@ function insertarImagenBorrarFila(fila) {
 }
 
 function guardarFacturaHistorial() {
-
+  
   var hojaFactura = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Factura');
   var hojaListado = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Historial Facturas Data');
   var numeroFactura = hojaFactura.getRange("G2").getValue();
@@ -522,16 +614,100 @@ function guardarFacturaHistorial() {
   celdaImagen.setHorizontalAlignment('center');
   celdaImagen.setBorder(true, true, true, true, null, null, null, null);
 
-  var idArchivo = obtenerDatosFactura(numeroFactura);
-  Logger.log("idarchivo" + idArchivo)
-  guardarIdArchivo(idArchivo, numeroFactura);
-
   // var html = HtmlService.createHtmlOutputFromFile('postFactura')
   //   .setTitle('Menú');
   // SpreadsheetApp.getUi()
   //   .showSidebar(html);
-
+  
   showCustomDialog()
+}
+
+function enviarFactura(){
+  var spreadsheet = SpreadsheetApp.getActive();
+  const scriptProps = PropertiesService.getDocumentProperties();
+  let ambiente = scriptProps.getProperty('Ambiente')
+  Logger.log("Ambiente: "+ambiente)
+  
+  // Nuevo endpoint para AddInvoice
+  let url
+  if (ambiente=="Pruebas"){
+    url = "https://facturasapp-qa.cenet.ws/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/AddInvoice"
+  }else{
+    url = "https://www.facturasapp.com/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/AddInvoice";
+  }
+  
+  // Obtener el JSON del nuevo formato desde ListadoEstado
+  let listadoEstado = spreadsheet.getSheetByName('ListadoEstado');
+  let lastRow = listadoEstado.getLastRow();
+  let jsonFieldInvoice = listadoEstado.getRange(lastRow, 13).getValue(); // Columna M donde se guarda el nuevo JSON
+  
+  if (!jsonFieldInvoice) {
+    SpreadsheetApp.getUi().alert("Error: No se encontró el JSON de la factura. Asegúrese de haber generado la factura primero.");
+    return;
+  }
+  
+  let hojaDatos = spreadsheet.getSheetByName('Datos');
+  let APIkey = hojaDatos.getRange("I21").getValue()
+  
+  if (!APIkey) {
+    SpreadsheetApp.getUi().alert("Error: No se encontró la API Key. Asegúrese de haber vinculado su cuenta de FacturasApp.");
+    return;
+  }
+  
+  let opciones = {
+    "method": "post",
+    "contentType": "application/json",
+    "payload": jsonFieldInvoice,
+    "headers": {"X-API-KEY": APIkey},
+    'muteHttpExceptions': true
+  };
+
+  try {
+    Logger.log("URL: " + url);
+    Logger.log("API Key: " + APIkey);
+    Logger.log("Payload length: " + jsonFieldInvoice.length);
+    Logger.log("jsonFieldInvoice"+jsonFieldInvoice)
+    
+    // Verificar que el JSON es válido
+    try {
+      let testJson = JSON.parse(jsonFieldInvoice);
+      Logger.log("JSON válido. Productos: " + testJson.products.length);
+    } catch (parseError) {
+      Logger.log("ERROR: JSON inválido - " + parseError.message);
+      SpreadsheetApp.getUi().alert("Error: El JSON generado no es válido. " + parseError.message);
+      return;
+    }
+    
+    var respuesta = UrlFetchApp.fetch(url, opciones);
+    let responseText = respuesta.getContentText();
+    let responseCode = respuesta.getResponseCode();
+    
+    Logger.log("Status: " + responseCode);
+    Logger.log("Response: " + responseText);
+    
+    if (responseCode === 200) {
+      let responseData = JSON.parse(responseText);
+      if (responseData.isError) {
+        Logger.log("Error de FacturasApp: " + responseData.messages);
+        SpreadsheetApp.getUi().alert("Error de FacturasApp: " + responseData.messages);
+      } else {
+        SpreadsheetApp.getUi().alert("Factura enviada correctamente a FacturasApp. ID: " + responseData.id);
+        if (responseData.id) {
+          Logger.log("Factura creada con ID: " + responseData.id+" y enviada a FacturasApp");
+        }
+      }
+    } else if (responseCode === 500) {
+      Logger.log("Error HTTP 500: " + responseText);
+      SpreadsheetApp.getUi().alert("Ocurrió un error interno del servidor (500).\nPor favor, intenta cerrar sesión y volver a iniciarla en FacturasApp.\nSi el problema persiste, contacta a soporte.");
+    } else {
+      Logger.log("Error HTTP " + responseCode + ": " + responseText);
+      SpreadsheetApp.getUi().alert("Error HTTP " + responseCode + ": " + responseText);
+    }
+  } catch (error) {
+    Logger.log("Error al enviar el JSON a la API: " + error.message);
+    Logger.log("Stack trace: " + error.stack);
+    SpreadsheetApp.getUi().alert("Error al enviar la factura a FacturasApp. Error: " + error.message);
+  }
 }
 
 function guardarIdArchivo(idArchivo, numeroFactura) {
@@ -596,33 +772,105 @@ function convertPdfToBase64(historial = false, row = null) {
   return nuevoJsonData;
 
 }
-function enviarFactura() {
+function enviarFactura(){
   var spreadsheet = SpreadsheetApp.getActive();
-  let url = "https://facturasapp-qa.cenet.ws/ApiGateway/InvoiceSync/v2/LoadInvoice/LoadDocument"
-  let json = convertPdfToBase64()
+  const scriptProps = PropertiesService.getDocumentProperties();
+  let ambiente = scriptProps.getProperty('Ambiente')
+  Logger.log("Ambiente: "+ambiente)
+  
+  // Nuevo endpoint para AddInvoice
+  let url
+  if (ambiente=="Pruebas"){
+    url = "https://facturasapp-qa.cenet.ws/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/AddInvoice"
+  }else{
+    url = "https://www.facturasapp.com/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/AddInvoice";
+  }
+  
+  // Obtener el JSON del nuevo formato desde ListadoEstado
+  let listadoEstado = spreadsheet.getSheetByName('ListadoEstado');
+  let lastRow = listadoEstado.getLastRow();
+  let jsonFieldInvoice = listadoEstado.getRange(lastRow, 13).getValue(); // Columna M donde se guarda el nuevo JSON
+  
+  if (!jsonFieldInvoice) {
+    SpreadsheetApp.getUi().alert("Error: No se encontró el JSON de la factura. Asegúrese de haber generado la factura primero.");
+    return;
+  }
+  
   let hojaDatos = spreadsheet.getSheetByName('Datos');
   let APIkey = hojaDatos.getRange("I21").getValue()
+  
+  if (!APIkey) {
+    SpreadsheetApp.getUi().alert("Error: No se encontró la API Key. Asegúrese de haber vinculado su cuenta de FacturasApp.");
+    return;
+  }
+  
   let opciones = {
     "method": "post",
     "contentType": "application/json",
-    "payload": json,
-    "headers": { "X-API-KEY": APIkey },
+    "payload": jsonFieldInvoice,
+    "headers": {"X-API-KEY": APIkey},
     'muteHttpExceptions': true
   };
 
   try {
+    Logger.log("URL: " + url);
+    Logger.log("API Key: " + APIkey);
+    Logger.log("Payload length: " + jsonFieldInvoice.length);
+    Logger.log("jsonFieldInvoice"+jsonFieldInvoice)
+    
+    // Verificar que el JSON es válido
+    try {
+      let testJson = JSON.parse(jsonFieldInvoice);
+      Logger.log("JSON válido. Productos: " + testJson.products.length);
+    } catch (parseError) {
+      Logger.log("ERROR: JSON inválido - " + parseError.message);
+      SpreadsheetApp.getUi().alert("Error: El JSON generado no es válido. " + parseError.message);
+      return;
+    }
+    
     var respuesta = UrlFetchApp.fetch(url, opciones);
-    Logger.log(respuesta.status); // Muestra la respuesta de la API en los logs
-    SpreadsheetApp.getUi().alert("Factura enviada correctamente a FacturasApp. Si desea verla ingrese a https://facturasapp-qa.cenet.ws/Aplicacion/");
+    let responseText = respuesta.getContentText();
+    let responseCode = respuesta.getResponseCode();
+    
+    Logger.log("Status: " + responseCode);
+    Logger.log("Response: " + responseText);
+    
+    if (responseCode === 200) {
+      let responseData = JSON.parse(responseText);
+      if (responseData.isError) {
+        Logger.log("Error de FacturasApp: " + responseData.messages);
+        SpreadsheetApp.getUi().alert("Error de FacturasApp: " + responseData.messages);
+      } else {
+        SpreadsheetApp.getUi().alert("Factura enviada correctamente a FacturasApp. ID: " + responseData.id);
+        if (responseData.id) {
+          //Logger.log("Factura creada con ID: " + responseData.id+" y enviada a FacturasApp");
+        }
+      }
+    } else if (responseCode === 500) {
+      Logger.log("Error HTTP 500: " + responseText);
+      SpreadsheetApp.getUi().alert("Ocurrió un error interno del servidor (500).\nPor favor, intenta cerrar sesión y volver a iniciarla en FacturasApp.\nSi el problema persiste, contacta a soporte.");
+    } else {
+      Logger.log("Error HTTP " + responseCode + ": " + responseText);
+      SpreadsheetApp.getUi().alert("Error HTTP " + responseCode + ": " + responseText);
+    }
   } catch (error) {
     Logger.log("Error al enviar el JSON a la API: " + error.message);
-    SpreadsheetApp.getUi().alert("Error al enviar la factura a FacturasApp. Intente de nuevo si el error presiste comuniquese con soporte");
+    Logger.log("Stack trace: " + error.stack);
+    SpreadsheetApp.getUi().alert("Error al enviar la factura a FacturasApp. Error: " + error.message);
   }
 }
 
+
 function enviarFacturaHistorial(numeroFactura) {
   let spreadsheet = SpreadsheetApp.getActive()
-  let url = "https://facturasapp-qa.cenet.ws/ApiGateway/InvoiceSync/v2/LoadInvoice/LoadDocument"
+  const scriptProps = PropertiesService.getDocumentProperties();
+  let ambiente = scriptProps.getProperty('Ambiente');
+  let url;
+  if (ambiente == "Pruebas"){
+    url = "https://facturasapp-qa.cenet.ws/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/AddInvoice";
+  } else {
+    url = "https://www.facturasapp.com/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/AddInvoice";
+  }
   let hojafFacturasID = spreadsheet.getSheetByName('Facturas ID');
   let lastRow = hojafFacturasID.getLastRow()
   let rangeFacturasID = hojafFacturasID.getRange(2, 1, lastRow - 1)
@@ -649,7 +897,7 @@ function enviarFacturaHistorial(numeroFactura) {
   try {
     var respuesta = UrlFetchApp.fetch(url, opciones);
     Logger.log(respuesta.status); // Muestra la respuesta de la API en los logs
-    SpreadsheetApp.getUi().alert("Factura enviada correctamente a FacturasApp. Si desea verla ingrese a https://facturasapp-qa.cenet.ws/Aplicacion/");
+    SpreadsheetApp.getUi().alert("Factura enviada correctamente a FacturasApp.");
   } catch (error) {
     Logger.log("Error al enviar el JSON a la API: " + error.message);
     SpreadsheetApp.getUi().alert("Error al enviar la factura a FacturasApp. Intente de nuevo si el error presiste comuniquese con soporte");
@@ -678,7 +926,14 @@ function obtenerAPIkey(usuario, contra) {
   let spreadsheet = SpreadsheetApp.getActive();
   let hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
   let hojaDatos = spreadsheet.getSheetByName("Datos")
-  let url = "https://facturasapp-qa.cenet.ws/ApiGateway/AppSecurity/ApiKey";
+  const scriptProps = PropertiesService.getDocumentProperties();
+  let ambiente = scriptProps.getProperty('Ambiente');
+  let url;
+  if (ambiente == "Pruebas"){
+    url = "https://facturasapp-qa.cenet.ws/ApiGateway/AppSecurity/ApiKey";
+  } else {
+    url = "https://www.facturasapp.com/ApiGateway/AppSecurity/ApiKey";
+  }
   let json = jsonAPIkey(usuario, contra);
   let opciones = {
     "method": "post",
@@ -704,19 +959,20 @@ function obtenerAPIkey(usuario, contra) {
       let apiKey = respuestaJson[0]; // Extrae el API Key
       Logger.log("API Key obtenida: " + apiKey);
       SpreadsheetApp.getUi().alert("Se ha vinculado tu cuenta exitosamente");
-      hojaDatosEmisor.getRange("B15").setBackground('#ccffc7')  // Almacena el API Key en la celda
-      hojaDatosEmisor.getRange("B15").setValue("Vinculado")
+      hojaDatosEmisor.getRange("B16").setBackground('#ccffc7')
+      hojaDatosEmisor.getRange("B16").setValue("Vinculado")
       hojaDatos.getRange("I21").setValue(apiKey)
+      try { showNuevaFactura(); } catch (_) {}
     } else {
-      hojaDatosEmisor.getRange("B15").setBackground('#FFC7C7')
-      hojaDatosEmisor.getRange("B15").setValue("Desvinculado")
+      hojaDatosEmisor.getRange("B16").setBackground('#FFC7C7')
+      hojaDatosEmisor.getRange("B16").setValue("Desvinculado")
       throw new Error("Error de la API: " + contenidoRespuesta); // Muestra el error de la API
 
     }
   } catch (error) {
     Logger.log("Error al enviar el JSON a la API: " + error.message);
-    hojaDatosEmisor.getRange("B15").setBackground('#FFC7C7')
-    hojaDatosEmisor.getRange("B15").setValue("Desvinculado")
+    hojaDatosEmisor.getRange("B16").setBackground('#FFC7C7')
+    hojaDatosEmisor.getRange("B16").setValue("Desvinculado")
     SpreadsheetApp.getUi().alert("Error al vincular tu cuenta. Verifica que el usuario y la contraseña estén correctos e intenta de nuevo. Si el error persiste, comunícate con soporte.");
   }
 }
@@ -1098,7 +1354,7 @@ function limpiarHojaFactura() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const hojaFactura = spreadsheet.getSheetByName('Factura');
   const copiaFactura = spreadsheet.getSheetByName('Copia de Factura');
-  const hojaInicio = spreadsheet.getSheetByName('Inicio');
+  const hojaInicio=spreadsheet.getSheetByName('Inicio');
 
   if (!copiaFactura) {
     Logger.log("No se encontró la hoja 'Copia facturas'.");
@@ -1109,7 +1365,7 @@ function limpiarHojaFactura() {
   if (hojaFactura) {
     spreadsheet.deleteSheet(hojaFactura);
   }
-
+  
   // Copiar la hoja "Copia facturas" como nueva hoja llamada "Factura"
   const nuevaHojaFactura = copiaFactura.copyTo(spreadsheet);
   nuevaHojaFactura.setName('Factura');
@@ -1205,20 +1461,24 @@ function generarNumeroFactura() {
         ultimoConsecutivo = consecutivo; // Guardamos el último número en formato original
       }
     }
-    let numeroActual = 0
-    if (numeroMayor == -Infinity) {
-      const scriptProperties = PropertiesService.getDocumentProperties();
-      numero = scriptProperties.getProperty('NumeroConescutivo');  // Ej: "123"
-      letra = scriptProperties.getProperty('LetraConescutivo');   // Ej: "abc"
-      let consecutivo = letra + numero
-      numeroActual = consecutivo
-    } else {
-      numeroActual = numeroMayor + 1;
-    }
-    let nuevoConsecutivo = generarNuevoConsecutivo(ultimoConsecutivo, numeroActual);
-
-    sheet.getRange("G2").setValue(nuevoConsecutivo);
   }
+
+  // Calcular el siguiente consecutivo DESPUÉS de recorrer el historial
+  let nuevoConsecutivo = "";
+  if (numeroMayor === -Infinity) {
+    // No hay facturas previas en el historial. Usar el prefijo y longitud
+    // configurados en las propiedades del script para construir el valor base.
+    const scriptProperties = PropertiesService.getDocumentProperties();
+    let numeroBase = String(scriptProperties.getProperty('NumeroConescutivo') || "1");
+    let letraBase = String(scriptProperties.getProperty('LetraConescutivo') || "FCT");
+    nuevoConsecutivo = letraBase + numeroBase; // Primer número según configuración
+  } else {
+    // Existe historial: incrementar manteniendo formato
+    nuevoConsecutivo = generarNuevoConsecutivo(ultimoConsecutivo, numeroMayor + 1);
+  }
+
+  // Escribir una sola vez en la celda de número de factura
+  sheet.getRange("G2").setValue(nuevoConsecutivo);
 }
 
 // Extrae la parte numérica de una cadena
@@ -1312,6 +1572,139 @@ function obtenerDatosProductos(sheet, range, e) {
 
 }
 
+function obtenerIdRateWithHoldings(valorRetencion, tipoWithHolding) {
+  // Mapeo según la tabla de configuración
+  // tipoWithHolding: 10 = Retención, 11 = Recargo de equivalencia
+  
+  // Convertir a número y redondear para evitar problemas de precisión
+  let valor = Math.round(Number(valorRetencion) * 10) / 10;
+  
+  if (tipoWithHolding === 10) { // Retención
+    switch (valor) {
+      case 7:
+        return "20";
+      case 15:
+        return "21";
+      case 19:
+        return "22";
+      default:
+        Logger.log("Valor de retención no reconocido: " + valor + ". Usando código por defecto 20");
+        return "20"; // Valor por defecto
+    }
+  } else if (tipoWithHolding === 11) { // Recargo de equivalencia
+    switch (valor) {
+      case 5.2:
+        return "23";
+      case 1.4:
+        return "24";
+      case 0.5:
+        return "25";
+      case 1.75:
+        return "26";
+      default:
+        Logger.log("Valor de recargo de equivalencia no reconocido: " + valor + ". Usando código por defecto 23");
+        return "23"; // Valor por defecto
+    }
+  }
+  
+  Logger.log("Tipo de withholding no reconocido: " + tipoWithHolding + ". Usando código por defecto 20");
+  return "20"; // Valor por defecto si no coincide
+}
+
+function mapIdPaymentCode(medioPagoTxt){
+  if(!medioPagoTxt) return "ND"; // No definido
+  const normalizado = String(medioPagoTxt).toLowerCase().trim();
+  switch(normalizado){
+    case 'Efectivo':
+      return 'EF';
+    case 'Transferencia bancaria':
+      return 'TF';
+    case 'Tarjeta bancaria':
+    case 'tarjeta':
+      return 'TB';
+    case 'Domiciliación bancaria':
+    case 'Domiciliacion bancaria':
+      return 'DB';
+    case 'PayPal':
+      return 'PP';
+    case 'Talón':
+    case 'Talon':
+      return 'TL';
+    case 'Factoring':
+      return 'FR';
+    case 'Confirming':
+      return 'CF';
+    case 'No definido':
+    default:
+      return 'ND';
+  }
+}
+
+// Normaliza valores tipo porcentaje a fracción (0.xx). Acepta 21, '21%', '0,21', 0.21
+function parsePercentValue(value){
+  if (typeof value === 'number') {
+    if (isNaN(value)) return 0;
+    return value > 1 ? value / 100 : value;
+  }
+  if (typeof value === 'string') {
+    var v = value.replace('%','').replace(',', '.').trim();
+    var n = Number(v);
+    if (isNaN(n)) return 0;
+    return n > 1 ? n / 100 : n;
+  }
+  return 0;
+}
+
+function parseNumberCell(value){
+  if (typeof value === 'number') {
+    return Number(isNaN(value) ? 0 : value);
+  }
+  if (typeof value === 'string') {
+    var cleaned = value.replace(/[^0-9,.-]/g, '').trim();
+    if (cleaned.indexOf(',') !== -1 && cleaned.indexOf('.') === -1) {
+      cleaned = cleaned.replace(',', '.');
+    } else if (cleaned.indexOf(',') !== -1 && cleaned.indexOf('.') !== -1) {
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    }
+    var n = Number(cleaned);
+    return Number(isNaN(n) ? 0 : n);
+  }
+  return 0;
+}
+
+// Mapeos a códigos de 2 caracteres esperados por la API
+function mapPersonType(tipoPersonaTxt){
+  var t = String(tipoPersonaTxt || '').toLowerCase().trim();
+  if (t === 'autonomo' || t === 'autónomo' || t === 'persona fisica' || t === 'persona física') return '01';
+  if (t === 'empresa' || t === 'persona juridica' || t === 'persona jurídica') return '02';
+  return '01';
+}
+
+function mapIdentificationTypeES(tipoDocTxt){
+  var t = String(tipoDocTxt || '').toLowerCase().trim();
+  if (t.indexOf('dni') !== -1) return '01';
+  if (t.indexOf('nie') !== -1) return '02';
+  if (t.indexOf('cif') !== -1 || t.indexOf('nif-iva') !== -1 || t.indexOf('nif') !== -1) return '03';
+  if (t.indexOf('pasaporte') !== -1) return '04';
+  return '03';
+}
+
+function mapContactTypeES(tipoContactoTxt){
+  var t = String(tipoContactoTxt || '').toLowerCase().trim();
+  if (t.indexOf('cliente') !== -1) return '01';
+  if (t.indexOf('proveedor') !== -1) return '02';
+  return '01';
+}
+
+function mapRegimeES(regimenTxt){
+  var t = String(regimenTxt || '').toLowerCase().trim();
+  if (!t) return '03'; // General por defecto
+  if (t.indexOf('general') !== -1) return '03';
+  if (t.indexOf('exento') !== -1) return '01';
+  if (t.indexOf('simplificado') !== -1) return '02';
+  return '03';
+}
+
 function getprefacturaValueA1(column, row) {
   return getsheetValueA1(prefactura_sheet, column, row);
 }
@@ -1379,277 +1772,427 @@ function getPaymentSummary(startingRowTaxation) {
   return PaymentSummary;
 }
 
-function guardarYGenerarInvoice() {
+function guardarYGenerarInvoice(){
   let spreadsheet = SpreadsheetApp.getActive();
   let listadoestado_sheet = spreadsheet.getSheetByName('ListadoEstado');
   let prefactura_sheet = spreadsheet.getSheetByName('Factura');
-  //obtener el total de prodcutos
-  let posicionTotalProductos = prefactura_sheet.getRange("A16").getValue(); // para verificar donde esta el TOTAL
-  if (posicionTotalProductos === "Total filas") {
-    Logger.log("entra al primer if de json")
-    var cantidadProductos = prefactura_sheet.getRange("B16").getValue();// cantidad total de productos 
+  let FacturaDatos = spreadsheet.getSheetByName('Datos de emisor');
+
+  // Obtener el total de productos
+  let posicionTotalProductos = prefactura_sheet.getRange("A16").getValue();
+  let cantidadProductos;
+  if (posicionTotalProductos === "Total filas"){
+    cantidadProductos = prefactura_sheet.getRange("B16").getValue();
   } else {
-    let startingRowTax = getTaxSectionStartRow(prefactura_sheet)
-    let posicionTotalProductos = startingRowTax - 3
-    var cantidadProductos = prefactura_sheet.getRange("B" + String(posicionTotalProductos)).getValue();// cantidad total de productos
-
+    let startingRowTax = getTaxSectionStartRow(prefactura_sheet);
+    let posicionTotalProductos = startingRowTax - 3;
+    cantidadProductos = prefactura_sheet.getRange("B" + String(posicionTotalProductos)).getValue();
   }
 
-  let llavesParaLinea = prefactura_sheet.getRange("A14:K14");//llamo los headers 
-  llavesParaLinea = slugifyF(llavesParaLinea.getValues()).replace(/\s/g, ''); // Todo en una sola linea
-  const llavesFinales = llavesParaLinea.split(",");
-  /* Creo que esto se puede cambiar a una manera mas simple, ya que los headers de la fila H7 hatsa N7 nunca van a cambiar */
+  Logger.log("cantidadProductos: " + cantidadProductos);
 
-  let invoiceTaxTotal = [];
-  var productoInformation = [];
-
-  Logger.log("cantidadProductos" + cantidadProductos)
-
-  let i = 15 // es 15 debido a que aqui empieza los productos elegidos por el cliente
-  do {
-    let filaActual = "A" + String(i) + ":K" + String(i);
-    let rangoProductoActual = prefactura_sheet.getRange(filaActual);
-    let productoFilaActual = String(rangoProductoActual.getValues());
-    productoFilaActual = productoFilaActual.split(",");// cojo el producto de la linea actual y se le hace split a toda la info
-    Logger.log(productoFilaActual)
-    let LineaFactura = {};
-
-    for (let j = 0; j < 11; j++) {// original dice que son 11=COL_TOTALES_PREFACTURA deberian ser 10 creo
-      LineaFactura[llavesFinales[j]] = productoFilaActual[j]
-    }
-    Logger.log("LineaFactura " + LineaFactura)
-
-    let Name = LineaFactura['producto'];
-    let ItemCode = new Number(LineaFactura['referencia']);
-    let MeasureUnitCode = "Sin unidad"
-    let Quantity = LineaFactura['cantidad'];
-    let Price = LineaFactura['preciounitario'];
-    let Amount = parseFloat(LineaFactura['subtotal']);//importe
-    let ImpoConsumo = 1// no es un parametro para empresas espanolas
-    let LineChargeTotal = parseFloat(LineaFactura['totaldelinea']);
-    let Iva = LineChargeTotal - Amount;
-    let descuento = LineaFactura["descuento"];
-    let retencion = LineaFactura["retencion"];
-    let reCargoEqui = LineaFactura["recargodeequivalencia"];
-    Logger.log("descuento " + descuento)
-    Logger.log("retencion " + retencion)
-    Logger.log("reCargoEqui " + reCargoEqui)
-
-    if (descuento == "") {
-      Logger.log("hay un producto con descuento vacio")
-      descuento = 0
-    }
-    if (retencion == "") {
-      retencion = 0
-    }
-    if (reCargoEqui == "") {
-      reCargoEqui = 0
-    }
-
-
-    //IVA
-    let ItemTaxesInformation = [];//taxes del producto en si
-    let percent = convertToPercentage(LineaFactura["iva"]); //aqui deberia de calcular el porcentaje pero como todavia no tengo IVA solo por ahora no
-    Logger.log("percent " + percent)
-    let ivaTaxInformation = {
-      Id: "01",//Id
-      TaxEvidenceIndicator: false,
-      TaxableAmount: Amount,
-      TaxAmount: Iva,
-      Percent: percent,
-      BaseUnitMeasure: "",
-      PerUnitAmount: "",
-      Descuento: descuento,
-      Retencion: retencion,
-      RecgEquivalencia: reCargoEqui
-    };
-
-    ItemTaxesInformation.push(ivaTaxInformation);
-    invoiceTaxTotal.push(ivaTaxInformation);
-
-    let LineExtensionAmount = Amount;
-    let LineTotalTaxes = Iva + ImpoConsumo;
-
-    let productoI = {//aqui organizamos todos los parametros necesarios para 
-      ItemReference: ItemCode,
-      Name: Name,
-      Quatity: new Number(Quantity),
-      Price: new Number(Price),
-      LineAllowanceTotal: 0.0,
-      LineChargeTotal: 0.0,// que pasa aca ?
-      LineTotalTaxes: LineTotalTaxes,
-      LineTotal: LineChargeTotal,
-      LineExtensionAmount: LineExtensionAmount,
-      MeasureUnitCode: MeasureUnitCode,
-      FreeOFChargeIndicator: false,
-      AdditionalReference: [],
-      AdditionalProperty: [],
-      TaxesInformation: ItemTaxesInformation,
-      AllowanceCharge: []
-    };
-    productoInformation.push(productoI);//agregamos el producto actual a la lista total 
-    i++;
-  } while (i < (15 + cantidadProductos));
-
-  //estos es dinamico, verificar donde va el total cargo y descuento
-  const posicionOriginalTotalFactura = prefactura_sheet.getRange("A31").getValue(); // para verificar donde esta el TOTAL
-  let rangeFacturaTotal = ""
-  let rangeTotales = ""
-  let rangeBaseImponilbeValor = ""
-  let cargoTotal = 0
-  let descuentoTotal = 0
-  let cargoFactura = 0
-  let descuentoFactura = 0
-
-  let startingRowTaxation = getTaxSectionStartRow(prefactura_sheet)
-  if (posicionOriginalTotalFactura === "Total factura") {
-    rangeBaseImponilbeValor = prefactura_sheet.getRange(26, 1, 1, 3);
-    rangeTotales = prefactura_sheet.getRange(29, 1, 1, 4);
-    rangeFacturaTotal = prefactura_sheet.getRange("B31")
-    cargoFactura = prefactura_sheet.getRange("B17").getValue()
-    descuentoFactura = prefactura_sheet.getRange("B18").getValue()
-
-  } else {
-    let rowBaseImponilbeValor = startingRowTaxation + 7
-    let rowTotales = startingRowTaxation + 10
-    let rowTotalFactura = startingRowTaxation + 12
-    let rowCargoFactura = startingRowTaxation - 2
-    let rowDescuentoFactura = startingRowTaxation - 1
-    rangeBaseImponilbeValor = prefactura_sheet.getRange(rowBaseImponilbeValor, 1, 1, 3);
-    rangeTotales = prefactura_sheet.getRange(rowTotales, 1, 1, 4);
-    rangeFacturaTotal = prefactura_sheet.getRange(rowTotalFactura, 2);//(maxRows-1) porque no necesito el total
-    cargoFactura = prefactura_sheet.getRange("B" + String(rowCargoFactura)).getValue()
-    descuentoFactura = prefactura_sheet.getRange("B" + String(rowDescuentoFactura)).getValue()
-  }
-
-  if (cargoFactura == "") {
-    cargoFactura = 0
-  }
-
-  if (descuentoFactura == "") {
-    descuentoFactura = 0
-  }
-
-  let totalesValores = String(rangeTotales.getValues())
-  Logger.log("totalesValores antes" + totalesValores)
-  totalesValores = totalesValores.split(",")
-  Logger.log("totalesValores" + totalesValores)
-  cargoTotal = totalesValores[2]
-  descuentoTotal = totalesValores[3]
-  Logger.log("cargoTotal " + cargoTotal)
-  Logger.log("descuentoTotal " + descuentoTotal)
-  Logger.log("cargoFactura " + cargoFactura)
-  Logger.log("descuentoFactura " + descuentoFactura)
-  // aqui cambia con respecto al original, aqui deberia de cambiar el segundo parametro creo, seria con respecto a un j el cual seria la cantidad de ivas que hay
-  let facturaTotalesBaseImponilbe = String(rangeBaseImponilbeValor.getValues());
-  facturaTotalesBaseImponilbe = facturaTotalesBaseImponilbe.split(",");
-  Logger.log("facturaTotales " + facturaTotalesBaseImponilbe)
-  let TotalFactura = String(rangeFacturaTotal.getValue())
-
-  /*Aqui cambia por completo, por ahora solo voy a dejar los parametros en numeros x 
-  ,  solo coinciden el base imponible he IVA */
-  let pfSubTotal = parseFloat(facturaTotalesBaseImponilbe[0]);//base imponible
-  let pfIVA = parseFloat(facturaTotalesBaseImponilbe[2]);//IVA
-  let pfImpoconsumo = 0;
-  let pfTotal = parseFloat(facturaTotalesBaseImponilbe[0] + facturaTotalesBaseImponilbe[2]);
-  let pfRefuente = 0;
-  let pfReteICA = 0;
-  let pfReteIVA = 0;
-  let pfTRetenciones = 0;
-  let pfAnticipo = descuentoTotal;
-  let pfTPagar = 0;
-
-  //Aqui seguiria el texto, pero en el de carlos nunca lo llama 
-  let facturaTotales = String(rangeBaseImponilbeValor.getValues());
-  let invoice_total = {
-    "LineExtensionAmount": pfSubTotal,
-    "TaxExclusiveAmount": pfSubTotal,
-    "TaxInclusiveAmount": pfTotal,
-    "AllowanceTotalAmount": 0,
-    "GeneralChargeTotalAmount": cargoFactura,
-    "ChargeTotalAmount": cargoTotal,
-    "GeneralPrePaidAmount": descuentoFactura,
-    "PrePaidAmount": pfAnticipo,
-    "PayableAmount": TotalFactura,// antes era (pfTotal - pfAnticipo) 
-    "totalRet": totalesValores[0],
-    "totalCargoEqui": totalesValores[1]
-  }
-
-
+  // Obtener información básica de la factura
   let cliente = prefactura_sheet.getRange("B2").getValue();
   let InvoiceGeneralInformation = getInvoiceGeneralInformation();
-  let CustomerInformation = getCustomerInformation(cliente);// tal ves que por ahora no llame al cliente
-
-  let sheetDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
-  let userId = String(sheetDatosEmisor.getRange("B11").getValue());
-  let companyId = String(sheetDatosEmisor.getRange("B3").getValue());
-  let PaymentSummary = getPaymentSummary(startingRowTaxation)
-
-  let fechParaNuevoInvoice = ConvertirFecha("vacio")
-  let fechaVencdioParaNuevoInvoice = ConvertirFecha("pago")
-
-  let PercentSurchargeEquivalence;
-  let PercentageRetention;
-
-  if (totalesValores[0] === "" || totalesValores[0] === 0 || totalesValores[0] === null) {
-    //futuro para calcuclar bien estos valores
-  } else {
-
+  let CustomerInformation = getCustomerInformation(cliente);
+  let startingRowTaxation = getTaxSectionStartRow(prefactura_sheet);
+  let usuario = FacturaDatos.getRange("B11").getValue()
+  // Obtener fechas
+  let fechaFactura = new Date(prefactura_sheet.getRange("G4").getValue());
+  let fechaVencimiento = new Date(prefactura_sheet.getRange("G3").getValue());
+  let horaFactura = new Date().toTimeString().split(' ')[0] + ".0000000";
+  
+  // Validar fechas
+  if (isNaN(fechaFactura.getTime())) {
+    fechaFactura = new Date();
+  }
+  if (isNaN(fechaVencimiento.getTime())) {
+    fechaVencimiento = new Date();
   }
 
+  // Recalcular invoiceExpiration coherente con días de vencimiento (G6)
+  let diasVencimiento = Number(prefactura_sheet.getRange("G6").getValue() || 0);
+  if (!isNaN(diasVencimiento) && diasVencimiento >= 0) {
+    let fv = new Date(fechaFactura);
+    fv.setDate(fv.getDate() + diasVencimiento);
+    fechaVencimiento = fv;
+  }
 
-  calcularPorcentaje()
-  let nuevoInvoiceResumido = JSON.stringify({
-    "file": "base64",
-    "Document": {
-      "fileName": "nombre documento",
-      "invoice": {
-        "invoiceType": false,
-        "contactName": String(cliente),
-        "nif": String(CustomerInformation["Identification"]),
-        "invoiceDate": String(fechParaNuevoInvoice),
-        "numberInvoice": InvoiceGeneralInformation["InvoiceNumber"],
-        "taxableAmount": String(parseFloat(facturaTotalesBaseImponilbe[0])),
-        "Percent": "0",
-        "taxAmount": String(parseFloat(facturaTotalesBaseImponilbe[2])),
-        "surchargeAmount": "el valor no se debe de reportar",
-        "surchargeValue": "el valor no se debe de reportar",
-        "PercentSurchargeEquivalence": "0",
-        "PercentageRetention": "0",
-        "IRPFValue": "el valor no se debe de reportar",
-        "invoiceTotal": String(TotalFactura),
-        "payDate": String(fechaVencdioParaNuevoInvoice),
-        "PaymentType": String(PaymentSummary["PaymentType"]),
-        "Observations": String(InvoiceGeneralInformation["note"])
-      }
+  // Procesar productos con estructura completa
+  let products = [];
+  let totalTaxBase = 0;
+  let totalTax = 0;
+  let totalSubTotal = 0;
+  // Acumuladores explícitos para validaciones
+  let sumIvaAmount = 0;            // Suma de IVA (CuotaRepercutida)
+  let sumRecargoAmount = 0;        // Suma de Recargo Equivalencia (no forma parte de sumTotalTax)
+  let hasAnyTaxOrSurcharge = false;
+  let totalWithHoldings = 0;
+  let totalSurCharges = 0;
+  let totalDiscounts = 0;
+  // Utilidad de redondeo a 2 decimales disponible en todo el bloque
+  const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+  
+  // Crear array para fieldTaxations (resumen de impuestos)
+  let fieldTaxations = [];
+  let taxGroups = {};            // IVA agrupado por porcentaje
+  let recargoTaxGroups = {};     // Recargo equivalencia agrupado por porcentaje
+  
+  for (let i = 15; i < 15 + cantidadProductos; i++) {
+    let filaActual = "A" + String(i) + ":K" + String(i);
+    let rangoProducto = prefactura_sheet.getRange(filaActual);
+    let productoData = rangoProducto.getValues()[0];
+    
+    let referencia = String(productoData[0] || "");
+    let descripcion = String(productoData[1] || "");
+    let cantidad = Number(productoData[2]) || 1;
+    let precioUnitario = Number(productoData[3]) || 0;
+    // subtotal en hoja (col F) YA tiene el descuento aplicado.
+    // Para evitar doble descuento en el PDF/servicio, calculamos explícitamente
+    // el bruto (antes de descuento) y la base neta (después de descuento).
+    let subtotalHoja = Number(productoData[4]) || 0; // E: Subtotal (con descuento)
+    // F: Impuestos (importe IVA), G: Retención (importe), H: % Descuento, I: Recargo (importe), J: Importe total línea
+    let impuestosImporte = parseNumberCell(productoData[5]);
+    let retencionImporte = parseNumberCell(productoData[6]);
+    let descuentoRate = parsePercentValue(productoData[7]);
+    let recargoImporte = parseNumberCell(productoData[8]);
+    let totalLinea = Number(productoData[9]) || 0;
+
+    // Calcular valores base
+    let baseBruta = round2(precioUnitario * cantidad); // antes de descuento
+    let discountAmount = round2(baseBruta * descuentoRate);
+    let baseNeta = round2(baseBruta - discountAmount); // después de descuento
+    
+    // Calcular importes y derivar tasas reales
+    let taxAmount = round2(impuestosImporte);
+    let withHoldingsAmount = round2(retencionImporte);
+    let surChargesAmount = round2(recargoImporte);
+    let ivaRate = baseNeta > 0 ? (taxAmount / baseNeta) : 0;
+    let retencionRate = baseNeta > 0 ? (withHoldingsAmount / baseNeta) : 0;
+    let recargoEquivalenciaRate = baseNeta > 0 ? (surChargesAmount / baseNeta) : 0;
+    
+    // Validar campos obligatorios
+    if (!descripcion || descripcion.trim() === "") {
+      descripcion = "Producto sin descripción";
     }
+    if (!referencia || referencia.trim() === "") {
+      referencia = "REF-" + i;
+    }
+    if (cantidad <= 0) {
+      cantidad = 1;
+    }
+    
+    // Crear arrays de taxes, withHoldings y discounts según factura.json
+    let taxes = [];
+    if (ivaRate > 0) {
+      taxes.push({
+        taxName: "IVA",
+        rate: ivaRate * 100, // Convertir a porcentaje
+        taxBase: baseNeta,
+        valueTax: taxAmount
+      });
+      
+      // Agrupar para fieldTaxations
+      let rateKey = ivaRate * 100;
+      if (!taxGroups[rateKey]) {
+        taxGroups[rateKey] = {
+          taxName: "IVA",
+          rate: rateKey,
+          taxBase: 0,
+          valueTax: 0
+        };
+      }
+      taxGroups[rateKey].taxBase = round2(taxGroups[rateKey].taxBase + baseNeta);
+      taxGroups[rateKey].valueTax = round2(taxGroups[rateKey].valueTax + taxAmount);
+    }
+    // Acumular para totales y regla de validación
+    sumIvaAmount = round2(sumIvaAmount + taxAmount);
+    sumRecargoAmount = round2(sumRecargoAmount + surChargesAmount);
+    if (taxAmount > 0 || surChargesAmount > 0) hasAnyTaxOrSurcharge = true;
+    
+    let withHoldingsSurChargesDto = [];
+    if (withHoldingsAmount > 0 && retencionRate > 0) {
+      let codigoRetencion = obtenerIdRateWithHoldings(Math.round(retencionRate * 1000) / 10, 10);
+      Logger.log("Producto: " + descripcion + " - Retención: " + (retencionRate * 100) + "% - Código: " + codigoRetencion);
+      withHoldingsSurChargesDto.push({
+        idRateWithHoldings: codigoRetencion, // Retención
+        subTotalWithHoldings: baseNeta,
+        cuotaWithHoldings: withHoldingsAmount
+      });
+    }
+    
+    // Agregar recargo de equivalencia si existe
+    if (surChargesAmount > 0 && recargoEquivalenciaRate > 0) {
+      let codigoRecargo = obtenerIdRateWithHoldings(Math.round(recargoEquivalenciaRate * 1000) / 10, 11);
+      Logger.log("Producto: " + descripcion + " - Recargo: " + (recargoEquivalenciaRate * 100) + "% - Código: " + codigoRecargo);
+      withHoldingsSurChargesDto.push({
+        idRateWithHoldings: codigoRecargo, // Recargo de equivalencia
+        subTotalWithHoldings: baseNeta,
+        cuotaWithHoldings: surChargesAmount
+      });
+    }
+
+    // Agrupar recargo de equivalencia para fieldTaxations (redondear tasa a 1 decimal)
+    let recargoRateKey = recargoEquivalenciaRate * 100;
+    if (recargoEquivalenciaRate > 0) {
+      let recargoRateKeyRounded = Math.round(recargoRateKey * 10) / 10;
+      if (!recargoTaxGroups[recargoRateKeyRounded]) {
+        recargoTaxGroups[recargoRateKeyRounded] = {
+          taxName: "RecargoEquivalencia",
+          rate: recargoRateKeyRounded,
+          taxBase: 0,
+          valueTax: 0
+        };
+      }
+      recargoTaxGroups[recargoRateKeyRounded].taxBase = round2(recargoTaxGroups[recargoRateKeyRounded].taxBase + baseNeta);
+      recargoTaxGroups[recargoRateKeyRounded].valueTax = round2(recargoTaxGroups[recargoRateKeyRounded].valueTax + surChargesAmount);
+    }
+    
+    let discountDtoModules = [];
+    if (descuentoRate > 0) {
+      discountDtoModules.push({
+        discountName: "Descuento aplicado",
+        discountRate: descuentoRate * 100, // Convertir a porcentaje
+        discountBase: baseBruta,
+        valueDiscount: discountAmount
+      });
+    }
+    
+    // Crear producto con estructura completa
+    let producto = {
+      typeUse: "VEN",
+      reference: String(referencia).substring(0, 50),
+      description: String(descripcion).substring(0, 100),
+      unitPrice: Number(precioUnitario),
+      quantity: Number(cantidad),
+      // IMPORTANTE: Enviar subTotal BRUTO (antes de descuento) para que el servicio
+      // aplique los módulos de descuento y no descuente doble.
+      subTotal: baseBruta,
+      // totalTax DEBE representar únicamente la cuota de IVA. El recargo
+      // se informa en totalSurCharges y en withHoldingsSurChargesDto, pero
+      // no debe sumarse aquí para evitar inflar sumTotalTax.
+      totalTax: round2(taxAmount),
+      totalwithHoldings: withHoldingsAmount,
+      totalSurCharges: surChargesAmount,
+      totaldiscount: discountAmount,
+      taxes: taxes.length > 0 ? taxes : [],
+      withHoldingsSurChargesDto: withHoldingsSurChargesDto.length > 0 ? withHoldingsSurChargesDto : [],
+      discountDtoModules: discountDtoModules.length > 0 ? discountDtoModules : []
+    };
+    
+    // Asignar null si los arrays están vacíos para mantener estructura
+    if (!producto.taxes || producto.taxes.length === 0) producto.taxes = [];
+    if (!producto.withHoldingsSurChargesDto || producto.withHoldingsSurChargesDto.length === 0) producto.withHoldingsSurChargesDto = [];
+    if (!producto.discountDtoModules || producto.discountDtoModules.length === 0) producto.discountDtoModules = [];
+    
+    products.push(producto);
+    
+    // Acumular totales
+    // totalSubTotal: suma de subTotal BRUTO (igual a hoja: Valor bruto sin impuestos)
+    totalSubTotal = round2(totalSubTotal + baseBruta);
+    // totalTaxBase: solicitado por el usuario como "Valor bruto" -> usar base BRUTA
+    totalTaxBase = round2(totalTaxBase + baseBruta);
+    // totalTax se calculará después del bucle con sumIvaAmount + sumRecargoAmount
+    totalWithHoldings = round2(totalWithHoldings + withHoldingsAmount);
+    totalSurCharges = round2(totalSurCharges + surChargesAmount);
+    totalDiscounts = round2(totalDiscounts + discountAmount);
   }
-  );
-  Logger.log(invoice_total)
-  let invoice = JSON.stringify({
-    CustomerInformation: CustomerInformation,
-    InvoiceGeneralInformation: InvoiceGeneralInformation,
-    Delivery: String(prefactura_sheet.getRange("G8").getValue()),
-    AdditionalDocuments: getAdditionalDocuments(),
-    AdditionalProperty: getAdditionalProperty(),
-    PaymentSummary: PaymentSummary, //por ahora esto leugo se cambia la funcion getPaymentSummary para que cumpla los parametros
-    ItemInformation: productoInformation,
-    //Invoice_Note: invoice_note,
-    InvoiceTaxTotal: invoiceTaxTotal,
-    InvoiceAllowanceCharge: [],
-    InvoiceTotal: invoice_total
+  // sumTotalTax debe reflejar únicamente el total de IVA (sin recargo)
+  totalTax = round2(sumIvaAmount);
+  
+  // Crear fieldTaxations desde grupos (IVA + Recargo Equivalencia)
+  for (let rate in taxGroups) {
+    fieldTaxations.push(taxGroups[rate]);
+  }
+  for (let rate in recargoTaxGroups) {
+    fieldTaxations.push(recargoTaxGroups[rate]);
+  }
+
+  // Obtener totales de la factura
+  let cargoTotal = 0;
+  let totalFactura = 0;
+  
+  if (prefactura_sheet.getRange("A31").getValue() === "Total factura") {
+    totalFactura = prefactura_sheet.getRange("B31").getValue();
+    cargoTotal = prefactura_sheet.getRange("B17").getValue() || 0;
+  } else {
+    let rowTotalFactura = startingRowTaxation + 12;
+    let rowCargoFactura = startingRowTaxation - 2;
+    totalFactura = prefactura_sheet.getRange(rowTotalFactura, 2).getValue();
+    cargoTotal = prefactura_sheet.getRange("B" + String(rowCargoFactura)).getValue() || 0;
+  }
+
+  // Validar datos del cliente
+  usuario = String(usuario || "");
+  if (!usuario || usuario.trim() === "") {
+    usuario = "Cliente sin nombre";
+  }
+  
+  // Obtener información completa del cliente
+  let codigoCliente = String(prefactura_sheet.getRange("B3").getValue() || "CLIENTE001");
+  // 'cliente' viene de B2 y puede estar como "Nombre - Código". Extraemos el nombre limpio.
+  let nombreClienteArr = dividirString(cliente);
+  let nombreClienteLimpio = nombreClienteArr[0] || String(cliente);
+  
+  // Mapear códigos exigidos por API desde hoja Datos
+  let datos_sheet_local = spreadsheet.getSheetByName('Datos');
+  let tipoPersonaTxt = datos_sheet_local ? datos_sheet_local.getRange('L2').getValue() : '';
+  let tipoDocTxt = datos_sheet_local ? datos_sheet_local.getRange('J2').getValue() : '';
+  let tipoContactoTxt = datos_sheet_local ? datos_sheet_local.getRange('AB2').getValue() : '';
+  let regimenTxt = datos_sheet_local ? datos_sheet_local.getRange('M2').getValue() : '';
+
+  // Crear contactos con estructura completa
+  let contacts = [{
+    contactType: mapContactTypeES(tipoContactoTxt || 'Cliente'),
+    personType: mapPersonType(tipoPersonaTxt), 
+    companyName: String(nombreClienteLimpio).substring(0, 450),
+    customerCode: String(codigoCliente).substring(0,20),
+    identificationType: mapIdentificationTypeES(tipoDocTxt),
+    identification: String(CustomerInformation.Identification || "12345678A").substring(0, 20),
+    tradeName: String(cliente).substring(0, 450),
+    regime: mapRegimeES(regimenTxt), // Según factura.json
+    country: "207", // Código España según factura.json
+    province: "5102", // Código provincia según factura.json
+    population: "32653", // Código población según factura.json
+    addressCustomer: (function(){
+      var ad = String(CustomerInformation.AddressLine || '').trim();
+      if (!ad || ad.toLowerCase() === 'null') return null;
+      return ad.substring(0, 200);
+    })(),
+    postalCodeCustomer: (function(){
+      var cp = String(CustomerInformation.PostalZone || '').trim();
+      if (!cp || cp.toLowerCase() === 'null') return null;
+      return cp.substring(0, 10);
+    })(),
+    phoneCustomer: String(CustomerInformation.Telephone || "").substring(0, 20),
+    webSite: String(CustomerInformation.WebSiteURI || "").substring(0, 100) || null,
+    emailCustomer: String(CustomerInformation.Email || "").substring(0, 100) || null
+  }];
+  
+  // Mantener todos los campos, asignar null si están vacíos
+  if (!contacts[0].webSite || contacts[0].webSite.trim() === "") contacts[0].webSite = null;
+  if (!contacts[0].emailCustomer || contacts[0].emailCustomer.trim() === "") contacts[0].emailCustomer = null;
+  if (!contacts[0].phoneCustomer || contacts[0].phoneCustomer.trim() === "") contacts[0].phoneCustomer = null;
+  
+  // Validar número de factura
+  let numeroFacturaValidado = String(InvoiceGeneralInformation.InvoiceNumber);
+  if (!numeroFacturaValidado || numeroFacturaValidado.trim() === "") {
+    numeroFacturaValidado = "FACT-" + Date.now();
+  }
+  
+  // Extraer número actual y validar que sea mayor que 0
+  let currentNumber = Number(numeroFacturaValidado.replace(/[^0-9]/g, ''));
+  if (currentNumber <= 0) {
+    currentNumber = Math.floor(Date.now() / 1000);
+  }
+  
+  // Crear chargeAndDiscount - siempre incluir al menos un elemento
+  let chargeAndDiscount = [];
+  
+  // Siempre agregar al menos un elemento base según la estructura requerida
+  let baseFeeDiscountValue = totalTaxBase || 0;
+  let totalFeeDiscountValue = cargoTotal > 0 ? cargoTotal : (baseFeeDiscountValue * 0.01); // 1% por defecto si no hay cargo específico
+  
+  chargeAndDiscount.push({
+    idtypeFeeDiscount: "CG", // Según factura.json
+    idTypeValueFeeDiscount: "PJ", // Según factura.json  
+    baseFeeDiscount: baseFeeDiscountValue,
+    valueFeeDiscount: 1,
+    totalFeeDiscount: totalFeeDiscountValue
   });
-  Logger.log(invoice)
-  Logger.log(nuevoInvoiceResumido)
+  
+  // Calcular totales finales (totalTax ya considera recargo)
+  let sumTotalSubTotalAndTax = totalSubTotal + totalTax;
+  // Neto a pagar = Total factura - Retenciones (nunca negativo)
+  let sumTotalNetPayable = round2(Math.max(0, totalFactura - totalWithHoldings));
+  
+  // Crear el JSON con estructura EXACTA de factura.json
+  // Fechas coherentes con hoja: invoiceDate = G4, invoiceExpiration = días de G6
+  let diasExpiracion = Number(prefactura_sheet.getRange("G6").getValue() || 0);
+  if (isNaN(diasExpiracion) || diasExpiracion < 0) diasExpiracion = 0;
+  // idPayment dinámico según medio de pago (E4)
+  const medioPagoTxt = String(prefactura_sheet.getRange("E4").getValue() || "");
+  const idPaymentCode = mapIdPaymentCode(medioPagoTxt);
+  let fieldInvoice = {
+    textCustomerObservations: String(prefactura_sheet.getRange("D11").getValue() || "").substring(0, 350) || null,
+    invoiceNumber: numeroFacturaValidado.substring(0, 50),
+    currentNumber: currentNumber,
+    invoiceDate: fechaFactura.toISOString(),
+    invoiceTime: horaFactura,
+    invoiceExpiration: String(diasExpiracion),
+    invoiceIdTypeRegAEAT: "AI",// null
+    invoiceIdTypeRegSIF: null,//null
+    contactName: String(prefactura_sheet.getRange("G8").getValue()|| "").substring(0, 30) || "",
+    contacts: contacts,
+    products: products,
+    idPayment: idPaymentCode,
+    paymentNote: String(prefactura_sheet.getRange("D11").getValue() || "").substring(0, 300) || null,
+    textObservations: String(prefactura_sheet.getRange("B10").getValue() || "").substring(0, 500) || null,
+    idOperations: "N1", // Según factura.json
+    // Si hay impuestos (IVA o recargo) no es exenta: usar E0. Si no hay impuestos, E3
+    idOperationsExenta: (hasAnyTaxOrSurcharge) ? "E0" : "E3",
+    valueExemptBase: 0,
+    chargeAndDiscount: chargeAndDiscount, // Siempre incluir - nunca null
+    fieldTaxations: fieldTaxations.length > 0 ? fieldTaxations : [],
+    sumTotalSubTotal: totalSubTotal,
+    sumTotalTaxBase: totalTaxBase,
+    sumTotalTax: totalTax,
+    sumTotalSubTotalAndTax: sumTotalSubTotalAndTax,
+    sumTotalExemptBase: 0,
+    sumTotalDiscount: totalDiscounts,
+    sumTotalCharge: cargoTotal,
+    // Total de la factura
+    sumTotalTotal: round2(totalFactura),
+    // Neto a pagar segun esquema: Total - Retenciones
+    sumTotalNetPayable: sumTotalNetPayable,
+    invoiceTypeId: 0, // Según factura.json
+    invoiceRectificativeTypeId: 0,
+    typeRectificativeId: 0,
+    aditionalData: {
+      invoiceId: 0, // Según factura.json
+      startInvoiceId: 0 // Según factura.json
+    }
+  };
+  
+  // Mantener estructura completa - asegurar arreglo vacío cuando no hay impuestos
+  if (!fieldInvoice.fieldTaxations || fieldInvoice.fieldTaxations.length === 0) {
+    fieldInvoice.fieldTaxations = [];
+  }
 
-  let nameString = prefactura_sheet.getRange("B2").getValue();
-  let numeroFactura = InvoiceGeneralInformation.InvoiceNumber;
+  // Guardar en el listado de estado
   let fecha = ObtenerFecha();
-  let codigoCliente = prefactura_sheet.getRange("B3").getValue();
-  listadoestado_sheet.appendRow(["vacio", "vacio", "vacio", fecha, "vacio", numeroFactura, nameString, codigoCliente, "vacio", "vacio", "representacion", "Vacio", String(invoice), String(nuevoInvoiceResumido)]);
-
-  SpreadsheetApp.getUi().alert("Factura generada y guardada satisfactoriamente, espera unos segundos");
-
+  let numeroFactura = InvoiceGeneralInformation.InvoiceNumber;
+  let nameString = cliente;
+  
+  // Guardar el JSON corregido
+  listadoestado_sheet.appendRow([
+    "vacio", "vacio", "vacio", fecha, "vacio", numeroFactura, 
+    nameString, codigoCliente, "vacio", "vacio", "representacion", 
+    "Vacio", JSON.stringify(fieldInvoice), ""
+  ]);
+  
+  Logger.log("JSON FieldInvoice generado con estructura completa:");
+  Logger.log(JSON.stringify(fieldInvoice, null, 2));
+  
+  // Validación de estructura completa
+  Logger.log("=== VALIDACIÓN ESTRUCTURA COMPLETA ===");
+  Logger.log("✓ textCustomerObservations: " + (fieldInvoice.textCustomerObservations !== undefined));
+  Logger.log("✓ invoiceExpiration: " + (fieldInvoice.invoiceExpiration !== undefined));  
+  Logger.log("✓ invoiceIdTypeRegSIF: " + (fieldInvoice.invoiceIdTypeRegSIF !== undefined));
+  Logger.log("✓ paymentNote: " + (fieldInvoice.paymentNote !== undefined));
+  Logger.log("✓ textObservations: " + (fieldInvoice.textObservations !== undefined));
+  Logger.log("✓ valueExemptBase: " + (fieldInvoice.valueExemptBase !== undefined));
+  Logger.log("✓ chargeAndDiscount: " + (fieldInvoice.chargeAndDiscount !== undefined && fieldInvoice.chargeAndDiscount.length > 0));
+  Logger.log("✓ fieldTaxations: " + (fieldInvoice.fieldTaxations !== undefined));
+  Logger.log("✓ Contacto con todos los campos: " + (fieldInvoice.contacts[0].postalCodeCustomer !== undefined));
+  
+  if (fieldInvoice.products && fieldInvoice.products.length > 0) {
+    Logger.log("✓ Producto con taxes: " + (fieldInvoice.products[0].taxes !== undefined));
+    Logger.log("✓ Producto con withHoldingsSurChargesDto: " + (fieldInvoice.products[0].withHoldingsSurChargesDto !== undefined));
+    Logger.log("✓ Producto con discountDtoModules: " + (fieldInvoice.products[0].discountDtoModules !== undefined));
+  }
+  
+  SpreadsheetApp.getUi().alert("Factura generada con estructura JSON COMPLETA según factura.json");
 }
 
 function showMensajeRespuesta() {

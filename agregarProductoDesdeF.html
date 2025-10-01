@@ -75,14 +75,12 @@
       const aplicarRecargo = document.getElementById('aplicarRecargo');
       const tarifaRecargo = document.getElementById('tarifaRecargo');
       if (!tipoProducto || !aplicarRecargo || !tarifaRecargo) return;
+      const isServicio = (String(tipoProducto.value).toLowerCase() === 'servicio');
 
-      const isServicio = (tipoProducto.value === 'servicio');
-
-      // Deshabilita cuando es Producto; permite cuando es Servicio (siempre visible)
       const aplicarRecargoContainer = aplicarRecargo.closest('.form-check');
       const tarifaRecargoContainer = tarifaRecargo.closest('.col-12');
 
-      if (!isServicio) {
+      if (isServicio) {
         aplicarRecargo.checked = false;
         aplicarRecargo.disabled = true;
         tarifaRecargo.value = '0';

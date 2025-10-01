@@ -59,32 +59,7 @@
     function abrirSoporte() {
       window.open('https://soporte.facturasapp.com/hc/es-es/articles/34324157226907-Canales-de-Atenci%C3%B3n');
     }
-    // Relación IVA -> Recargo equivalencia (tarifas 2025)
-    const RECARGO_EQ_2025 = { '21': '5,2', '10': '1,4', '4': '0,5', '0': '0' };
-
-    function updateTarifaRecargo() {
-      const aplicarRecargo = document.getElementById('aplicarRecargo');
-      const tarifaImpuesto = document.getElementById('tarifaImpuesto');
-      const tarifaRecargo = document.getElementById('tarifaRecargo');
-
-      if (!aplicarRecargo || !tarifaImpuesto || !tarifaRecargo) return;
-
-      if (!aplicarRecargo.checked) {
-        tarifaRecargo.value = '0';
-        return;
-      }
-
-      const iva = tarifaImpuesto.value || '0';
-      tarifaRecargo.value = RECARGO_EQ_2025[iva] || '0';
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-      const aplicarRecargo = document.getElementById('aplicarRecargo');
-      const tarifaImpuesto = document.getElementById('tarifaImpuesto');
-      if (aplicarRecargo) aplicarRecargo.addEventListener('change', updateTarifaRecargo);
-      if (tarifaImpuesto) tarifaImpuesto.addEventListener('change', updateTarifaRecargo);
-      updateTarifaRecargo();
-    });
+    // Página de agregar producto: solo cantidad y búsqueda
   </script>
 </head>
 
@@ -127,81 +102,6 @@
               <div class="result-box">
                 <!-- Los resultados se mostrarán aquí -->
               </div>
-            </div>
-
-            <div class="col-12">
-              <label for="nombre" class="form-label">Nombre</label>
-              <input type="text" class="form-control form-control-lg" id="nombre" name="nombre">
-            </div>
-
-            <div class="col-6">
-              <label for="tipoProducto" class="form-label">Tipo de producto</label>
-              <select id="tipoProducto" name="tipoProducto" class="form-select form-select-lg">
-                <option value="">Seleccione</option>
-                <option value="producto">Producto</option>
-                <option value="servicio">Servicio</option>
-              </select>
-            </div>
-
-            <div class="col-6">
-              <label for="tipoUso" class="form-label">Tipo de uso</label>
-              <select id="tipoUso" name="tipoUso" class="form-select form-select-lg">
-                <option value="">Seleccione</option>
-                <option value="venta">Venta</option>
-                <option value="compra">Compra</option>
-              </select>
-            </div>
-
-            <div class="col-6">
-              <label for="valorUnitario" class="form-label">Valor unitario</label>
-              <input type="number" class="form-control form-control-lg" id="valorUnitario" name="valorUnitario"
-                step=".01">
-            </div>
-
-            <div class="col-6">
-              <label for="codigoReferencia" class="form-label">Código referencia</label>
-              <input type="text" class="form-control form-control-lg" id="codigoReferencia" name="codigoReferencia"
-                pattern="[A-Za-z0-9]+" title="Solo caracteres alfanuméricos">
-            </div>
-
-            <div class="col-12">
-              <div class="form-check mt-2">
-                <input class="form-check-input" type="checkbox" id="aplicarRecargo" name="aplicarRecargo">
-                <label class="form-check-label" for="aplicarRecargo">Aplicar recargo de equivalencia</label>
-              </div>
-            </div>
-
-            <div class="col-6">
-              <label for="tipoImpuesto" class="form-label">Tipo de impuesto</label>
-              <select id="tipoImpuesto" name="tipoImpuesto" class="form-select form-select-lg">
-                <option value="IVA" selected>IVA</option>
-              </select>
-            </div>
-
-            <div class="col-6">
-              <label for="tarifaImpuesto" class="form-label">Tarifa de impuesto</label>
-              <select id="tarifaImpuesto" name="tarifaImpuesto" class="form-select form-select-lg">
-                <option value="0">0%</option>
-                <option value="4">4%</option>
-                <option value="10">10%</option>
-                <option value="21">21%</option>
-              </select>
-            </div>
-
-            <div class="col-12">
-              <label for="retenciones" class="form-label">Tarifa retención</label>
-              <select id="retenciones" name="retenciones" class="form-select form-select-lg">
-                <option selected>Seleccione</option>
-                <option value="7">7%</option>
-                <option value="15">15%</option>
-                <option value="19">19%</option>
-              </select>
-            </div>
-
-            <div class="col-12">
-              <label for="tarifaRecargo" class="form-label">Tarifa recargo equivalencia</label>
-              <input type="text" class="form-control form-control-lg" id="tarifaRecargo" name="tarifaRecargo" value="0"
-                readonly>
             </div>
 
           </form>
