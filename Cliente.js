@@ -8,7 +8,7 @@ function showNuevaClienteDesdeFactura() {
     .showSidebar(html);
 }
 
-function showNuevaProductoDesdeFactura(){
+function showNuevaProductoDesdeFactura() {
   var html = HtmlService.createHtmlOutputFromFile('agregarProductoDesdeF').setTitle("Nuevo Producto")
   SpreadsheetApp.getUi()
     .showSidebar(html);
@@ -32,40 +32,40 @@ function showActivarCliente() {
     .showSidebar(html);
 }
 
-function inactivarCliente(cliente){
+function inactivarCliente(cliente) {
   let spreadsheet = SpreadsheetApp.getActive();
-  let hojaClientesInactivos=spreadsheet.getSheetByName('ClientesInvalidos');
-  let hojaClietnes=spreadsheet.getSheetByName("Contactos")
+  let hojaClientesInactivos = spreadsheet.getSheetByName('ClientesInvalidos');
+  let hojaClietnes = spreadsheet.getSheetByName("Contactos")
   let datos_sheet = spreadsheet.getSheetByName('Datos');
   Logger.log(cliente)
   datos_sheet.getRange("H2").setValue(cliente)
-  
 
-  let rowDelCliente=datos_sheet.getRange("G2").getValue();
-  let rowMaximaClientesInactivos=hojaClientesInactivos.getLastRow()+1;
-  let rowMaximaClientes=hojaClietnes.getLastRow()+1;
 
-  let tipoContacto=datos_sheet.getRange("AB2").getValue();
-  let tipoPersona=datos_sheet.getRange("L2").getValue();
-  let tipoDoc=datos_sheet.getRange("J2").getValue();
-  let numIdentificacion=datos_sheet.getRange("K2").getValue();
-  let codigoContacto=datos_sheet.getRange("I2").getValue();
-  let regimen=datos_sheet.getRange("M2").getValue();
-  let nomnbreComercial=datos_sheet.getRange("N2").getValue();
-  let primerNombre=datos_sheet.getRange("O2").getValue();
-  let segundoNombre=datos_sheet.getRange("P2").getValue();
-  let primerApellido=datos_sheet.getRange("Q2").getValue();
-  let segundoApellido=datos_sheet.getRange("R2").getValue();
-  let pais=datos_sheet.getRange("S2").getValue();
-  let provicnica=datos_sheet.getRange("AA2").getValue();
-  let poblacion=datos_sheet.getRange("Z2").getValue();
-  let direccion=datos_sheet.getRange("T2").getValue();
-  let codigoPostal=datos_sheet.getRange("U2").getValue();
-  let telefono=datos_sheet.getRange("V2").getValue();
-  let sitioWeb=datos_sheet.getRange("W2").getValue();
-  let email=datos_sheet.getRange("X2").getValue();
-  let estado=datos_sheet.getRange("Y2").getValue();
-  let nombreOriginal=datos_sheet.getRange("AC2").getValue();
+  let rowDelCliente = datos_sheet.getRange("G2").getValue();
+  let rowMaximaClientesInactivos = hojaClientesInactivos.getLastRow() + 1;
+  let rowMaximaClientes = hojaClietnes.getLastRow() + 1;
+
+  let tipoContacto = datos_sheet.getRange("AB2").getValue();
+  let tipoPersona = datos_sheet.getRange("L2").getValue();
+  let tipoDoc = datos_sheet.getRange("J2").getValue();
+  let numIdentificacion = datos_sheet.getRange("K2").getValue();
+  let codigoContacto = datos_sheet.getRange("I2").getValue();
+  let regimen = datos_sheet.getRange("M2").getValue();
+  let nomnbreComercial = datos_sheet.getRange("N2").getValue();
+  let primerNombre = datos_sheet.getRange("O2").getValue();
+  let segundoNombre = datos_sheet.getRange("P2").getValue();
+  let primerApellido = datos_sheet.getRange("Q2").getValue();
+  let segundoApellido = datos_sheet.getRange("R2").getValue();
+  let pais = datos_sheet.getRange("S2").getValue();
+  let provicnica = datos_sheet.getRange("AA2").getValue();
+  let poblacion = datos_sheet.getRange("Z2").getValue();
+  let direccion = datos_sheet.getRange("T2").getValue();
+  let codigoPostal = datos_sheet.getRange("U2").getValue();
+  let telefono = datos_sheet.getRange("V2").getValue();
+  let sitioWeb = datos_sheet.getRange("W2").getValue();
+  let email = datos_sheet.getRange("X2").getValue();
+  let estado = datos_sheet.getRange("Y2").getValue();
+  let nombreOriginal = datos_sheet.getRange("AC2").getValue();
 
 
   // Proceso para agregar a la hoja de clientes inactivos
@@ -135,7 +135,7 @@ function activarCliente(cliente) {
     datos_sheet.getRange('Z6').getValue(), // telefono
     datos_sheet.getRange('AA6').getValue(), // sitioWeb
     datos_sheet.getRange('AB6').getValue(), // email
-    
+
   ];
 
   // Agregar cliente a la hoja 'Contactos'
@@ -150,7 +150,7 @@ function activarCliente(cliente) {
 }
 
 function verificarDatosObligatoriosManual(sheet, row, tipoPersona) {
-  const columnasObligatorias = tipoPersona === "Autonomo" ? 
+  const columnasObligatorias = tipoPersona === "Autonomo" ?
     [2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 17, 18, 19, 21] : // Para autónomos
     [2, 3, 4, 5, 6, 7, 8, 9, 14, 17, 18, 19, 21]; // Para empresas
 
@@ -185,42 +185,43 @@ function verificarDatosObligatoriosManual(sheet, row, tipoPersona) {
 }
 
 
-function buscarClientes(terminoBusqueda,hojaA) {
+function buscarClientes(terminoBusqueda, hojaA) {
   let spreadsheet = SpreadsheetApp.getActive();
   var resultados = [];
 
-  if(hojaA==="Inactivar"){
+  if (hojaA === "Inactivar") {
     var sheet = spreadsheet.getSheetByName('Contactos');
-  }else{
+  } else {
 
     var sheet = spreadsheet.getSheetByName('ClientesInvalidos');
-    var ultimaFila = sheet.getLastRow(); 
+    var ultimaFila = sheet.getLastRow();
     var valores = sheet.getRange(2, 2, ultimaFila - 1, 1).getValues();
 
     for (var i = 0; i < valores.length; i++) {
       var valor = valores[i][0]; // Accede al primer (y único) valor de cada fila
-      resultados.push(valor);}
-      
+      resultados.push(valor);
+    }
+
     return resultados
-}
-  
-  var ultimaFila = sheet.getLastRow(); 
+  }
+
+  var ultimaFila = sheet.getLastRow();
   var valores = sheet.getRange(2, 2, ultimaFila - 1, 1).getValues(); // `ultimaFila - 1` porque empieza en la fila 2
 
 
-  if(terminoBusqueda===""){
+  if (terminoBusqueda === "") {
     return resultados
   }
   // Recorre los valores obtenidos
   for (var i = 0; i < valores.length; i++) {
     var valor = valores[i][0]; // Accede al primer (y único) valor de cada fila
-    
+
     // Comprueba si el valor coincide con el término de búsqueda
     if (valor.toLowerCase().indexOf(terminoBusqueda.toLowerCase()) !== -1) {
       resultados.push(valor); // Añade el valor a la lista de resultados si coincide
     }
   }
-  
+
   // Devuelve los resultados
   return resultados;
 }
@@ -241,7 +242,7 @@ function buscarPaises(terminoBusqueda) {
   // Recorre los valores obtenidos
   for (var i = 0; i < paises.length; i++) {
     var valor = paises[i][0]; // Accede al primer (y único) valor de cada fila
-    
+
     // Normaliza el valor del país
     let valorNormalizado = quitarTildes(valor.toLowerCase());
 
@@ -255,20 +256,20 @@ function buscarPaises(terminoBusqueda) {
   return resultados;
 }
 
-function getListaPaises(){
+function getListaPaises() {
   let spreadsheet = SpreadsheetApp.getActive();
   let datos_sheet = spreadsheet.getSheetByName('Datos');
-  if(!datos_sheet){
+  if (!datos_sheet) {
     return [];
   }
   // Alterno para formulario: Datos!D26:D275 (250 filas) nombres
   const startRow = 26;
   const numRows = 250;
   const values = datos_sheet.getRange(startRow, 4, numRows, 1).getValues();
-  return values.flat().filter(function(v){ return v !== '' && v !== null; });
+  return values.flat().filter(function (v) { return v !== '' && v !== null; });
 }
 
-function buscarPaisesFormulario(terminoBusqueda){
+function buscarPaisesFormulario(terminoBusqueda) {
   let spreadsheet = SpreadsheetApp.getActive();
   let datos_sheet = spreadsheet.getSheetByName('Datos');
   // Datos!D26:D275 (250 filas) nombres de país
@@ -290,24 +291,24 @@ function buscarPaisesFormulario(terminoBusqueda){
   return resultados;
 }
 
-function emailEsValido(email){
+function emailEsValido(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(String(email || '').trim());
 }
 
-function paisEsValido(pais){
-  if(!pais){ return false; }
+function paisEsValido(pais) {
+  if (!pais) { return false; }
   const lista = getListaPaises();
-  const normalizar = function(s){ return quitarTildes(String(s||'').trim().toLowerCase()); };
+  const normalizar = function (s) { return quitarTildes(String(s || '').trim().toLowerCase()); };
   const buscado = normalizar(pais);
-  return lista.some(function(p){ return normalizar(p) === buscado; });
+  return lista.some(function (p) { return normalizar(p) === buscado; });
 }
 
 function quitarTildes(texto) {
   return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-function agregarPaises(){
+function agregarPaises() {
   const paises = [
     "Afganistán",
     "Albania",
@@ -507,20 +508,20 @@ function agregarPaises(){
   ];
   let spreadsheet = SpreadsheetApp.getActive();
   let datos_sheet = spreadsheet.getSheetByName('Datos');
-  let Paragg=0
-  for(let i=25;i<paises.length;i++){
-    datos_sheet.getRange("A"+String(i)).setValue(paises[Paragg])
+  let Paragg = 0
+  for (let i = 25; i < paises.length; i++) {
+    datos_sheet.getRange("A" + String(i)).setValue(paises[Paragg])
     Paragg++
   }
- }
+}
 
-function obtenerTipoDePersona(e){
+function obtenerTipoDePersona(e) {
   let sheet = e.source.getActiveSheet();
   let range = e.range;
   let rowEditada = range.getRow();
   let colEditada = 4;
 
-  let tipoPersona =sheet.getRange(rowEditada,colEditada).getValue()
+  let tipoPersona = sheet.getRange(rowEditada, colEditada).getValue()
   return tipoPersona
 }
 
@@ -531,28 +532,28 @@ function saveClientData(formData) {
   }
 
   // Validaciones de seguridad del lado del servidor
-  if(!emailEsValido(formData.email)){
+  if (!emailEsValido(formData.email)) {
     return { success: false, message: 'Por favor ingrese un email válido.' };
   }
 
-  if(!paisEsValido(formData.pais)){
+  if (!paisEsValido(formData.pais)) {
     return { success: false, message: 'Por favor seleccione un país de la lista.' };
   }
 
   // Provincias/poblaciones: validar solo si vienen informadas
-  if(formData.provincia && !existeProvincia(formData.pais, formData.provincia)){
+  if (formData.provincia && !existeProvincia(formData.pais, formData.provincia)) {
     return { success: false, message: 'Por favor seleccione una provincia válida para el país.' };
   }
 
-  if(formData.poblacion && !existePoblacion(formData.pais, formData.provincia, formData.poblacion)){
+  if (formData.poblacion && !existePoblacion(formData.pais, formData.provincia, formData.poblacion)) {
     return { success: false, message: 'Por favor seleccione una población válida para la provincia.' };
   }
 
   let existe = verificarCodigo(formData.numeroIdentificacion, "Contactos", false);
-  let existeC=verificarCodigo(formData.codigoContacto, "Contactos", false,null,"codigo");
+  let existeC = verificarCodigo(formData.codigoContacto, "Contactos", false, null, "codigo");
   if (existe) {
     return { success: false, message: 'El Número de Identificación ya existe. Por favor ingrese un número único.' };
-  }else if(existeC){
+  } else if (existeC) {
     return { success: false, message: 'El Codigo ya existe. Por favor ingrese un número único.' };
   }
 
@@ -593,49 +594,49 @@ function saveClientData(formData) {
     formData.sitioWeb,
     formData.email,
   ];
-  let nombre=""
-  if(formData.tipoPersona=="Autonomo"){
-    let primerNombre=formData.primerNombre
-    let apellido=formData.primerApellido
-    nombre =primerNombre+" "+apellido
-  }else{
-    nombre=formData.nombreComercial
+  let nombre = ""
+  if (formData.tipoPersona == "Autonomo") {
+    let primerNombre = formData.primerNombre
+    let apellido = formData.primerApellido
+    nombre = primerNombre + " " + apellido
+  } else {
+    nombre = formData.nombreComercial
   }
 
   sheet.getRange(emptyRow, 3, 1, values.length).setValues([values]);
   let referenciaUnica = nombre + "-" + formData.numeroIdentificacion;
   sheet.getRange(emptyRow, 2).setValue(referenciaUnica);
-  Logger.log("dentro de ref unico "+referenciaUnica)
+  Logger.log("dentro de ref unico " + referenciaUnica)
   sheet.getRange(emptyRow, 1).setValue("Valido");
   SpreadsheetApp.getUi().alert("Nuevo cliente generado satisfactoriamente");
 
-  return { success: true, message: 'Nuevo cliente generado satisfactoriamente.' , refe: referenciaUnica};
+  return { success: true, message: 'Nuevo cliente generado satisfactoriamente.', refe: referenciaUnica };
 }
-function agregarUltimoCliente(referenciaUnica){
+function agregarUltimoCliente(referenciaUnica) {
   Logger.log("agregarUltimo")
-  Logger.log("referenciaUnica "+referenciaUnica)
+  Logger.log("referenciaUnica " + referenciaUnica)
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  let InfoCliente=obtenerInformacionCliente(referenciaUnica)
+  let InfoCliente = obtenerInformacionCliente(referenciaUnica)
   var sheet = ss.getSheetByName("Factura");
   sheet.getRange("B2").setValue(referenciaUnica)
   sheet.getRange("B3").setValue(InfoCliente["Código cliente"])
   obtenerFechaYHoraActual()
 }
 
-function agregarUltimoProducto(refe){
-  agregarProductoDesdeFactura(1,refe)
+function agregarUltimoProducto(refe) {
+  agregarProductoDesdeFactura(1, refe)
 }
 
 
-function verificarDatosObligatoriosProductos(e){
+function verificarDatosObligatoriosProductos(e) {
   let sheet = e.source.getActiveSheet();
   let range = e.range;
   let rowEditada = range.getRow();
   let colEditada = range.getColumn();
   let ultimaColumnaPermitida = 9;
-  let  columnasObligatorias= [ 2, 3, 4,5];
+  let columnasObligatorias = [2, 3, 4, 5];
   let estadosDefault = [""];
-  let todasLasColumnas=[1,2,3,4,5,6,5,6,7,8,9]
+  let todasLasColumnas = [1, 2, 3, 4, 5, 6, 5, 6, 7, 8, 9]
 
   if (rowEditada > 1 && colEditada <= ultimaColumnaPermitida) {
     let estaCompleto = true;
@@ -663,18 +664,56 @@ function verificarDatosObligatoriosProductos(e){
         estaVacioOPredeterminado = false;
       }
     }
+    // Si el tipo es Producto, bloquear J/K ante intento de edición manual
+    if ((colEditada === 10 || colEditada === 11) && rowEditada > 1) {
+      try {
+        const tipo = String(hojaActual.getRange(rowEditada, 4).getValue() || '').toLowerCase();
+        const esProducto = /producto|bien/.test(tipo);
+        if (esProducto) {
+          if (colEditada === 10) hojaActual.getRange(rowEditada, 10).setValue(false);
+          if (colEditada === 11) hojaActual.getRange(rowEditada, 11).setValue(0);
+          hojaActual.getRange(rowEditada, 10, 1, 2).setBackground('#e0e0e0');
+          SpreadsheetApp.getUi().alert('Para tipo Producto, el recargo (J/K) no aplica.');
+        }
+      } catch (err) { Logger.log('bloqueo J/K: ' + err); }
+    }
+    // Si el usuario marca Retención (columna L = 12) y M vacía, informar y desmarcar
+    if (colEditada === 12 && rowEditada > 1) {
+      try {
+        const valorTarifa = Number(hojaActual.getRange(rowEditada, 13).getValue() || 0);
+        const marcada = hojaActual.getRange(rowEditada, 12).getValue() === true;
+        if (marcada && valorTarifa <= 0) {
+          SpreadsheetApp.getUi().alert('Debes ingresar un valor de retención en la columna M.');
+          hojaActual.getRange(rowEditada, 12).setValue(false);
+        }
+      } catch (err) {
+        Logger.log('Error validando retención L/M: ' + err);
+      }
+    }
 
+    // Si se edita la Tarifa de retención (columna M = 13), activar checkbox L cuando sea > 0
+    if (colEditada === 13 && rowEditada > 1) {
+      try {
+        const valorTarifaRetencion = Number(hojaActual.getRange(rowEditada, 13).getValue() || 0);
+        const marcar = valorTarifaRetencion > 0;
+        hojaActual.getRange(rowEditada, 12).setValue(marcar);
+      } catch (err) {
+        Logger.log('Error marcando retención por tarifa: ' + err);
+      }
+    }
     // Actualizar el estado en la primera columna
     if (estaVacioOPredeterminado) {
       sheet.getRange(rowEditada, 1).clearContent(); // Limpiar contenido de "Estado"
     } else {
       let status = estaCompleto ? "Valido" : "No Valido";
-      if (status=="Valido"){
-        sheet.getRange(rowEditada, 9).setValue("=F"+rowEditada+"*H"+rowEditada+"+F"+rowEditada); // Guarda el precio con IVA    
+      if (status == "Valido") {
+        sheet.getRange(rowEditada, 9).setValue("=F" + rowEditada + "*H" + rowEditada + "+F" + rowEditada); // Guarda el precio con IVA    
       }
       sheet.getRange(rowEditada, 1).setValue(status); // Establecer valor en "Estado"
+      sheet.getRange(rowEditada, 1).setBackground('#e0e0e0');
     }
   }
+
 }
 
 function verificarDatosObligatorios(e, tipoPersona) {
@@ -684,7 +723,7 @@ function verificarDatosObligatorios(e, tipoPersona) {
   let colEditada = range.getColumn();
   let ultimaColumnaPermitida = 21; // Actualizado para reflejar el número de columnas
   let columnasObligatorias = [];
-  let todasLasColumnas = [ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,21];
+  let todasLasColumnas = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
 
   if (tipoPersona === "") {
     Logger.log("Vacio hizo edicion no en tipoPersona, cogemos el viejo");
@@ -692,13 +731,13 @@ function verificarDatosObligatorios(e, tipoPersona) {
   }
 
   if (tipoPersona === "Autonomo") {
-    columnasObligatorias = [3, 4, 5, 6,7, 8, 10, 12, 14, 21]; // Incluyendo "Nombre cliente" (columna 2)
+    columnasObligatorias = [3, 4, 5, 6, 7, 8, 10, 12, 14, 21]; // Incluyendo "Nombre cliente" (columna 2)
   } else if (tipoPersona === "Empresa") {
-    columnasObligatorias = [3, 4, 5, 6, 7,8,9, 14, 21]; // Incluyendo "Nombre cliente" (columna 2)
+    columnasObligatorias = [3, 4, 5, 6, 7, 8, 9, 14, 21]; // Incluyendo "Nombre cliente" (columna 2)
   } else {
     Logger.log("Vacio tipo de persona");
   }
-  
+
   let estadosDefault = ["", "Tipo Documento", "Regimen", "Tipo de persona"]; // Aquí otros estados predeterminados si es necesario
 
   if (rowEditada > 1 && colEditada <= ultimaColumnaPermitida) {
@@ -732,12 +771,12 @@ function verificarDatosObligatorios(e, tipoPersona) {
 }
 
 
-function crearContacto(){
+function crearContacto() {
   showNuevaClienteDesdeFactura()
 
 }
 
-function crearProducto(){
+function crearProducto() {
   showNuevaProductoDesdeFactura()
 }
 
@@ -758,18 +797,18 @@ function getCustomerInformation(customer) {
 
   //range = datos_sheet.getRange("C51");// aqui agarra es el numero mas no el tipo en si
   //var IdentificationType = range.getValue();
-  let IdentificationType=datos_sheet.getRange("J2").getValue();
+  let IdentificationType = datos_sheet.getRange("J2").getValue();
 
   range = datos_sheet.getRange("K2");
   var Identification = range.getValue();//numero de identificacion
 
-  
+
   var DV = 0;//no existe en espana, predeterminado 0
 
   range = datos_sheet.getRange("T2");
   var Address = range.getValue();// aqui lo dividia entre 2 por el psotalcode
-  
-  
+
+
 
   range = datos_sheet.getRange("S2");//cambie en vez de ciudad pais, porque en espana no hay parametro ciudad
   var CityID = range.getValue();
@@ -796,13 +835,13 @@ function getCustomerInformation(customer) {
   range = datos_sheet.getRange("W2");
   var WebSiteURI = range.getValue();
 
-  var paisCliente= datos_sheet.getRange("S2").getValue();
+  var paisCliente = datos_sheet.getRange("S2").getValue();
 
   if (IdentificationType == "#NUM!") {
     Browser.msgBox("ERROR: Seleccione Tipo de Identificacion en Contactos")
     return;
   }
-  let valorFecha=ObtenerFecha()
+  let valorFecha = ObtenerFecha()
   var CustomerInformation = {
     "IdentificationType": IdentificationType,
     "Identification": Identification,//.toString(),
