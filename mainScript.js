@@ -549,9 +549,9 @@ function agregarDataValidations() {
   // Rango de valores para los dropdowns
   const rangoValoresClienteInvalido = hojaValoresCInvalidos.getRange("V2:V1000");
   const rangoValoresClienteDatos = hojaValoresC.getRange("B2:B1000");
-  const rangoValoresProductosDatos = hojaValoresP.getRange("M2:M1000");
+  const rangoValoresProductosDatos = hojaValoresP.getRange("N2:N996");
   const rangoValoresClienteFactura = hojaValoresC.getRange("$B$2:$B$1000");
-  const rangoValoresProductosFactura = hojaValoresP.getRange("$M$2:$M$1000");
+  const rangoValoresProductosFactura = hojaValoresP.getRange("$N$2:$N$996");
 
   // Crear y aplicar validaciones
   const reglas = [
@@ -1013,7 +1013,7 @@ function onEdit(e) {
             const recargoLinea = dictInformacionProducto["Recargo de equivalencia"];
             factura_sheet.getRange("I"+String(i)).setValue(recargoLinea);//Tarifa recargo
             factura_sheet.getRange("J"+String(i)).setValue(dictInformacionProducto["retencion"])//retencion
-            const totalFormula = `=IF(F${i}="";0;F${i}*(1+G${i}+I${i}))`;
+            const totalFormula = `=IF(F${i}="";0;F${i}*(1+G${i}+I${i}-J${i}))`;
             factura_sheet.getRange("K"+String(i)).setValue(totalFormula);
           }else{
             factura_sheet.getRange("A"+String(i)).setValue(dictInformacionProducto["codigo Producto"])
@@ -1024,7 +1024,7 @@ function onEdit(e) {
             const recargoLinea = dictInformacionProducto["Recargo de equivalencia"];
             factura_sheet.getRange("I"+String(i)).setValue(recargoLinea);//Tarifa recargo
             factura_sheet.getRange("J"+String(i)).setValue(dictInformacionProducto["retencion"])//retencion
-            const totalFormula = `=IF(F${i}="";0;F${i}*(1+G${i}+I${i}))`;
+            const totalFormula = `=IF(F${i}="";0;F${i}*(1+G${i}+I${i}-J${i}))`;
             factura_sheet.getRange("K"+String(i)).setValue(totalFormula);//total linea
           }
         }
@@ -1568,10 +1568,9 @@ function calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRo
 
 
   let rowParaTotales=taxSectionStartRow+10
-  //total retenciones
-  const irpfCellAbs = "$F$" + String(taxSectionStartRow - 2);
-  const totalBaseCellAbs = "$A$" + String(rowTotalBaseImponibleEIvaGeneral);
-  hojaActual.getRange("A"+String(rowParaTotales)).setValue("=IF("+irpfCellAbs+"=\"\";0;"+totalBaseCellAbs+"*"+irpfCellAbs+")")
+  // Total retenciones por producto (SUMPRODUCT base neta F x tarifa retención J)
+  hojaActual.getRange("A"+String(rowParaTotales))
+    .setValue("=SUMPRODUCT(F15:F"+String(lastRowProducto)+";J15:J"+String(lastRowProducto)+")")
 
   //total cargo equivalencia
   hojaActual.getRange("B"+String(rowParaTotales)).setValue("=SUMPRODUCT(F15:F"+String(lastRowProducto)+";I15:I"+String(lastRowProducto)+")*10")
@@ -1582,10 +1581,23 @@ function calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRo
 
   //netopagar
   let rowParaTotalFactura=taxSectionStartRow+12
-  //hojaActual.getRange("B"+String(rowParaTotalFactura)).setValue("=SUM(J15:J"+String(lastRowProducto)+")+C"+String(rowParaTotales)+"-B"+String(rowDescuentos))
+  // Importe total (suma de total de línea K)
+  hojaActual.getRange("B"+String(rowParaTotalFactura+1))
+    .setValue("=SUM(K15:K"+String(lastRowProducto)+")")
+
+  // IRPF: soporta porcentaje (en F[rowIrpf]) o valor fijo cuando F es "Valor libre" y el valor está en H[rowIrpf]
+  const rowIrpf = taxSectionStartRow - 2;
+  const formulaIrpfTerm = "IF(F"+String(rowIrpf)+"=\"Valor libre\";H"+String(rowIrpf)+";B"+String(rowParaTotalFactura+1)+"*F"+String(rowIrpf)+")";
+
+  // Neto pagar = Importe total - retenciones - descuentos + cargos - IRPF
+  const formulaNeto = "=B"+String(rowParaTotalFactura+1)+"-A"+String(rowParaTotales)+"-D"+String(rowParaTotales)+"+C"+String(rowParaTotales)+"-"+formulaIrpfTerm;
+  hojaActual.getRange("B"+String(rowParaTotalFactura)).setValue(formulaNeto)
 
   //valorBruto
   hojaActual.getRange("E"+String(rowParaTotalFactura)).setValue("=SUMPRODUCT(C15:C"+String(lastRowProducto)+";D15:D"+String(lastRowProducto)+")")
+
+  // Asegurar F29 (col F en fila de totales) sin fórmula previa
+  hojaActual.getRange("F"+String(rowParaTotales)).clearContent();
 
 }
 

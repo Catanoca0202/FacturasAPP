@@ -412,9 +412,11 @@ function agregarProductoDesdeFactura(cantidad,producto){
     factura_sheet.getRange("D"+String(rowParaDatos)).setValue(dictInformacionProducto["valor Unitario"])//valor unitario
     factura_sheet.getRange("G"+String(rowParaDatos)).setValue(dictInformacionProducto["IVA"])//IVA
     
-    factura_sheet.getRange("I"+String(rowParaDatos)).setValue(dictInformacionProducto["retencion"])//Retencion
-    factura_sheet.getRange("J"+String(rowParaDatos)).setValue(dictInformacionProducto["Recargo de equivalencia"])//Recargo de equivalencia
-    factura_sheet.getRange("K"+String(rowParaDatos)).setValue("=F"+String(rowParaDatos)+"+(F"+String(rowParaDatos)+"*G"+String(rowParaDatos)+")-(F"+String(rowParaDatos)+"*I"+String(rowParaDatos)+")+(F"+String(rowParaDatos)+"*J"+String(rowParaDatos)+")")//total linea
+    // J es Retención y I es Recargo según nuevo orden visual
+    factura_sheet.getRange("I"+String(rowParaDatos)).setValue(dictInformacionProducto["Recargo de equivalencia"])//Tarifa recargo
+    factura_sheet.getRange("J"+String(rowParaDatos)).setValue(dictInformacionProducto["retencion"])//Tarifa retención
+    // Total de línea: Base gravable (F) + IVA + recargo - retenciones
+    factura_sheet.getRange("K"+String(rowParaDatos)).setValue("=IF(F"+String(rowParaDatos)+"=\"\";0;F"+String(rowParaDatos)+"*(1+G"+String(rowParaDatos)+"+I"+String(rowParaDatos)+"-J"+String(rowParaDatos)+"))")
   }
 
   
@@ -1974,7 +1976,14 @@ function guardarYGenerarInvoice(){
     Logger.log("✓ Producto con discountDtoModules: " + (fieldInvoice.products[0].discountDtoModules !== undefined));
   }
   
-  SpreadsheetApp.getUi().alert("Factura generada con estructura JSON COMPLETA según factura.json");
+  // Guardar JSON en propiedades del documento para mostrar resumen inmediatamente
+  try {
+    PropertiesService.getDocumentProperties().setProperty('lastInvoiceJson', JSON.stringify(fieldInvoice));
+  } catch (e) {
+    Logger.log('No se pudo guardar lastInvoiceJson: ' + e);
+  }
+  // Mostrar resumen de la factura en vez de popup
+  mostrarResumenFactura();
 }
 
 function showMensajeRespuesta(){
@@ -1985,11 +1994,116 @@ function calcularPorcentaje(valor, total) {
   return (valor / total) * 100;
 }
 
+function recuperarJson(){
+  const jsonStr = PropertiesService.getDocumentProperties().getProperty('lastInvoiceJson');
+  return jsonStr || '{}';
+}
+
+function formatearPesos(valor){
+  try {
+    return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(Number(valor)||0);
+  } catch(e){
+    return String(valor);
+  }
+}
+
+function plantillaResumenFactura(nombreCliente, numeroFactura, impuestos, invoiceTotal) {
+  return `
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+      body { font-family: 'Roboto', sans-serif; font-size: 16px; margin: 0; padding: 0; }
+      .container { padding: 10px; display: flex; flex-direction: column; height: auto; }
+      .title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+      .info { margin-bottom: 10px; }
+      .info span { font-weight: bold; }
+      .columns { display: flex; justify-content: space-between; gap: 20px; }
+      .column { flex: 1; padding: 10px; margin-right: 10px; box-sizing: border-box; }
+      .column:last-child { margin-right: 0; }
+      .button-container { display: none; }
+      .red-text { color: rgb(231, 112, 14); font-size: 16px; font-family: 'Roboto', sans-serif; font-weight: 600; }
+      .grey-text { color: grey; font-size: 16px; font-family: 'Roboto', sans-serif; font-weight: 600; }
+      button { padding: 3px 12px; font-family: 'Roboto', sans-serif; background-color: rgba(255, 255, 255, 0); border: none; border-radius: 30px; cursor: pointer; }
+      button:hover { background-color:rgba(255, 218, 187, 0.32); }
+      ul { padding: 0; list-style-type: none; }
+      li { display: flex; justify-content: space-between; padding: 5px 0; }
+      .btn-orange { display:none; }
+      .btn-grey-outline { display:none; }
+    </style>
+    <div class="container">
+      <div class="columns">
+        <div class="column">
+          <div class="info"><span>Nombre del Cliente:</span> ${nombreCliente}</div>
+          <div class="info"><span>Número de la Factura:</span> ${numeroFactura}</div>
+          <div class="info"><span>Impuestos:</span></div>
+          <ul>
+            ${impuestos.map(function (impuesto) {
+              return `<li><span>${impuesto.tipo} (${impuesto.percent}%):</span> <span>${formatearPesos(impuesto.amount)}</span></li>`;
+            }).join('')}
+          </ul>
+        </div>
+        <div class="column">
+          <div class="info"><span>Totales de la Factura:</span></div>
+          <ul>
+            <li><span>Subtotal:</span> <span>${formatearPesos(invoiceTotal.LineExtensionAmount)}</span></li>
+            <li><span>Impuestos Excluidos:</span> <span>${formatearPesos(invoiceTotal.TaxExclusiveAmount)}</span></li>
+            <li><span>Impuestos Incluidos:</span> <span>${formatearPesos(invoiceTotal.TaxInclusiveAmount)}</span></li>
+            <li><span>Descuentos:</span> <span>${formatearPesos(invoiceTotal.AllowanceTotalAmount)}</span></li>
+            <li><span>Cargos:</span> <span>${formatearPesos(invoiceTotal.ChargeTotalAmount)}</span></li>
+            <li><span>Pagos Anticipados:</span> <span>${formatearPesos(invoiceTotal.PrePaidAmount)}</span></li>
+            <li><span>Total a Pagar:</span> <span>${formatearPesos(invoiceTotal.PayableAmount)}</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="button-container"></div>
+    </div>
+  `;
+}
+
+function mostrarResumenFactura() {
+  var jsonString = recuperarJson();
+  var json;
+  try {
+    json = JSON.parse(jsonString);
+  } catch (e) {
+    json = {};
+  }
+
+  var nombreCliente = (json.CustomerInformation && json.CustomerInformation.RegistrationName) ||
+                      (json.contacts && json.contacts[0] && json.contacts[0].companyName) ||
+                      json.contactName || '';
+  var numeroFactura = (json.InvoiceGeneralInformation && json.InvoiceGeneralInformation.InvoiceNumber) ||
+                      json.invoiceNumber || '';
+
+  var impuestos = [];
+  if (Array.isArray(json.InvoiceTaxTotal)) {
+    impuestos = json.InvoiceTaxTotal.map(function (tax) {
+      var tipoImpuesto = tax.Id === "01" ? "IVA" : tax.Id === "04" ? "INC" : "ReteRenta";
+      return { tipo: tipoImpuesto, percent: tax.Percent, amount: tax.TaxAmount };
+    });
+  } else if (Array.isArray(json.fieldTaxations)) {
+    impuestos = json.fieldTaxations.map(function (tax) {
+      var tipo = tax.taxName || 'Impuesto';
+      return { tipo: tipo, percent: tax.rate, amount: tax.valueTax };
+    });
+  }
+
+  var invoiceTotal = json.InvoiceTotal || {
+    LineExtensionAmount: Number(json.sumTotalSubTotal || 0),
+    TaxExclusiveAmount: Number(json.sumTotalTaxBase || 0),
+    TaxInclusiveAmount: Number(json.sumTotalSubTotalAndTax || 0),
+    AllowanceTotalAmount: Number(json.sumTotalDiscount || 0),
+    ChargeTotalAmount: Number(json.sumTotalCharge || 0),
+    PrePaidAmount: Number(json.prePaidAmount || 0),
+    PayableAmount: Number(json.sumTotalNetPayable || json.sumTotalTotal || 0)
+  };
+
+  var htmlContent = plantillaResumenFactura(nombreCliente, numeroFactura, impuestos, invoiceTotal);
+  var htmlOutput = HtmlService.createHtmlOutput(htmlContent).setWidth(600).setHeight(450);
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Resumen de la Factura');
+}
+
 function showCustomDialog() {
-  var html = HtmlService.createHtmlOutputFromFile('postFactura')
-      .setWidth(400)
-      .setHeight(400);
-  SpreadsheetApp.getUi().showModalDialog(html, 'Elige una opción');
+  mostrarResumenFactura();
 }
 
 function CalcularDiasOFecha(opcion) {
