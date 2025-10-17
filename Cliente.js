@@ -585,7 +585,7 @@ function verificarDatosObligatoriosProductos(e){
   ];
   const columnasARevisar = columnasObligatorias.concat([
     PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO,
-    PRODUCT_COLUMNS.TIPO_RETENCION,
+    PRODUCT_COLUMNS.TARIFA_RECARGO,
     PRODUCT_COLUMNS.TARIFA_RETENCION
   ]);
   const estadosDefault = ["", "Seleccione", "Selecciona una opción"];
@@ -620,38 +620,27 @@ function verificarDatosObligatoriosProductos(e){
   });
 
   const esRecargo = sheet.getRange(rowEditada, PRODUCT_COLUMNS.CHECK_RECARGO).getValue() === true;
-  const tipoRetencion = sheet.getRange(rowEditada, PRODUCT_COLUMNS.TIPO_RETENCION).getDisplayValue().trim();
+  const retencionActiva = sheet.getRange(rowEditada, PRODUCT_COLUMNS.CHECK_RETENCION).getValue() === true;
   const tarifaRetencionDisplay = sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RETENCION).getDisplayValue().trim();
 
   if (esRecargo) {
     const ivaNum = parsePercentToNumberES(sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_IMPUESTO).getDisplayValue());
     const esperado = recargoPermitidoParaIva(ivaNum);
-    const tarifaNum = parsePercentToNumberES(tarifaRetencionDisplay);
-
-    if (tipoRetencion !== RETENCION_RECARGO_LABEL) {
-      estaCompleto = false;
-      sheet.getRange(rowEditada, PRODUCT_COLUMNS.TIPO_RETENCION).setBackground('#FFC7C7');
-    }
-
+    const tarifaNum = parsePercentToNumberES(sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RECARGO).getDisplayValue());
     if (esperado === null || tarifaNum === null || Math.abs(tarifaNum - esperado) > 0.0001) {
       estaCompleto = false;
-      sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RETENCION).setBackground('#FFC7C7');
+      sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RECARGO).setBackground('#FFC7C7');
     }
-  } else if (tipoRetencion !== "") {
-    if (tipoRetencion === RETENCION_RECARGO_LABEL) {
-      estaCompleto = false;
-      sheet.getRange(rowEditada, PRODUCT_COLUMNS.TIPO_RETENCION).setBackground('#FFC7C7');
-    }
+  }
 
-    if (tipoRetencion === 'IRPF') {
-      const tarifaNum = parsePercentToNumberES(tarifaRetencionDisplay);
-      const permitido = RETENCION_IRPF_TARIFAS
-        .map(valor => parsePercentToNumberES(valor))
-        .some(valor => Math.abs(valor - tarifaNum) < 0.0001);
-      if (!permitido) {
-        estaCompleto = false;
-        sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RETENCION).setBackground('#FFC7C7');
-      }
+  if (retencionActiva) {
+    const tarifaNum = parsePercentToNumberES(tarifaRetencionDisplay);
+    const permitido = RETENCION_IRPF_TARIFAS
+      .map(valor => parsePercentToNumberES(valor))
+      .some(valor => Math.abs(valor - tarifaNum) < 0.0001);
+    if (!permitido) {
+      estaCompleto = false;
+      sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RETENCION).setBackground('#FFC7C7');
     }
   }
 

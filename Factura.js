@@ -213,7 +213,7 @@ var paisesCodigos = {
 var diccionarioCaluclarIva={
   "0.21": "21,00",
   "0.1": "1,00",
-  "0.05": "5,00",
+  // 5% ya no aplica; mantenemos 4%
   "0.04": "4,00",
   "0": 0
 }
@@ -275,11 +275,7 @@ function verificarEstadoValidoFactura() {
     return estaValido;
   }
 
-  if (!asesor || asesor === "") {
-    estaValido.success = false;
-    estaValido.message = "Asesor no está definida. Si no tienes asesor, escribe el nombre del contacto en 'Datos emisor' ";
-    return estaValido;
-  }
+  // El asesor comercial ya no es obligatorio
 
 
 
