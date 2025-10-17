@@ -495,20 +495,20 @@ function saveClientData(formData) {
     return { success: false, message: 'El Codigo ya existe. Por favor ingrese un número único.' };
   }
 
+  // Buscar la primera fila disponible usando la columna A (Estado) vacía
+  // Esto asegura escribir sobre filas de plantilla con validaciones ya configuradas
   const lastRow = sheet.getLastRow();
-  const dataRange = sheet.getRange(2, 2, lastRow, 19).getValues();
   let emptyRow = 0;
-
-  for (let i = 0; i < dataRange.length; i++) {
-    const row = dataRange[i];
-    if (row.every(cell => cell === '')) { // Si todas las celdas están vacías
-      emptyRow = i + 2;
+  for (let r = 2; r <= lastRow; r++) {
+    const estadoCell = String(sheet.getRange(r, 1).getDisplayValue() || '').trim();
+    const idUnicoCell = String(sheet.getRange(r, 2).getDisplayValue() || '').trim();
+    if (estadoCell === '' && idUnicoCell === '') {
+      emptyRow = r;
       break;
     }
   }
-
   if (emptyRow === 0) {
-    emptyRow = lastRow + 1;
+    emptyRow = lastRow + 1; // si no hay hueco, agregar al final
   }
 
   const values = [
@@ -532,17 +532,17 @@ function saveClientData(formData) {
     formData.sitioWeb,
     formData.email,
   ];
-  let nombre=""
+  let nombre="";
   // Tratar "Persona Física" como autónomo para construir el identificador único
   let tipoNormSave = String(formData.tipoPersona)
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .toLowerCase().trim();
   if(tipoNormSave==="autonomo" || tipoNormSave==="persona fisica"){
-    let primerNombre=formData.primerNombre
-    let apellido=formData.primerApellido
-    nombre =primerNombre+" "+apellido
+    const primerNombre = formData.primerNombre || "";
+    const apellido = formData.primerApellido || "";
+    nombre = (primerNombre+" "+apellido).trim();
   }else{
-    nombre=formData.nombreComercial
+    nombre = formData.nombreComercial || "";
   }
 
   sheet.getRange(emptyRow, 3, 1, values.length).setValues([values]);

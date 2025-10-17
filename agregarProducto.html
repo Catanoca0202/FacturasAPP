@@ -23,7 +23,7 @@
         '0': '0,00%'
       };
 
-      const TARIFAS_IRPF = [
+      const TARIFAS_RETENCION = [
         { label: 'Selecciona una opción', value: '' },
         { label: '7%', value: '7' },
         { label: '15%', value: '15' },
@@ -67,16 +67,13 @@
           }
         });
 
-        const aplicarRecargo = document.getElementById('aplicarRecargo').checked;
-        const tipoRetencion = document.getElementById('tipoRetencion').value;
-        const tarifaRetencion = document.getElementById('tarifaRetencion').value;
-        if (!aplicarRecargo && tipoRetencion === 'IRPF' && !tarifaRetencion) {
-          marcarCampo('tarifaRetencion', true);
+        const aplicarRetencion = document.getElementById('aplicarRetencion').checked;
+        const retencionSel = document.getElementById('retenciones').value;
+        if (aplicarRetencion && !retencionSel) {
+          marcarCampo('retenciones', true);
           isValid = false;
-        }
-
-        if (isValid) {
-          marcarCampo('tarifaRetencion', false);
+        } else {
+          marcarCampo('retenciones', false);
         }
 
         return isValid;
@@ -96,6 +93,12 @@
         const form = event.target;
         const formData = new FormData(form);
         formData.set('aplicarRecargo', document.getElementById('aplicarRecargo').checked);
+        // Retención independiente
+        if (document.getElementById('aplicarRetencion').checked) {
+          formData.set('retenciones', document.getElementById('retenciones').value);
+        } else {
+          formData.set('retenciones', '');
+        }
 
         const data = {};
         formData.forEach((value, key) => {
@@ -110,11 +113,11 @@
       function resetForm() {
         const form = document.getElementById('productForm');
         form.reset();
-        ['codigoReferencia','nombre','tipoProducto','tipoUso','valorUnitario','tipoImpuesto','tarifaImpuesto','tarifaRetencion']
+        ['codigoReferencia','nombre','tipoProducto','tipoUso','valorUnitario','tipoImpuesto','tarifaImpuesto','retenciones']
           .forEach(id => marcarCampo(id, false));
         document.getElementById('aplicarRecargo').checked = false;
-        renderTipoRetencion(false);
-        renderTarifaRetencion(false);
+        document.getElementById('aplicarRetencion').checked = false;
+        renderRetencion(false);
         document.getElementById('nombre').focus();
       }
 
@@ -131,68 +134,35 @@
         return IVA_RECARGO_2025[iva] || '';
       }
 
-      function renderTipoRetencion(aplicarRecargo) {
-        const select = document.getElementById('tipoRetencion');
+      function renderRetencion(activa) {
+        const select = document.getElementById('retenciones');
         select.innerHTML = '';
-
-        if (aplicarRecargo) {
-          select.add(new Option('Recargo de equivalencia', 'Recargo de equivalencia'));
-          select.value = 'Recargo de equivalencia';
-          select.disabled = true;
-        } else {
-          select.add(new Option('Selecciona una opción', ''));
-          select.add(new Option('IRPF', 'IRPF'));
-          select.value = '';
+        if (activa) {
+          TARIFAS_RETENCION.forEach(op => select.add(new Option(op.label, op.value)));
           select.disabled = false;
-        }
-      }
-
-      function renderTarifaRetencion(aplicarRecargo, tarifaRecargo = '') {
-        const select = document.getElementById('tarifaRetencion');
-        select.innerHTML = '';
-
-        if (aplicarRecargo) {
-          if (tarifaRecargo) {
-            select.add(new Option(tarifaRecargo, tarifaRecargo));
-            select.value = tarifaRecargo;
-          } else {
-            select.add(new Option('Selecciona una tarifa de IVA primero', ''));
-            select.value = '';
-          }
-          select.disabled = true;
         } else {
-          TARIFAS_IRPF.forEach(opcion => select.add(new Option(opcion.label, opcion.value)));
+          select.disabled = true;
           select.value = '';
-          select.disabled = false;
         }
       }
 
       function onTarifaImpuestoChange() {
-        const aplicarRecargo = document.getElementById('aplicarRecargo').checked;
-        if (aplicarRecargo) {
-          renderTarifaRetencion(true, obtenerTarifaRecargoActual());
-        }
+        // sin dependencia de recargo para retención
       }
 
       function onToggleRecargo(event) {
-        const aplicar = event.target.checked;
-        renderTipoRetencion(aplicar);
-        renderTarifaRetencion(aplicar, aplicar ? obtenerTarifaRecargoActual() : '');
-        if (!aplicar) {
-          marcarCampo('tarifaRetencion', false);
-        }
+        // recargo independiente, no afecta retención
+      }
+
+      function onToggleRetencion(event) {
+        renderRetencion(event.target.checked);
       }
 
       document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('tarifaImpuesto').addEventListener('change', onTarifaImpuestoChange);
         document.getElementById('aplicarRecargo').addEventListener('change', onToggleRecargo);
-        document.getElementById('tipoRetencion').addEventListener('change', () => {
-          if (document.getElementById('tipoRetencion').value !== 'IRPF') {
-            document.getElementById('tarifaRetencion').value = '';
-          }
-        });
-        renderTipoRetencion(false);
-        renderTarifaRetencion(false);
+        document.getElementById('aplicarRetencion').addEventListener('change', onToggleRetencion);
+        renderRetencion(false);
       });
     </script>
   </head>
@@ -253,7 +223,7 @@
                 <label for="tipoProducto" class="form-label">Tipo producto</label>
                 <select id="tipoProducto" name="tipoProducto" class="form-select form-select-lg" required>
                   <option value="">Selecciona una opción</option>
-                  <option value="Bien">Bien</option>
+                  <option value="Producto">Producto</option>
                   <option value="Servicio">Servicio</option>
                 </select>
               </div>
@@ -275,7 +245,7 @@
 
               <div class="col-6">
                 <label for="codigoReferencia" class="form-label">Código referencia</label>
-                <input type="number" class="form-control form-control-lg" id="codigoReferencia" name="codigoReferencia" required>
+                <input type="text" class="form-control form-control-lg" id="codigoReferencia" name="codigoReferencia" required>
               </div>
 
               <div class="col-6">
@@ -306,15 +276,16 @@
               </div>
 
               <div class="col-6">
-                <label for="tipoRetencion" class="form-label">Tipo retención</label>
-                <select id="tipoRetencion" name="tipoRetencion" class="form-select form-select-lg">
-                  <option value="">Selecciona una opción</option>
-                </select>
+                <div class="form-check mt-2">
+                  <input class="form-check-input" type="checkbox" id="aplicarRetencion" name="aplicarRetencion">
+                  <label class="form-check-label" for="aplicarRetencion">
+                    Aplicar retención (7%, 15% o 19%)
+                  </label>
+                </div>
               </div>
-
               <div class="col-6">
-                <label for="tarifaRetencion" class="form-label">Tarifa retención</label>
-                <select id="tarifaRetencion" name="tarifaRetencion" class="form-select form-select-lg">
+                <label for="retenciones" class="form-label">Tarifa retención</label>
+                <select id="retenciones" name="retenciones" class="form-select form-select-lg" disabled>
                   <option value="">Selecciona una opción</option>
                 </select>
               </div>

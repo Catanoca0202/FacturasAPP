@@ -734,7 +734,7 @@ function obtenerAPIkey(usuario, contra) {
   Logger.log("usuario "+usuario)
   Logger.log("contra "+contra)
 
-  // try {
+  try {
     let respuesta = UrlFetchApp.fetch(url, opciones);
     let contenidoRespuesta = respuesta.getContentText();
     
@@ -760,13 +760,20 @@ function obtenerAPIkey(usuario, contra) {
       throw new Error("Error de la API: " + contenidoRespuesta); // Muestra el error de la API
       
     }
-  // } catch (error) {
-  //   Logger.log("Error al enviar el JSON a la API: " + error.message);
-  //   hojaDatosEmisor.getRange("B16").setBackground('#FFC7C7')
-  //   hojaDatosEmisor.getRange("B16").setValue("Desvinculado")
-  //   hojaDatos.getRange("I21").setValue(0)
-  //   SpreadsheetApp.getUi().alert("Error al vincular tu cuenta. Verifica que el usuario y la contraseña estén correctos e intenta de nuevo. Si el error persiste, comunícate con soporte.");
-  // }
+  } catch (error) {
+    Logger.log("Error al vincular cuenta: " + error.message);
+    hojaDatosEmisor.getRange("B16").setBackground('#FFC7C7')
+    hojaDatosEmisor.getRange("B16").setValue("Desvinculado")
+    hojaDatos.getRange("I21").setValue(0)
+    // Intentar extraer mensaje de la API si viene en JSON
+    let apiMsg = '';
+    try {
+      const errObj = JSON.parse((error.message || '').replace('Error de la API: ',''));
+      apiMsg = (errObj && (errObj.exception || errObj.message)) ? String(errObj.exception || errObj.message) : '';
+    } catch (e) {}
+    const mensajeFinal = apiMsg ? apiMsg : 'Error al vincular tu cuenta. Verifica usuario y contraseña e inténtalo de nuevo.';
+    SpreadsheetApp.getUi().alert(mensajeFinal);
+  }
 }
 
 
