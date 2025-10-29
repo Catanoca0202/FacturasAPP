@@ -5,6 +5,9 @@ FILA_INICIAL_PREFACTURA = 8;
 COLUMNA_FINAL = 50;
 ADDITIONAL_ROWS = 3 + 3; //(Personalizacion)
 
+// Bandera para mostrar/ocultar el resumen de la factura al finalizar
+const SHOW_SUMMARY_MODAL = false;
+
 
 // var spreadsheet = SpreadsheetApp.getActive();
 // var prefactura_sheet = spreadsheet.getSheetByName('Factura');
@@ -521,7 +524,10 @@ function guardarFacturaHistorial() {
   // SpreadsheetApp.getUi()
   //   .showSidebar(html);
   
-  showCustomDialog()
+  // Mostrar el resumen sólo si la bandera lo permite
+  if (SHOW_SUMMARY_MODAL) {
+    showCustomDialog()
+  }
 }
 
 // Funciones obsoletas eliminadas - ahora se usa el nuevo API de FacturasApp
@@ -1477,8 +1483,9 @@ function getInvoiceGeneralInformation() {
 
 // Mapea el medio de pago textual (E4) al código idPayment requerido por RG
 function mapIdPaymentCode(medioPagoTxt){
+  Logger.log("medioPagoTxt"+medioPagoTxt)
   if(!medioPagoTxt) return "ND"; // No definido
-  const normalizado = String(medioPagoTxt).toLowerCase().trim();
+  // const normalizado = String(medioPagoTxt).toLowerCase().trim();
   switch(normalizado){
     case 'Efectivo':
       return 'EF';
@@ -1663,8 +1670,9 @@ function guardarYGenerarInvoice(){
     let subtotalHoja = Number(productoData[5]) || 0; // con descuento
     let ivaRate = Number(productoData[6]) || 0;
     let descuentoRate = Number(productoData[7]) || 0;
-    let retencionRate = Number(productoData[8]) || 0;
-    let recargoEquivalenciaRate = Number(productoData[9]) || 0;
+    // En la hoja: I = Tarifa recargo, J = Tarifa retención. Respetar ese orden.
+    let recargoEquivalenciaRate = Number(productoData[8]) || 0; // Tarifa recargo
+    let retencionRate = Number(productoData[9]) || 0; // Tarifa retención
     let totalLinea = Number(productoData[10]) || 0;
 
     // Calcular valores base
@@ -1762,16 +1770,19 @@ function guardarYGenerarInvoice(){
     }
     
     // Crear producto con estructura completa
+    // Asegurar cantidad entera y mínima de 1 para cumplir con el esquema (int32)
+    const quantityInt = Math.max(1, Math.trunc(Number(cantidad)));
     let producto = {
       typeUse: "VEN",
       reference: String(referencia).substring(0, 50),
       description: String(descripcion).substring(0, 100),
       unitPrice: Number(precioUnitario),
-      quantity: Number(cantidad),
+      quantity: quantityInt,
       // IMPORTANTE: Enviar subTotal BRUTO (antes de descuento) para que el servicio
       // aplique los módulos de descuento y no descuente doble.
       subTotal: baseBruta,
-      totalTax: round2(taxAmount + surChargesAmount), // Cuota total (IVA + Recargo)
+      // totalTax solo debe reflejar IVA. El recargo se reporta aparte.
+      totalTax: round2(taxAmount),
       totalwithHoldings: withHoldingsAmount,
       totalSurCharges: surChargesAmount,
       totaldiscount: discountAmount,
@@ -1797,8 +1808,8 @@ function guardarYGenerarInvoice(){
     totalSurCharges = round2(totalSurCharges + surChargesAmount);
     totalDiscounts = round2(totalDiscounts + discountAmount);
   }
-  // Ajustar totalTax para que sea la suma de IVA + Recargo (CuotaTotal)
-  totalTax = round2(sumIvaAmount + sumRecargoAmount);
+  // totalTax a nivel factura debe incluir únicamente IVA (no recargo)
+  totalTax = round2(sumIvaAmount);
   
   // Crear fieldTaxations desde grupos (IVA + Recargo Equivalencia)
   for (let rate in taxGroups) {
@@ -1811,15 +1822,19 @@ function guardarYGenerarInvoice(){
   // Obtener totales de la factura
   let cargoTotal = 0;
   let totalFactura = 0;
+  let netoPagar = 0;
   
   if (prefactura_sheet.getRange("A31").getValue() === "Total factura") {
     totalFactura = prefactura_sheet.getRange("B31").getValue();
     cargoTotal = prefactura_sheet.getRange("B17").getValue() || 0;
+    netoPagar = prefactura_sheet.getRange("B32").getValue()
   } else {
     let rowTotalFactura = startingRowTaxation + 12;
     let rowCargoFactura = startingRowTaxation - 2;
+    let rowNetoPagar = startingRowTaxation +13;
     totalFactura = prefactura_sheet.getRange(rowTotalFactura, 2).getValue();
     cargoTotal = prefactura_sheet.getRange("B" + String(rowCargoFactura)).getValue() || 0;
+    netoPagar = prefactura_sheet.getRange("B"+String(rowNetoPagar)).getValue()
   }
 
   // Validar datos del cliente
@@ -1870,33 +1885,41 @@ function guardarYGenerarInvoice(){
     currentNumber = Math.floor(Date.now() / 1000);
   }
   
-  // Crear chargeAndDiscount - siempre incluir al menos un elemento
+  // Crear chargeAndDiscount: incluir solo valores reales, sin cargos por defecto
   let chargeAndDiscount = [];
-  
-  // Siempre agregar al menos un elemento base según la estructura requerida
-  let baseFeeDiscountValue = totalTaxBase || 0;
-  let totalFeeDiscountValue = cargoTotal > 0 ? cargoTotal : (baseFeeDiscountValue * 0.01); // 1% por defecto si no hay cargo específico
-  
-  chargeAndDiscount.push({
-    idtypeFeeDiscount: "CG", // Según factura.json
-    idTypeValueFeeDiscount: "PJ", // Según factura.json  
-    baseFeeDiscount: baseFeeDiscountValue,
-    valueFeeDiscount: 1,
-    totalFeeDiscount: totalFeeDiscountValue
-  });
+  if (cargoTotal > 0) {
+    chargeAndDiscount.push({
+      idtypeFeeDiscount: "CG",
+      idTypeValueFeeDiscount: "PJ",
+      baseFeeDiscount: totalTaxBase,
+      valueFeeDiscount: 1,
+      totalFeeDiscount: cargoTotal
+    });
+  } else {
+    // Mantener estructura compatible con valores en cero
+    chargeAndDiscount.push({
+      idtypeFeeDiscount: "CG",
+      idTypeValueFeeDiscount: "PJ",
+      baseFeeDiscount: 0,
+      valueFeeDiscount: 0,
+      totalFeeDiscount: 0
+    });
+  }
   
   // Calcular totales finales
   let sumTotalSubTotalAndTax = totalSubTotal + totalTax + totalSurCharges;
   // Neto a pagar = Total factura - Retenciones
-  let sumTotalNetPayable = totalFactura - totalWithHoldings;
+  let sumTotalNetPayable = netoPagar;
   
   // Crear el JSON con estructura EXACTA de factura.json
   // Fechas coherentes con hoja: invoiceDate = G4, invoiceExpiration = días de G6
   let diasExpiracion = Number(prefactura_sheet.getRange("G6").getValue() || 0);
   if (isNaN(diasExpiracion) || diasExpiracion < 0) diasExpiracion = 0;
   // idPayment dinámico según medio de pago (E4)
-  const medioPagoTxt = String(prefactura_sheet.getRange("E4").getValue() || "");
+  const medioPagoTxt = String(prefactura_sheet.getRange("G5").getValue() || "");
   const idPaymentCode = mapIdPaymentCode(medioPagoTxt);
+  // Base neta (exenta) para facturas sin impuestos
+  const baseNetaTotal = round2(totalSubTotal - totalDiscounts);
   let fieldInvoice = {
     textCustomerObservations: String(prefactura_sheet.getRange("D11").getValue() || "").substring(0, 350) || null,
     invoiceNumber: numeroFacturaValidado.substring(0, 50),
@@ -1915,7 +1938,7 @@ function guardarYGenerarInvoice(){
     idOperations: "N1", // Según factura.json
     // Si hay impuestos (IVA o recargo) no es exenta: usar E0. Si no hay impuestos, E3
     idOperationsExenta: (hasAnyTaxOrSurcharge) ? "E0" : "E3",
-    valueExemptBase: 0,
+    valueExemptBase: (hasAnyTaxOrSurcharge) ? 0 : baseNetaTotal,
     chargeAndDiscount: chargeAndDiscount, // Siempre incluir - nunca null
     fieldTaxations: fieldTaxations.length > 0 ? fieldTaxations : [],
     sumTotalSubTotal: totalSubTotal,
@@ -1982,8 +2005,10 @@ function guardarYGenerarInvoice(){
   } catch (e) {
     Logger.log('No se pudo guardar lastInvoiceJson: ' + e);
   }
-  // Mostrar resumen de la factura en vez de popup
-  mostrarResumenFactura();
+  // Mostrar resumen de la factura sólo si está habilitado
+  if (SHOW_SUMMARY_MODAL) {
+    mostrarResumenFactura();
+  }
 }
 
 function showMensajeRespuesta(){

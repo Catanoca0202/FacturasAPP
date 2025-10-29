@@ -29,7 +29,7 @@ const PRODUCT_COLUMNS = {
 };
 
 const RETENCION_IRPF_TARIFAS = [formatPercentES(7), formatPercentES(15), formatPercentES(19)];
-const FACTURA_CHECKBOX_COL = 11; // Columna "Eliminar" en hoja Factura
+const FACTURA_CHECKBOX_COL = 12; // Columna "Eliminar" en hoja Factura
 
 function OnOpenVariablesGlobales(){
   var spreadsheet = SpreadsheetApp.getActive();
@@ -997,12 +997,12 @@ function onEdit(e) {
           let ivaProductoActual=dictInformacionProducto["IVA"]
           let valorFechaActual=ObtenerFecha()
       
-          let verifcadorFecha=verificarDescuentoValido(valorFechaActual,ivaProductoActual)
-          if (verifcadorFecha===false){
-            SpreadsheetApp.getUi().alert("Alguno de tus productos posee un iva del 5%. La fecha de facturación debe estar comprendida entre el 1 de julio de 2022 y el 30 de septiembre de 2024")
-            //poner rangos en 0
-            continue
-          }
+          // let verifcadorFecha=verificarDescuentoValido(valorFechaActual,ivaProductoActual)
+          // if (verifcadorFecha===false){
+          //   SpreadsheetApp.getUi().alert("Alguno de tus productos posee un iva del 5%. La fecha de facturación debe estar comprendida entre el 1 de julio de 2022 y el 30 de septiembre de 2024")
+          //   //poner rangos en 0
+          //   continue
+          // }
 
           if(cantiadProducto===""){
             cantiadProducto=0
@@ -1151,7 +1151,7 @@ function onEdit(e) {
       if (lastRowProducto===productStartRow){
         Logger.log("dentro de agg info para TOTLA pero last y start son iguales")
         // //ESTADO DEAFULT no se hace nada
-        hojaActual.getRange("B31").setValue("=B32+C29-A29")
+        hojaActual.getRange("B31").setValue("=B32+A29-D29+C29-IF(F17=\"Valor libre\";H17;B32*F17)")
 
 
       }else{
@@ -1573,7 +1573,7 @@ function calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRo
     .setValue("=SUMPRODUCT(F15:F"+String(lastRowProducto)+";J15:J"+String(lastRowProducto)+")")
 
   //total cargo equivalencia
-  hojaActual.getRange("B"+String(rowParaTotales)).setValue("=SUMPRODUCT(F15:F"+String(lastRowProducto)+";I15:I"+String(lastRowProducto)+")*10")
+  hojaActual.getRange("B"+String(rowParaTotales)).setValue("=SUMPRODUCT(F15:F"+String(lastRowProducto)+";I15:I"+String(lastRowProducto)+")")
 
   //total descuentos FACTURA
   let rowDescuentos=taxSectionStartRow-1
@@ -1590,7 +1590,7 @@ function calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRo
   const formulaIrpfTerm = "IF(F"+String(rowIrpf)+"=\"Valor libre\";H"+String(rowIrpf)+";B"+String(rowParaTotalFactura+1)+"*F"+String(rowIrpf)+")";
 
   // Neto pagar = Importe total - retenciones - descuentos + cargos - IRPF
-  const formulaNeto = "=B"+String(rowParaTotalFactura+1)+"-A"+String(rowParaTotales)+"-D"+String(rowParaTotales)+"+C"+String(rowParaTotales)+"-"+formulaIrpfTerm;
+  const formulaNeto = "=B"+String(rowParaTotalFactura+1)+"+A"+String(rowParaTotales)+"-D"+String(rowParaTotales)+"+C"+String(rowParaTotales)+"-"+formulaIrpfTerm;
   hojaActual.getRange("B"+String(rowParaTotalFactura)).setValue(formulaNeto)
 
   //valorBruto
