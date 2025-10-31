@@ -1486,7 +1486,7 @@ function mapIdPaymentCode(medioPagoTxt){
   Logger.log("medioPagoTxt"+medioPagoTxt)
   if(!medioPagoTxt) return "ND"; // No definido
   // const normalizado = String(medioPagoTxt).toLowerCase().trim();
-  switch(normalizado){
+  switch(medioPagoTxt){
     case 'Efectivo':
       return 'EF';
     case 'Transferencia bancaria':
