@@ -1935,9 +1935,9 @@ function guardarYGenerarInvoice(){
     idPayment: idPaymentCode,
     paymentNote: String(prefactura_sheet.getRange("D11").getValue() || "").substring(0, 300) || null,
     textObservations: String(prefactura_sheet.getRange("B10").getValue() || "").substring(0, 500) || null,
-    idOperations: "N1", // Según factura.json
+    idOperations: "S1", // Según factura.json
     // Si hay impuestos (IVA o recargo) no es exenta: usar E0. Si no hay impuestos, E3
-    idOperationsExenta: (hasAnyTaxOrSurcharge) ? "E0" : "E3",
+    idOperationsExenta: "E0",
     valueExemptBase: (hasAnyTaxOrSurcharge) ? 0 : baseNetaTotal,
     chargeAndDiscount: chargeAndDiscount, // Siempre incluir - nunca null
     fieldTaxations: fieldTaxations.length > 0 ? fieldTaxations : [],

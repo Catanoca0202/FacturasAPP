@@ -28,7 +28,10 @@ const PRODUCT_COLUMNS = {
   IDENTIFICADOR_UNICO: 14 // N
 };
 
-const RETENCION_IRPF_TARIFAS = [formatPercentES(7), formatPercentES(15), formatPercentES(19)];
+// Retenciones IRPF permitidas como etiquetas visibles en la validación
+const RETENCION_IRPF_TARIFAS = ['7%','15%','19%'];
+// Etiqueta usada internamente cuando se aplica recargo automático
+const RETENCION_RECARGO_LABEL = 'Recargo de equivalencia';
 const FACTURA_CHECKBOX_COL = 12; // Columna "Eliminar" en hoja Factura
 
 function OnOpenVariablesGlobales(){
@@ -607,17 +610,40 @@ function processForm(data) {
   try {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Productos");
     const lastRow = sheet.getLastRow();
-    const newRow = lastRow + 1;
+    // Calcular la primera fila disponible (hueco) tomando como referencia la columna Código de referencia (B)
+    let newRow = 2; // por defecto, justo debajo del encabezado
+    if (lastRow > 1) {
+      Logger.log("lastRow "+lastRow)
+      const numRows = Math.max(lastRow - 1, 1);
+      const codRefColValues = sheet
+        .getRange(2, PRODUCT_COLUMNS.CODIGO_REFERENCIA, numRows, 1)
+        .getDisplayValues();
+      const idxVacio = codRefColValues.findIndex(r => String(r[0]).trim() === "");
+      newRow = idxVacio !== -1 ? 2 + idxVacio : lastRow + 1;
+      Logger.log("newRow "+newRow)
+    }
 
     const codigoReferencia = data.codigoReferencia;
     const nombre = data.nombre;
     const tipoProducto = data.tipoProducto || '';
-    const tipoUso = data.tipoUso || '';
+    // Normalizar tipoUso para que quede estrictamente "Venta" o "Compra"
+    let tipoUso = data.tipoUso || '';
+    tipoUso = String(tipoUso).trim();
+    if (tipoUso.toUpperCase() === 'VEN') tipoUso = 'Venta';
+    else if (tipoUso.toUpperCase() === 'COM') tipoUso = 'Compra';
     const valorUnitario = parseFloat(data.valorUnitario);
     const tipoImpuesto = data.tipoImpuesto || 'IVA';
     const tarifaImpuestoRaw = data.tarifaImpuesto || data.iva || '';
-    const tarifaImpuestoNum = tarifaImpuestoRaw === '' ? null : parsePercentToNumberES(tarifaImpuestoRaw);
-    const tarifaImpuestoStr = tarifaImpuestoNum !== null ? formatPercentES(tarifaImpuestoNum) : '';
+    // Normalizar IVA a enteros permitidos y mostrar sin decimales (0%, 4%, 10%, 21%)
+    const ALLOWED_IVA = [0, 4, 10, 21];
+    let tarifaImpuestoNum = tarifaImpuestoRaw === '' ? null : parsePercentToNumberES(tarifaImpuestoRaw);
+    if (tarifaImpuestoNum !== null) {
+      tarifaImpuestoNum = Math.round(Number(tarifaImpuestoNum));
+      if (!ALLOWED_IVA.includes(tarifaImpuestoNum)) {
+        tarifaImpuestoNum = null; // invalida si no está en la lista permitida
+      }
+    }
+    const tarifaImpuestoStr = tarifaImpuestoNum !== null ? `${tarifaImpuestoNum}%` : '';
 
     let aplicarRecargoFormulario = String(data.aplicarRecargo || '').toLowerCase() === 'true';
     const recargoSeleccionado = data.recargo && String(data.recargo).toLowerCase() !== 'seleccione' ? parsePercentToNumberES(data.recargo) : null;
@@ -627,17 +653,16 @@ function processForm(data) {
     let tarifaRetencionStr = data.tarifaRetencion || '';
     let aplicarRecargo = aplicarRecargoFormulario || recargoSeleccionado !== null;
 
-    if (!aplicarRecargo && retencionSeleccionada !== null) {
+    // La retención es independiente del recargo
+    if (retencionSeleccionada !== null) {
       tipoRetencion = 'IRPF';
       tarifaRetencionStr = formatPercentES(retencionSeleccionada);
     }
 
-    // Bloquear recargo para Servicios
+    // Bloquear recargo para Servicios (la retención sigue permitida)
     if (String(tipoProducto).trim().toLowerCase() === 'servicio') {
       aplicarRecargo = false;
       aplicarRecargoFormulario = false;
-      tipoRetencion = '';
-      tarifaRetencionStr = '';
     }
 
     if (aplicarRecargo) {
@@ -645,11 +670,8 @@ function processForm(data) {
       if (permitidoNum === null) {
         SpreadsheetApp.getUi().alert('La tarifa de IVA seleccionada no permite recargo de equivalencia.');
         aplicarRecargo = false;
-        tipoRetencion = '';
-        tarifaRetencionStr = '';
       } else {
-        tipoRetencion = RETENCION_RECARGO_LABEL;
-        tarifaRetencionStr = formatPercentES(permitidoNum);
+        // El valor de recargo se gestiona solo en columnas J/K, no en retención
       }
     } else if (tarifaRetencionStr !== '') {
       const tarifaIrpfNum = parsePercentToNumberES(tarifaRetencionStr);
@@ -658,6 +680,15 @@ function processForm(data) {
       }
     }
 
+    Logger.log("codigoReferencia "+codigoReferencia)
+    Logger.log("nombre "+nombre)
+    Logger.log("tipoProducto "+tipoProducto)
+    Logger.log("tipoUso "+tipoUso)
+    Logger.log("valorUnitario "+valorUnitario)
+    Logger.log("tipoImpuesto "+tipoImpuesto)
+    Logger.log("tarifaImpuestoStr "+tarifaImpuestoStr)
+    Logger.log("aplicarRecargo "+aplicarRecargo)
+    Logger.log("tarifaRetencionStr "+tarifaRetencionStr)
     sheet.getRange(newRow, PRODUCT_COLUMNS.CODIGO_REFERENCIA).setValue(codigoReferencia);
     sheet.getRange(newRow, PRODUCT_COLUMNS.CODIGO_REFERENCIA).setHorizontalAlignment('center');
 
@@ -665,7 +696,14 @@ function processForm(data) {
     sheet.getRange(newRow, PRODUCT_COLUMNS.NOMBRE).setHorizontalAlignment('center');
 
     sheet.getRange(newRow, PRODUCT_COLUMNS.TIPO_PRODUCTO).setValue(tipoProducto);
-    sheet.getRange(newRow, PRODUCT_COLUMNS.TIPO_USO).setValue(tipoUso);
+    // Aplicar validación estricta y valor para Tipo de uso
+    const reglaUso = SpreadsheetApp.newDataValidation()
+      .requireValueInList(['Venta','Compra'], true)
+      .setAllowInvalid(false)
+      .build();
+    const celdaTipoUso = sheet.getRange(newRow, PRODUCT_COLUMNS.TIPO_USO);
+    celdaTipoUso.setDataValidation(reglaUso);
+    celdaTipoUso.setValue(tipoUso);
 
     const valorUnitarioRange = sheet.getRange(newRow, PRODUCT_COLUMNS.VALOR_UNITARIO);
     if (isNaN(valorUnitario)) {
@@ -678,16 +716,26 @@ function processForm(data) {
     sheet.getRange(newRow, PRODUCT_COLUMNS.TIPO_IMPUESTO).setValue(tipoImpuesto);
     if (tarifaImpuestoStr !== '') {
       const tarifaImpuestoRange = sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_IMPUESTO);
-      tarifaImpuestoRange.setValue(tarifaImpuestoStr);
-      tarifaImpuestoRange.setNumberFormat('0.00%');
+      // Validación estricta a 0%, 4%, 10%, 21%
+      const reglaIva = SpreadsheetApp.newDataValidation()
+        .requireValueInList(['0%','4%','10%','21%'], true)
+        .setAllowInvalid(false)
+        .build();
+      tarifaImpuestoRange.setDataValidation(reglaIva);
+      // Guardar como número porcentaje y formatear sin decimales
+      tarifaImpuestoRange.setNumberFormat('0%');
+      tarifaImpuestoRange.setValue(Number(tarifaImpuestoNum) / 100);
     }
 
     const precioConImpuestoFormula = `=IF(AND(F${newRow}<>"";H${newRow}<>"");F${newRow}*(1+H${newRow});"")`;
     sheet.getRange(newRow, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO).setFormula(precioConImpuestoFormula);
     sheet.getRange(newRow, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO).setNumberFormat('€#,##0.00');
 
-    // Recargo de equivalencia (J/K)
-    sheet.getRange(newRow, PRODUCT_COLUMNS.CHECK_RECARGO).setValue(aplicarRecargo);
+    // Recargo de equivalencia (J/K) – asegurar tipo checkbox y valor
+    const celdaCheckRecargo = sheet.getRange(newRow, PRODUCT_COLUMNS.CHECK_RECARGO);
+    const reglaCheckRecargo = SpreadsheetApp.newDataValidation().requireCheckbox().build();
+    celdaCheckRecargo.setDataValidation(reglaCheckRecargo);
+    celdaCheckRecargo.setValue(aplicarRecargo === true);
     if (aplicarRecargo) {
       const ivaDisplayTmp = sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_IMPUESTO).getDisplayValue();
       const ivaNumTmp = parsePercentToNumberES(ivaDisplayTmp);
@@ -699,10 +747,17 @@ function processForm(data) {
 
     // Retención (L/M) - solo mostrar lista cuando el checkbox esté activo
     const aplicarRetencion = tarifaRetencionStr !== '';
-    sheet.getRange(newRow, PRODUCT_COLUMNS.CHECK_RETENCION).setValue(aplicarRetencion);
+    const celdaCheckRet = sheet.getRange(newRow, PRODUCT_COLUMNS.CHECK_RETENCION);
+    const reglaCheckRet = SpreadsheetApp.newDataValidation().requireCheckbox().build();
+    celdaCheckRet.setDataValidation(reglaCheckRet);
+    celdaCheckRet.setValue(aplicarRetencion === true);
     if (aplicarRetencion) {
+      // Validación visual de lista y guardar como porcentaje numérico con formato 0%
       aplicarValidacionTarifaRetencion(sheet, newRow, false);
-      sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_RETENCION).setValue(tarifaRetencionStr);
+      const celdaTarifaRet = sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_RETENCION);
+      celdaTarifaRet.setNumberFormat('0%');
+      const retNum = parsePercentToNumberES(tarifaRetencionStr);
+      celdaTarifaRet.setValue(Number(retNum) / 100);
     } else {
       sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_RETENCION).clearDataValidations();
       sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_RETENCION).clearContent();
@@ -862,6 +917,7 @@ function aplicarValidacionTarifaRetencion(hoja, fila, esRecargo, ivaNum) {
         .setAllowInvalid(false)
         .build();
       rangoRet.setDataValidation(reglaRet);
+      rangoRet.setNumberFormat('0%');
     } else {
       rangoRet.clearDataValidations();
     }
