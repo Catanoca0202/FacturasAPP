@@ -1207,7 +1207,7 @@ function onEdit(e) {
       if (lastRowProducto===productStartRow){
         Logger.log("dentro de agg info para TOTLA pero last y start son iguales")
         // //ESTADO DEAFULT no se hace nada
-        hojaActual.getRange("B31").setValue("=B32+A29-D29+C29-IF(F17=\"Valor libre\";H17;B32*F17)")
+        hojaActual.getRange("B31").setValue("=B32+A29-D17+C29-IF(F17=\"Valor libre\";H17;E31*F17)")
 
 
       }else{
@@ -1643,10 +1643,11 @@ function calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRo
 
   // IRPF: soporta porcentaje (en F[rowIrpf]) o valor fijo cuando F es "Valor libre" y el valor está en H[rowIrpf]
   const rowIrpf = taxSectionStartRow - 2;
-  const formulaIrpfTerm = "IF(F"+String(rowIrpf)+"=\"Valor libre\";H"+String(rowIrpf)+";B"+String(rowParaTotalFactura+1)+"*F"+String(rowIrpf)+")";
+  const formulaIrpfTerm = "IF(F"+String(rowIrpf)+"=\"Valor libre\";H"+String(rowIrpf)+";E"+String(rowParaTotalFactura)+"*F"+String(rowIrpf)+")";
 
   // Neto pagar = Importe total - retenciones - descuentos + cargos - IRPF
-  const formulaNeto = "=B"+String(rowParaTotalFactura+1)+"+A"+String(rowParaTotales)+"-D"+String(rowParaTotales)+"+C"+String(rowParaTotales)+"-"+formulaIrpfTerm;
+
+  const formulaNeto = "=B"+String(rowParaTotalFactura+1)+"+A"+String(rowParaTotales)+"-D"+String(rowParaTotales-12)+"+C"+String(rowParaTotales)+"-"+formulaIrpfTerm;
   hojaActual.getRange("B"+String(rowParaTotalFactura)).setValue(formulaNeto)
 
   //valorBruto
