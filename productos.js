@@ -43,17 +43,37 @@ function obtenerInformacionProducto(producto) {
     var spreadsheet = SpreadsheetApp.getActive();
     var hojaProductos = spreadsheet.getSheetByName('Productos');
     var ultimaFila = hojaProductos.getLastRow();
-    var valores = hojaProductos.getRange(2, 13, ultimaFila - 1, 1).getValues();
-  
-    // Filtrar los productos que coincidan con el término de búsqueda
-    var productosFiltrados = valores
-      .map(function(row) { return row[0]; })
-      .filter(function(producto) {
-        // Verificar que 'producto' es una cadena antes de llamar a 'toLowerCase'
-        return typeof producto === 'string' && producto.toLowerCase().includes(terminoBusqueda.toLowerCase());
-      });
-  
-    return productosFiltrados;
+    if (ultimaFila <= 1) return [];
+
+    // Columna N (14): Identificador único "Nombre-Código"
+    var identificadores = hojaProductos.getRange(2, 14, ultimaFila - 1, 1).getValues();
+    // Columna A (1): Estado ("Valido"/"No Valido")
+    var estados = hojaProductos.getRange(2, 1, ultimaFila - 1, 1).getValues();
+
+    var normalizar = function(s) {
+      return String(s || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    };
+    var query = normalizar(terminoBusqueda || '');
+
+    var resultados = [];
+    for (var i = 0; i < identificadores.length; i++) {
+      var estado = String(estados[i][0] || '');
+      if (estado !== 'Valido') continue; // Solo productos válidos
+
+      var prod = identificadores[i][0];
+      if (!prod) continue;
+
+      var prodNorm = normalizar(prod);
+      if (query === '' || prodNorm.includes(query)) {
+        resultados.push(String(prod));
+      }
+    }
+
+    // Limitar resultados para respuestas más ligeras
+    return resultados.slice(0, 50);
   }
   
    

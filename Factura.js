@@ -1655,6 +1655,22 @@ function guardarYGenerarInvoice(){
   let taxGroups = {};            // IVA agrupado por porcentaje
   let recargoTaxGroups = {};     // Recargo equivalencia agrupado por porcentaje
   
+  // IRPF general (totales): si está configurado y no hay retenciones por producto
+  const rowIrpf = startingRowTaxation - 2; // Fila donde está el IRPF en totales
+  const irpfSelDisplay = String(prefactura_sheet.getRange(rowIrpf, 6).getDisplayValue() || '').trim().toLowerCase(); // Columna F
+  let generalIrpfRate = 0; // fracción (0.07, 0.15, 0.19 o libre)
+  if (irpfSelDisplay) {
+    if (irpfSelDisplay === 'valor libre') {
+      const libreVal = Number(prefactura_sheet.getRange(rowIrpf, 8).getValue() || 0); // Columna H
+      generalIrpfRate = Number(libreVal) || 0;
+      if (generalIrpfRate < 0) generalIrpfRate = 0;
+    } else {
+      const rateNum = parsePercentToNumberES(prefactura_sheet.getRange(rowIrpf, 6).getDisplayValue());
+      generalIrpfRate = rateNum ? Number(rateNum) / 100 : 0;
+    }
+  }
+  let hasPerProductRetention = false;
+  const productBaseNetList = [];
   for (let i = 15; i < 15 + cantidadProductos; i++) {
     let filaActual = "A" + String(i) + ":K" + String(i);
     let rangoProducto = prefactura_sheet.getRange(filaActual);
@@ -1733,6 +1749,7 @@ function guardarYGenerarInvoice(){
         subTotalWithHoldings: baseNeta,
         cuotaWithHoldings: withHoldingsAmount
       });
+      hasPerProductRetention = true;
     }
     
     // Agregar recargo de equivalencia si existe
@@ -1807,9 +1824,31 @@ function guardarYGenerarInvoice(){
     totalWithHoldings = round2(totalWithHoldings + withHoldingsAmount);
     totalSurCharges = round2(totalSurCharges + surChargesAmount);
     totalDiscounts = round2(totalDiscounts + discountAmount);
+    // Guardar base neta para posible IRPF general
+    productBaseNetList.push(baseNeta);
   }
   // totalTax a nivel factura debe incluir únicamente IVA (no recargo)
   totalTax = round2(sumIvaAmount);
+  
+  // Aplicar IRPF general si NO hubo retenciones por producto
+  if (generalIrpfRate > 0 && !hasPerProductRetention && products.length === productBaseNetList.length) {
+    const irpfCode = obtenerIdRateWithHoldings(generalIrpfRate * 100, 10);
+    for (let idx = 0; idx < products.length; idx++) {
+      const baseNeta = productBaseNetList[idx];
+      const cuota = round2(baseNeta * generalIrpfRate);
+      if (cuota <= 0) continue;
+      if (!Array.isArray(products[idx].withHoldingsSurChargesDto)) {
+        products[idx].withHoldingsSurChargesDto = [];
+      }
+      products[idx].withHoldingsSurChargesDto.push({
+        idRateWithHoldings: irpfCode,
+        subTotalWithHoldings: baseNeta,
+        cuotaWithHoldings: cuota
+      });
+      products[idx].totalwithHoldings = round2(Number(products[idx].totalwithHoldings || 0) + cuota);
+      totalWithHoldings = round2(totalWithHoldings + cuota);
+    }
+  }
   
   // Crear fieldTaxations desde grupos (IVA + Recargo Equivalencia)
   for (let rate in taxGroups) {
@@ -1907,9 +1946,13 @@ function guardarYGenerarInvoice(){
   }
   
   // Calcular totales finales
-  let sumTotalSubTotalAndTax = totalSubTotal + totalTax + totalSurCharges;
-  // Neto a pagar = Total factura - Retenciones
-  let sumTotalNetPayable = netoPagar;
+  // Para evitar doble conteo en el portal:
+  // - sumTotalSubTotalAndTax: SubTotal + IVA (sin recargo)
+  // - sumTotalTotal: igual que sumTotalSubTotalAndTax
+  // - sumTotalNetPayable: (SubTotal + IVA) + Recargo - Retenciones
+  let sumTotalSubTotalAndTax = round2(totalSubTotal + totalTax);
+  let sumTotalTotalCalc = sumTotalSubTotalAndTax;
+  let sumTotalNetPayable = round2(sumTotalSubTotalAndTax + totalSurCharges - totalWithHoldings);
   
   // Crear el JSON con estructura EXACTA de factura.json
   // Fechas coherentes con hoja: invoiceDate = G4, invoiceExpiration = días de G6
@@ -1948,9 +1991,9 @@ function guardarYGenerarInvoice(){
     sumTotalExemptBase: 0,
     sumTotalDiscount: totalDiscounts,
     sumTotalCharge: cargoTotal,
-    // Total de la factura
-    sumTotalTotal: totalFactura,
-    // Neto a pagar segun esquema: Total - Retenciones
+    // Total de la factura (sin recargo; el portal suma el recargo por separado)
+    sumTotalTotal: sumTotalTotalCalc,
+    // Neto a pagar: (SubTotal + IVA) + Recargo - Retenciones
     sumTotalNetPayable: sumTotalNetPayable,
     invoiceTypeId: 0, // Según factura.json
     invoiceRectificativeTypeId: 0,
