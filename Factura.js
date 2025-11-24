@@ -1897,9 +1897,10 @@ function guardarYGenerarInvoice(){
     identification: String(CustomerInformation.Identification || "12345678A").substring(0, 20),
     tradeName: String(cliente).substring(0, 450),
     regime: CustomerInformation.Regimen, // Según factura.json
-    country: "207", // Código España según factura.json
-    province: "5102", // Código provincia según factura.json
-    population: "32653", // Código población según factura.json
+    // Códigos oficiales de país / provincia / población tomados del catálogo externo
+    country: String(CustomerInformation.CountryCode || "").substring(0, 10),
+    province: String(CustomerInformation.ProvinceCode || "").substring(0, 10),
+    population: String(CustomerInformation.PopulationCode || "").substring(0, 10),
     addressCustomer: String(CustomerInformation.AddressLine || null).substring(0, 200), //AddressLine
     postalCodeCustomer: String(CustomerInformation.CityCode || null).substring(0, 10), //CityCode
     phoneCustomer: String(CustomerInformation.Telephone || "").substring(0, 20),

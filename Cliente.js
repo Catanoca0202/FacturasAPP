@@ -230,246 +230,164 @@ function buscarClientes(terminoBusqueda,hojaA) {
   // Devuelve los resultados
   return resultados;
 }
-function buscarPaises(terminoBusqueda) {
-  let spreadsheet = SpreadsheetApp.getActive();
-  let datos_sheet = spreadsheet.getSheetByName('Datos');
-  let paises = datos_sheet.getRange(25, 1, 169, 1).getValues();
-  var resultados = [];
+// ------------------------ CATALOGO PAISES / PROVINCIAS / POBLACIONES ------------------------ //
 
-  if (terminoBusqueda === "") {
-    return resultados;
+// ID del catálogo global de ubicaciones proporcionado por el usuario
+const LOCATION_CATALOG_SPREADSHEET_ID = '1IgtIIrMGaFKFTWgxE2oieuI6UkQ9r25s12mQ7YAnWSA';
+
+function quitarTildes(texto) {
+  return String(texto || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+/**
+ * Lee y cachea en memoria el catálogo completo (paises, provincias, poblaciones).
+ * Estructura:
+ *  Country   : A=countryCode, B=Name
+ *  Province  : A=countryCode, B=provinceCode, C=Name
+ *  Population: A=countryCode, B=provinceCode, C=populationCode, D=Name
+ */
+function getLocationCatalog_() {
+  // IMPORTANTE: onEdit es un trigger simple y no puede usar openById con otro spreadsheet.
+  // Por eso intentamos abrir el catálogo externo, pero si no hay permisos
+  // caemos al spreadsheet activo, donde puedes tener copias de Country/Province/Population.
+  let ss = SpreadsheetApp.getActiveSpreadsheet();
+  try {
+    if (LOCATION_CATALOG_SPREADSHEET_ID && LOCATION_CATALOG_SPREADSHEET_ID !== ss.getId()) {
+      ss = SpreadsheetApp.openById(LOCATION_CATALOG_SPREADSHEET_ID);
+    }
+  } catch (e) {
+    Logger.log('No se pudo abrir el catálogo externo por ID; se usará el libro activo. Detalle: ' + e);
   }
 
-  // Normaliza el término de búsqueda
-  terminoBusqueda = quitarTildes(terminoBusqueda.toLowerCase());
+  const countrySheet = ss.getSheetByName('Country');
+  const lastRowCountry = countrySheet.getLastRow();
+  const countryValues = lastRowCountry > 1
+    ? countrySheet.getRange(2, 1, lastRowCountry - 1, 2).getValues()
+    : [];
+  const countries = countryValues
+    .map(r => ({ code: String(r[0]), name: String(r[1]) }))
+    .filter(c => c.code && c.name);
 
-  // Recorre los valores obtenidos
-  for (var i = 0; i < paises.length; i++) {
-    var valor = paises[i][0]; // Accede al primer (y único) valor de cada fila
-    
-    // Normaliza el valor del país
-    let valorNormalizado = quitarTildes(valor.toLowerCase());
+  const provinceSheet = ss.getSheetByName('Province');
+  const lastRowProv = provinceSheet.getLastRow();
+  const provValues = lastRowProv > 1
+    ? provinceSheet.getRange(2, 1, lastRowProv - 1, 3).getValues()
+    : [];
+  const provinces = provValues
+    .map(r => ({
+      countryCode: String(r[0]),
+      code: String(r[1]),
+      name: String(r[2])
+    }))
+    .filter(p => p.countryCode && p.code && p.name);
 
-    // Comprueba si el valor coincide con el término de búsqueda
-    if (valorNormalizado.indexOf(terminoBusqueda) !== -1) {
-      resultados.push(valor); // Añade el valor original (con tildes) a los resultados
+  const populationSheet = ss.getSheetByName('Population');
+  const lastRowPop = populationSheet.getLastRow();
+  const popValues = lastRowPop > 1
+    ? populationSheet.getRange(2, 1, lastRowPop - 1, 4).getValues()
+    : [];
+  const populations = popValues
+    .map(r => ({
+      countryCode: String(r[0]),
+      provinceCode: String(r[1]),
+      code: String(r[2]),
+      name: String(r[3])
+    }))
+    .filter(p => p.countryCode && p.provinceCode && p.code && p.name);
+
+  return { countries, provinces, populations };
+}
+
+/** Devuelve sólo los nombres de país para usar en data validation. */
+function getCountryNameList_() {
+  const catalog = getLocationCatalog_();
+  return catalog.countries.map(c => c.name).sort();
+}
+
+/** Devuelve nombres de provincias para un país (por nombre de país). */
+function getProvinceNamesForCountry_(countryName) {
+  if (!countryName) return [];
+  const catalog = getLocationCatalog_();
+  const normalized = String(countryName).trim();
+  const country = catalog.countries.find(c => c.name === normalized);
+  if (!country) return [];
+  return catalog.provinces
+    .filter(p => p.countryCode === country.code)
+    .map(p => p.name)
+    .sort();
+}
+
+/** Devuelve nombres de poblaciones para un país + provincia (por nombre). */
+function getPopulationNames_(countryName, provinceName) {
+  if (!countryName || !provinceName) return [];
+  const catalog = getLocationCatalog_();
+  const country = catalog.countries.find(c => c.name === String(countryName).trim());
+  if (!country) return [];
+  const province = catalog.provinces.find(p =>
+    p.countryCode === country.code && p.name === String(provinceName).trim()
+  );
+  if (!province) return [];
+
+  return catalog.populations
+    .filter(pop => pop.countryCode === country.code && pop.provinceCode === province.code)
+    .map(pop => pop.name)
+    .sort();
+}
+
+/**
+ * A partir de nombres (pais / provincia / poblacion) devuelve los códigos
+ * definidos en el catálogo. Si algo no se encuentra, devuelve null en ese campo.
+ */
+function getLocationCodesFromNames(countryName, provinceName, populationName) {
+  const catalog = getLocationCatalog_();
+  let countryCode = null;
+  let provinceCode = null;
+  let populationCode = null;
+
+  if (countryName) {
+    const c = catalog.countries.find(cc => cc.name === String(countryName).trim());
+    if (c) countryCode = c.code;
+
+    if (provinceName) {
+      const p = catalog.provinces.find(pp =>
+        pp.countryCode === countryCode && pp.name === String(provinceName).trim()
+      );
+      if (p) provinceCode = p.code;
+
+      if (populationName) {
+        const pop = catalog.populations.find(po =>
+          po.countryCode === countryCode &&
+          po.provinceCode === provinceCode &&
+          po.name === String(populationName).trim()
+        );
+        if (pop) populationCode = pop.code;
+      }
     }
   }
 
-  // Devuelve los resultados
-  return resultados;
+  return {
+    countryCode,
+    provinceCode,
+    populationCode
+  };
 }
 
-function quitarTildes(texto) {
-  return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+// --- Wrappers expuestos al frontend (sidebar) ---
+
+/** Devuelve lista de países para el sidebar de clientes. */
+function apiGetCountries() {
+  return getCountryNameList_();
 }
 
-function agregarPaises(){
-  const paises = [
-    "Afganistán",
-    "Albania",
-    "Alemania",
-    "Andorra",
-    "Angola",
-    "Antigua y Barbuda",
-    "Arabia Saudita",
-    "Argelia",
-    "Argentina",
-    "Armenia",
-    "Australia",
-    "Austria",
-    "Azerbaiyán",
-    "Bahamas",
-    "Bangladés",
-    "Barbados",
-    "Baréin",
-    "Bélgica",
-    "Belice",
-    "Benín",
-    "Bielorrusia",
-    "Birmania",
-    "Bolivia",
-    "Bosnia y Herzegovina",
-    "Botsuana",
-    "Brasil",
-    "Brunéi",
-    "Bulgaria",
-    "Burkina Faso",
-    "Burundi",
-    "Bután",
-    "Cabo Verde",
-    "Camboya",
-    "Camerún",
-    "Canadá",
-    "Catar",
-    "Chad",
-    "Chile",
-    "China",
-    "Chipre",
-    "Ciudad del Vaticano",
-    "Colombia",
-    "Comoras",
-    "Corea del Norte",
-    "Corea del Sur",
-    "Costa de Marfil",
-    "Costa Rica",
-    "Croacia",
-    "Cuba",
-    "Dinamarca",
-    "Dominica",
-    "Ecuador",
-    "Egipto",
-    "El Salvador",
-    "Emiratos Árabes Unidos",
-    "Eritrea",
-    "Eslovaquia",
-    "Eslovenia",
-    "España",
-    "Estados Unidos",
-    "Estonia",
-    "Etiopía",
-    "Filipinas",
-    "Finlandia",
-    "Fiyi",
-    "Francia",
-    "Gabón",
-    "Gambia",
-    "Georgia",
-    "Ghana",
-    "Granada",
-    "Grecia",
-    "Guatemala",
-    "Guyana",
-    "Guinea",
-    "Guinea ecuatorial",
-    "Guinea-Bisáu",
-    "Haití",
-    "Honduras",
-    "Hungría",
-    "India",
-    "Indonesia",
-    "Irak",
-    "Irán",
-    "Irlanda",
-    "Islandia",
-    "Islas Marshall",
-    "Islas Salomón",
-    "Israel",
-    "Italia",
-    "Jamaica",
-    "Japón",
-    "Jordania",
-    "Kazajistán",
-    "Kenia",
-    "Kirguistán",
-    "Kiribati",
-    "Kosovo",
-    "Kuwait",
-    "Laos",
-    "Lesoto",
-    "Letonia",
-    "Líbano",
-    "Liberia",
-    "Libia",
-    "Liechtenstein",
-    "Lituania",
-    "Luxemburgo",
-    "Macedonia del Norte",
-    "Madagascar",
-    "Malasia",
-    "Malaui",
-    "Maldivas",
-    "Malí",
-    "Malta",
-    "Marruecos",
-    "Mauricio",
-    "Mauritania",
-    "México",
-    "Micronesia",
-    "Moldavia",
-    "Mónaco",
-    "Mongolia",
-    "Montenegro",
-    "Mozambique",
-    "Namibia",
-    "Nauru",
-    "Nepal",
-    "Nicaragua",
-    "Níger",
-    "Nigeria",
-    "Noruega",
-    "Nueva Zelanda",
-    "Omán",
-    "Países Bajos",
-    "Pakistán",
-    "Palaos",
-    "Panamá",
-    "Papúa Nueva Guinea",
-    "Paraguay",
-    "Perú",
-    "Polonia",
-    "Portugal",
-    "Reino Unido",
-    "República Centroafricana",
-    "República Checa",
-    "República del Congo",
-    "República Democrática del Congo",
-    "República Dominicana",
-    "Ruanda",
-    "Rumania",
-    "Rusia",
-    "Samoa",
-    "San Cristóbal y Nieves",
-    "San Marino",
-    "San Vicente y las Granadinas",
-    "Santa Lucía",
-    "Santo Tomé y Príncipe",
-    "Senegal",
-    "Serbia",
-    "Seychelles",
-    "Sierra Leona",
-    "Singapur",
-    "Siria",
-    "Somalia",
-    "Sri Lanka",
-    "Suazilandia",
-    "Sudáfrica",
-    "Sudán",
-    "Sudán del Sur",
-    "Suecia",
-    "Suiza",
-    "Surinam",
-    "Tailandia",
-    "Tanzania",
-    "Tayikistán",
-    "Timor Oriental",
-    "Togo",
-    "Tonga",
-    "Trinidad y Tobago",
-    "Túnez",
-    "Turkmenistán",
-    "Turquía",
-    "Tuvalu",
-    "Ucrania",
-    "Uganda",
-    "Uruguay",
-    "Uzbekistán",
-    "Vanuatu",
-    "Venezuela",
-    "Vietnam",
-    "Yemen",
-    "Yibuti",
-    "Zambia",
-    "Zimbabue"
-  ];
-  let spreadsheet = SpreadsheetApp.getActive();
-  let datos_sheet = spreadsheet.getSheetByName('Datos');
-  let Paragg=0
-  for(let i=25;i<paises.length;i++){
-    datos_sheet.getRange("A"+String(i)).setValue(paises[Paragg])
-    Paragg++
-  }
- }
+/** Devuelve lista de provincias para un país (nombre) para el sidebar. */
+function apiGetProvinces(countryName) {
+  return getProvinceNamesForCountry_(countryName);
+}
+
+/** Devuelve lista de poblaciones para país + provincia (nombres) para el sidebar. */
+function apiGetPopulations(countryName, provinceName) {
+  return getPopulationNames_(countryName, provinceName);
+}
 
 function obtenerTipoDePersona(e){
   let sheet = e.source.getActiveSheet();
@@ -684,7 +602,7 @@ function verificarDatosObligatorios(e, tipoPersona) {
     tipoPersona = "Autonomo";
   }
 
-  if (tipoPersona === "Autonomo") {
+  if (tipoPersona === "Autónomo") {
     columnasObligatorias = [3, 4, 5, 6,7, 8, 10, 12, 14,18, 21]; // Incluyendo "Nombre cliente" (columna 2)
   } else if (tipoPersona === "Empresa") {
     columnasObligatorias = [3, 4, 5, 6, 7,8,9, 14, 18, 21]; // Incluyendo "Nombre cliente" (columna 2)
@@ -877,6 +795,11 @@ function getCustomerInformation(customer) {
 
   var paisCliente= datos_sheet.getRange("S2").getValue();
   let codigoPostalCliente=datos_sheet.getRange("U2").getValue();
+  let provinciaCliente = datos_sheet.getRange("AA2").getValue();
+  let poblacionCliente = datos_sheet.getRange("Z2").getValue();
+
+  // Obtener códigos oficiales desde el catálogo externo a partir de los nombres
+  const locationCodes = getLocationCodesFromNames(paisCliente, provinciaCliente, poblacionCliente);
 
   if (IdentificationType == "#NUM!") {
     Browser.msgBox("ERROR: Seleccione Tipo de Identificacion en Clientes")
@@ -890,12 +813,13 @@ function getCustomerInformation(customer) {
     "DocumentIdentificationType":DocumentIdentificationType,
     "DV": valorFecha,
     "RegistrationName": customer,
-    "CountryCode": paisesCodigos[paisCliente],//cambia dependiendo del pais
+    // Código de país usado por el catálogo (no se muestra en hoja Clientes)
+    "CountryCode": locationCodes.countryCode || "",
     "CountryName": paisCliente,
     "FechaPago": valorFechaPago,// 11, //Codigo de Municipio
-    "SubdivisionName": datos_sheet.getRange("AA2").getValue(),// provicnica
+    "SubdivisionName": provinciaCliente,// provicnica
     "CityCode": codigoPostalCliente,
-    "CityName": datos_sheet.getRange("Z2").getValue(),//polbacion
+    "CityName": poblacionCliente,//poblacion
     "AddressLine": String(Address),
     "PostalZone": datos_sheet.getRange("U2").getValue(),//Confundido con el codigo postal hay 2, de recepcion y de 
     "Email": Email,
@@ -911,7 +835,10 @@ function getCustomerInformation(customer) {
     "PartecipationPercent": 100,
     "AdditionalCustomer": [],
     "TypePerson":TypePerson,
-    "Regimen":Regimen
+    "Regimen":Regimen,
+    // Códigos adicionales para el contacto en el JSON (province / population)
+    "ProvinceCode": locationCodes.provinceCode || "",
+    "PopulationCode": locationCodes.populationCode || ""
 
 
   }

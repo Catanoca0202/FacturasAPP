@@ -60,8 +60,38 @@ function iniciarHojasFactura() {
   const plantillaID = "1-ZkL7SKO8IqBwgfj9bta1ELuZoXcelp4K1a_Xd2FA0c";
   const plantilla = SpreadsheetApp.openById(plantillaID);
 
-  const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Clientes", "Factura", "Historial Facturas Data", "ClientesInvalidos", "Historial Facturas","Facturas ID", "ListadoEstado", "Celdas plantilla", "Copia de Factura","Datos"];
-  const hojasBloqueadasEInvisibles = ["ListadoEstado","Celdas plantilla", "Historial Facturas Data", "Facturas ID", "Datos", "ClientesInvalidos", "Copia de Factura"];
+  const nombresHojas = [
+    "Inicio",
+    "Productos",
+    "Datos de emisor",
+    "Clientes",
+    "Factura",
+    "Historial Facturas Data",
+    "ClientesInvalidos",
+    "Historial Facturas",
+    "Facturas ID",
+    "ListadoEstado",
+    "Celdas plantilla",
+    "Copia de Factura",
+    "Datos",
+    // Hojas de catálogo de ubicaciones
+    "Country",
+    "Province",
+    "Population"
+  ];
+  const hojasBloqueadasEInvisibles = [
+    "ListadoEstado",
+    "Celdas plantilla",
+    "Historial Facturas Data",
+    "Facturas ID",
+    "Datos",
+    "ClientesInvalidos",
+    "Copia de Factura",
+    // Catálogo: también oculto y protegido
+    "Country",
+    "Province",
+    "Population"
+  ];
 
 
 
@@ -507,7 +537,25 @@ function eliminarHojasFactura() {
   let respuesta = ui.alert('Recuerda que al desinstalar las hojas se eliminará toda la información de las mismas. Esta función solo debe ejecutarse si tienes un problema irreparable con las hojas. ¿Estás seguro de continuar?', ui.ButtonSet.YES_NO);
   if (respuesta == ui.Button.YES) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const nombresHojas = ["Inicio", "Productos", "Datos de emisor", "Historial Facturas", "Clientes", "Factura", "Historial Facturas Data", "Facturas ID", "Datos", "ListadoEstado", "Celdas plantilla", "ClientesInvalidos", "Copia de Factura"];
+    const nombresHojas = [
+      "Inicio",
+      "Productos",
+      "Datos de emisor",
+      "Historial Facturas",
+      "Clientes",
+      "Factura",
+      "Historial Facturas Data",
+      "Facturas ID",
+      "Datos",
+      "ListadoEstado",
+      "Celdas plantilla",
+      "ClientesInvalidos",
+      "Copia de Factura",
+      // Eliminar también hojas de catálogo locales
+      "Country",
+      "Province",
+      "Population"
+    ];
 
     // Crear una hoja nueva en blanco
     let nuevaHoja = ss.getSheetByName("Hoja en blanco");
@@ -595,6 +643,23 @@ function agregarDataValidations() {
       .build();
     rango.setDataValidation(regla); // Aplicar la regla
   });
+
+  // Validación por defecto para País en hoja Clientes (columna N)
+  try {
+    const hojaClientes = ss.getSheetByName("Clientes");
+    if (hojaClientes) {
+      const paises = getCountryNameList_();
+      if (paises && paises.length) {
+        const reglaPais = SpreadsheetApp.newDataValidation()
+          .requireValueInList(paises, true)
+          .setAllowInvalid(false)
+          .build();
+        hojaClientes.getRange("N2:N1000").setDataValidation(reglaPais);
+      }
+    }
+  } catch (err) {
+    Logger.log("No se pudo aplicar validación de países en Clientes: " + err);
+  }
 
   SpreadsheetApp.getUi().alert("Validaciones de datos aplicadas correctamente.");
 }
@@ -1223,41 +1288,76 @@ function onEdit(e) {
 
     } else if (hojaActual.getName() === "Clientes") {
       let celdaEditada = e.range;
-      let hojaCliente=e.source.getActiveSheet();
-      
+      let hojaCliente = e.source.getActiveSheet();
       let rowEditada = celdaEditada.getRow();
       let colEditada = celdaEditada.getColumn();
-      let colTipoDePersona=2
-      let tipoPersona= obtenerTipoDePersona(e);
+      let colTipoDePersona = 2;
+      let tipoPersona = obtenerTipoDePersona(e);
 
-      if (colEditada ==6 && rowEditada>1){
-        Logger.log("entro a ver si el edit es en numero")
-        let numeroIdentificacion=hojaCliente.getRange(rowEditada,colEditada).getValue()
-        Logger.log("num i"+numeroIdentificacion )
-        let existe=verificarCodigo(numeroIdentificacion,"Clientes",true,rowEditada)
-        if(existe){
+      if (colEditada == 6 && rowEditada > 1) {
+        Logger.log("entro a ver si el edit es en numero");
+        let numeroIdentificacion = hojaCliente.getRange(rowEditada, colEditada).getValue();
+        Logger.log("num i" + numeroIdentificacion);
+        let existe = verificarCodigo(numeroIdentificacion, "Clientes", true, rowEditada);
+        if (existe) {
           SpreadsheetApp.getUi().alert("El numero de identificacion ya existe, por favor elegir otro numero unico");
           celdaEditada.setValue("");
-          verificarDatosObligatorios(e,tipoPersona)
+          verificarDatosObligatorios(e, tipoPersona);
           throw new Error('por favor poner un Numero de Identificacion unico');
         }
-      }else if(colEditada ==7 && rowEditada>1){
-        let numeroIdentificacion=hojaCliente.getRange(rowEditada,colEditada).getValue()
-        let existe=verificarCodigo(numeroIdentificacion,"Clientes",true,rowEditada,"codigo")
-        if(existe){
+      } else if (colEditada == 7 && rowEditada > 1) {
+        let numeroIdentificacion = hojaCliente.getRange(rowEditada, colEditada).getValue();
+        let existe = verificarCodigo(numeroIdentificacion, "Clientes", true, rowEditada, "codigo");
+        if (existe) {
           SpreadsheetApp.getUi().alert("El codigo del cliente ya existe, por favor elegir otro numero unico");
           celdaEditada.setValue("");
-          verificarDatosObligatorios(e,tipoPersona)
+          verificarDatosObligatorios(e, tipoPersona);
           throw new Error('por favor poner un Numero de Identificacion unico');
         }
       }
 
-      verificarDatosObligatorios(e,tipoPersona)
-      agregarCodigoIdentificador(e)
-      validarEmailDeCelda(e)
-    
+      // Validaciones dependientes País (N), Provincia (O), Población (P)
+      // Columnas: N=14, O=15, P=16
+      if (rowEditada > 1 && colEditada === 14) {
+        // País editado: configurar lista de países y dependientes
+        const paises = getCountryNameList_();
+        if (paises && paises.length) {
+          const reglaPais = SpreadsheetApp.newDataValidation()
+            .requireValueInList(paises, true)
+            .setAllowInvalid(false)
+            .build();
+          hojaCliente.getRange(rowEditada, 14).setDataValidation(reglaPais);
+        }
 
-    }else if (hojaActual.getName() === "Historial Facturas"){
+        const paisSeleccionado = hojaCliente.getRange(rowEditada, 14).getValue();
+        const provincias = getProvinceNamesForCountry_(paisSeleccionado);
+        const reglaProvincia = SpreadsheetApp.newDataValidation()
+          .requireValueInList(provincias, true)
+          .setAllowInvalid(false)
+          .build();
+        hojaCliente.getRange(rowEditada, 15).setDataValidation(reglaProvincia);
+
+        // Limpiar valores dependientes
+        hojaCliente.getRange(rowEditada, 15).clearContent();
+        hojaCliente.getRange(rowEditada, 16).clearContent();
+      } else if (rowEditada > 1 && colEditada === 15) {
+        // Provincia editada: actualizar lista de poblaciones
+        const paisSeleccionado = hojaCliente.getRange(rowEditada, 14).getValue();
+        const provinciaSeleccionada = hojaCliente.getRange(rowEditada, 15).getValue();
+        const poblaciones = getPopulationNames_(paisSeleccionado, provinciaSeleccionada);
+        const reglaPoblacion = SpreadsheetApp.newDataValidation()
+          .requireValueInList(poblaciones, true)
+          .setAllowInvalid(false)
+          .build();
+        hojaCliente.getRange(rowEditada, 16).setDataValidation(reglaPoblacion);
+        hojaCliente.getRange(rowEditada, 16).clearContent();
+      }
+
+      verificarDatosObligatorios(e, tipoPersona);
+      agregarCodigoIdentificador(e);
+      validarEmailDeCelda(e);
+
+    } else if (hojaActual.getName() === "Historial Facturas"){
       let celdaEditada = e.range;
       let rowEditada = celdaEditada.getRow();
       let colEditada = celdaEditada.getColumn();

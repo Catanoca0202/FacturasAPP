@@ -39,27 +39,51 @@
         google.script.run.showSidebar();
       }
 
-    function buscarPais() {
-      var input = document.getElementById('pais').value;
-      google.script.run.withSuccessHandler(mostrarResultados).buscarPaises(input);
-    }
-    function mostrarResultados(paises) {
-      var resultBox = document.querySelector('.result-box');
-      resultBox.innerHTML = '';
-      paises.forEach(function(pais) {
-        var div = document.createElement('div');
-        div.textContent = pais;
-        div.onclick = function() {
-          seleccionarPAIS(pais);
-        };
-        resultBox.appendChild(div);
+    // Helpers para selects de país / provincia / población
+    function fillSelectOptions(selectEl, values, placeholder) {
+      selectEl.innerHTML = '';
+      if (placeholder) {
+        var opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = placeholder;
+        selectEl.appendChild(opt);
+      }
+      (values || []).forEach(function(v) {
+        var option = document.createElement('option');
+        option.value = v;
+        option.textContent = v;
+        selectEl.appendChild(option);
       });
     }
 
-    function seleccionarPAIS(pais) {
-      document.getElementById('pais').value = pais;
-      var resultBox = document.querySelector('.result-box');
-      resultBox.innerHTML = ''; // Limpiar los resultados
+    function cargarPaises() {
+      google.script.run.withSuccessHandler(function(paises) {
+        var selPais = document.getElementById('pais');
+        fillSelectOptions(selPais, paises, 'Selecciona un país');
+      }).apiGetCountries();
+    }
+
+    function onPaisChange() {
+      var pais = document.getElementById('pais').value;
+      var selProv = document.getElementById('provincia');
+      var selPobl = document.getElementById('poblacion');
+      fillSelectOptions(selProv, [], 'Selecciona una provincia');
+      fillSelectOptions(selPobl, [], 'Selecciona una población');
+      if (!pais) return;
+      google.script.run.withSuccessHandler(function(provincias) {
+        fillSelectOptions(selProv, provincias, 'Selecciona una provincia');
+      }).apiGetProvinces(pais);
+    }
+
+    function onProvinciaChange() {
+      var pais = document.getElementById('pais').value;
+      var provincia = document.getElementById('provincia').value;
+      var selPobl = document.getElementById('poblacion');
+      fillSelectOptions(selPobl, [], 'Selecciona una población');
+      if (!pais || !provincia) return;
+      google.script.run.withSuccessHandler(function(poblaciones) {
+        fillSelectOptions(selPobl, poblaciones, 'Selecciona una población');
+      }).apiGetPopulations(pais, provincia);
     }
 
     function verificarDatosObligatorios() {
@@ -133,6 +157,11 @@
     
   }
 }
+document.addEventListener('DOMContentLoaded', function() {
+  cargarPaises();
+  document.getElementById('pais').addEventListener('change', onPaisChange);
+  document.getElementById('provincia').addEventListener('change', onProvinciaChange);
+});
 function mostrarAlerta(mensaje) {
         google.script.run.mostrarAlertaDesdeServidor(mensaje);
       }
@@ -294,21 +323,18 @@ function resetearFormulario() {
                 </div>
 
                 <div class="col-md-12">
-                    <label for="pais" class="form-label">Buscar país</label>
-                    <input type="text" id="pais" class="form-control form-control-lg" placeholder="Buscar país" autocomplete="off" onkeyup="buscarPais()">
-                    <div class="result-box">
-                      <!-- Los resultados se mostrarán aquí -->
-                    </div>
+                    <label for="pais" class="form-label">País</label>
+                    <select id="pais" class="form-select form-select-lg"></select>
                 </div>
 
                 <div class="col-md-12">
                     <label for="provincia" class="form-label">Provincia</label>
-                    <input type="text" class="form-control form-control-lg" id="provincia" placeholder="Provincia">
+                    <select id="provincia" class="form-select form-select-lg"></select>
                 </div>
 
                 <div class="col-md-12">
                     <label for="poblacion" class="form-label">Población</label>
-                    <input type="text" class="form-control form-control-lg" id="poblacion" placeholder="Población">
+                    <select id="poblacion" class="form-select form-select-lg"></select>
                 </div>
 
                 <div class="col-md-12">
