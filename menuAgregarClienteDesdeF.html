@@ -92,9 +92,9 @@
       const tipoNorm = String(tipoPersona).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
       const isAutonomo = (tipoNorm === 'autonomo' || tipoNorm === 'persona fisica');
       const columnasObligatorias = isAutonomo ?
-        ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion', 'codigoContacto','regimen',  'primerNombre', 'primerApellido','codigoPostal', 'pais',  'email'] :
+        ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion', 'codigoContacto','regimen',  'primerNombre', 'primerApellido','codigoPostal', 'pais', 'provincia', 'poblacion', 'email'] :
         tipoNorm === 'empresa' ?
-        ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion',  'codigoContacto','regimen',  'nombreComercial','codigoPostal', 'pais',  'email'] :
+        ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion',  'codigoContacto','regimen',  'nombreComercial','codigoPostal', 'pais', 'provincia', 'poblacion', 'email'] :
         [];
 
       let isValid = true;

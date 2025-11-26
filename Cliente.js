@@ -232,9 +232,6 @@ function buscarClientes(terminoBusqueda,hojaA) {
 }
 // ------------------------ CATALOGO PAISES / PROVINCIAS / POBLACIONES ------------------------ //
 
-// ID del catálogo global de ubicaciones proporcionado por el usuario
-const LOCATION_CATALOG_SPREADSHEET_ID = '1IgtIIrMGaFKFTWgxE2oieuI6UkQ9r25s12mQ7YAnWSA';
-
 function quitarTildes(texto) {
   return String(texto || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
@@ -247,18 +244,8 @@ function quitarTildes(texto) {
  *  Population: A=countryCode, B=provinceCode, C=populationCode, D=Name
  */
 function getLocationCatalog_() {
-  // IMPORTANTE: onEdit es un trigger simple y no puede usar openById con otro spreadsheet.
-  // Por eso intentamos abrir el catálogo externo, pero si no hay permisos
-  // caemos al spreadsheet activo, donde puedes tener copias de Country/Province/Population.
-  let ss = SpreadsheetApp.getActiveSpreadsheet();
-  try {
-    if (LOCATION_CATALOG_SPREADSHEET_ID && LOCATION_CATALOG_SPREADSHEET_ID !== ss.getId()) {
-      ss = SpreadsheetApp.openById(LOCATION_CATALOG_SPREADSHEET_ID);
-    }
-  } catch (e) {
-    Logger.log('No se pudo abrir el catálogo externo por ID; se usará el libro activo. Detalle: ' + e);
-  }
-
+  // Usar SIEMPRE el spreadsheet activo: el catálogo vive en hojas locales
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
   const countrySheet = ss.getSheetByName('Country');
   const lastRowCountry = countrySheet.getLastRow();
   const countryValues = lastRowCountry > 1
@@ -603,9 +590,10 @@ function verificarDatosObligatorios(e, tipoPersona) {
   }
 
   if (tipoPersona === "Autónomo") {
-    columnasObligatorias = [3, 4, 5, 6,7, 8, 10, 12, 14,18, 21]; // Incluyendo "Nombre cliente" (columna 2)
+    // Autonomo: país (14), provincia (15) y población (16) obligatorios
+    columnasObligatorias = [3, 4, 5, 6,7, 8, 10, 12, 14, 15, 16, 18, 21];
   } else if (tipoPersona === "Empresa") {
-    columnasObligatorias = [3, 4, 5, 6, 7,8,9, 14, 18, 21]; // Incluyendo "Nombre cliente" (columna 2)
+    columnasObligatorias = [3, 4, 5, 6, 7,8,9, 14, 15, 16, 18, 21];
   } else {
     Logger.log("Vacio tipo de persona");
   }
