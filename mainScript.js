@@ -127,13 +127,9 @@ function iniciarHojasFactura() {
           }
         });
 
-        // Bloquear la hoja completa si está en la lista de bloqueadas e invisibles
-        if (hojasBloqueadasEInvisibles.includes(nombreHoja)) {
-          hojaCopia.hideSheet(); // Hacer la hoja invisible
-          const protection = hojaCopia.protect();
-          protection.removeEditors(protection.getEditors()); // Bloquear completamente
-          protection.addEditor(Session.getEffectiveUser()); // Solo el propietario tiene acceso
-        }
+        // Nota: Se ha deshabilitado temporalmente el bloqueo/ocultamiento automático
+        // de hojas incluidas en 'hojasBloqueadasEInvisibles' para evitar problemas
+        // de permisos al instalar en diferentes entornos.
 
       } else {
         SpreadsheetApp.getUi().alert('La hoja "' + nombreHoja + '" no existe en la plantilla.');
@@ -170,17 +166,11 @@ function reinstalarHojaDatos(ss, plantilla) {
     Logger.log("AIFF ")
   }
 
-  // Copiar la hoja "Datos" desde la plantilla
+  // Copiar la hoja "Datos" desde la plantilla (sin bloquear ni ocultar por ahora)
   const hojaPlantilla = plantilla.getSheetByName(nombreHoja);
   if (hojaPlantilla) {
-    const hojaCopia = hojaPlantilla.copyTo(ss).setName(nombreHoja);
-    Logger.log("dentro if")
-    // Bloquear la hoja "Datos"
-    const protection = hojaCopia.protect();
-    protection.removeEditors(protection.getEditors());
-    protection.addEditor(Session.getEffectiveUser());
-    hojaCopia.hideSheet(); // Hacer la hoja invisible
-    Logger.log("hoja aca")
+    hojaPlantilla.copyTo(ss).setName(nombreHoja);
+    Logger.log("hoja Datos copiada desde plantilla");
   } else {
     SpreadsheetApp.getUi().alert('La hoja "Datos" no existe en la plantilla.');
   }
