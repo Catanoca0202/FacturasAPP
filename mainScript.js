@@ -1633,9 +1633,8 @@ function agregarCodigoIdentificador(e){
     let tipoPersona=obtenerTipoDePersona(e)
     if (estadoActual=="Valido"){
       let nombre=""
-      // Normalizar: Persona Física se trata como Autonomo
-      let tipoNorm = String(tipoPersona).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-      if(tipoNorm==="autonomo" || tipoNorm==="persona fisica"){
+      // Usar directamente el tipo de persona tal y como viene configurado
+      if(tipoPersona==="Autónomo" || tipoPersona==="Persona Física"){
         let primerNombre=hoja.getRange(rowEditada,10).getValue()
         let apellido=hoja.getRange(rowEditada,12).getValue()
         nombre =primerNombre+" "+apellido

@@ -312,6 +312,8 @@ function guardarFactura(){
       return;
     }
     if (estadoFactura.success) {
+      // Aviso al usuario en la interfaz de Google Sheets (tipo popup de la captura)
+      SpreadsheetApp.getUi().alert("Tu factura se está generando, espera un momento por favor.");
       // Validaciones previas a guardar: solo validar consecutivo
       let consecutivoOk = verificarEstadoConsecutivo();
       if (consecutivoOk) {
@@ -332,7 +334,7 @@ function guardarFactura(){
   } catch (error) {
     let mensaje = String(error && error.message ? error.message : error);
     if (/TypePerson/i.test(mensaje)) {
-      mensaje = "Error en los datos del cliente: Tipo de persona inválido. Debe ser 'Autonomo' o 'Empresa'. Verifica la columna 'Tipo de persona' en la hoja Clientes.";
+      mensaje = "Error en los datos del cliente: Tipo de persona inválido. Debe ser 'Autónomo' o 'Empresa'. Verifica la columna 'Tipo de persona' en la hoja Clientes.";
     }
     SpreadsheetApp.getUi().alert("No se pudo guardar/enviar la factura. " + mensaje);
     Logger.log("guardarFactura error: " + mensaje);
@@ -946,9 +948,20 @@ function enviarEmailPostFactura(email,historial=false,numFacturaAbuscar=null) {
     return "Error: No se encontró el JSON de la factura.";
   }
   
-  // Parsear el JSON para obtener el total
+  // Parsear el JSON para obtener el total.
+  // Usamos sumTotalNetPayable (Neto a pagar) para que coincida con el valor de la factura,
+  // y si no existe, caemos a sumTotalTotal.
   let fieldInvoiceData = JSON.parse(fieldInvoiceJson);
-  invoiceTotal = fieldInvoiceData.sumTotalTotal;
+  let totalNumber = Number(
+    fieldInvoiceData.sumTotalNetPayable != null
+      ? fieldInvoiceData.sumTotalNetPayable
+      : fieldInvoiceData.sumTotalTotal || 0
+  );
+  // Formatear con estilo español (ej: 553,32)
+  invoiceTotal = totalNumber.toLocaleString('es-ES', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
   
   Logger.log("email " + email)
   Logger.log("numFactura " + numFactura)
@@ -1830,22 +1843,14 @@ function guardarYGenerarInvoice(){
   // totalTax a nivel factura debe incluir únicamente IVA (no recargo)
   totalTax = round2(sumIvaAmount);
   
-  // Aplicar IRPF general si NO hubo retenciones por producto
+  // Aplicar IRPF general si NO hubo retenciones por producto.
+  // En lugar de crear retenciones por producto, solo acumulamos el total
+  // para reportarlo en sumTotalRetentionIRPF a nivel de factura.
   if (generalIrpfRate > 0 && !hasPerProductRetention && products.length === productBaseNetList.length) {
-    const irpfCode = obtenerIdRateWithHoldings(generalIrpfRate * 100, 10);
     for (let idx = 0; idx < products.length; idx++) {
       const baseNeta = productBaseNetList[idx];
       const cuota = round2(baseNeta * generalIrpfRate);
       if (cuota <= 0) continue;
-      if (!Array.isArray(products[idx].withHoldingsSurChargesDto)) {
-        products[idx].withHoldingsSurChargesDto = [];
-      }
-      products[idx].withHoldingsSurChargesDto.push({
-        idRateWithHoldings: irpfCode,
-        subTotalWithHoldings: baseNeta,
-        cuotaWithHoldings: cuota
-      });
-      products[idx].totalwithHoldings = round2(Number(products[idx].totalwithHoldings || 0) + cuota);
       totalWithHoldings = round2(totalWithHoldings + cuota);
     }
   }
@@ -1992,6 +1997,8 @@ function guardarYGenerarInvoice(){
     sumTotalExemptBase: 0,
     sumTotalDiscount: totalDiscounts,
     sumTotalCharge: cargoTotal,
+    // Nuevo campo: total de retenciones IRPF (por producto + general)
+    sumTotalRetentionIRPF: totalWithHoldings,
     // Total de la factura (sin recargo; el portal suma el recargo por separado)
     sumTotalTotal: sumTotalTotalCalc,
     // Neto a pagar: (SubTotal + IVA) + Recargo - Retenciones

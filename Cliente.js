@@ -150,13 +150,12 @@ function activarCliente(cliente) {
 }
 
 function verificarDatosObligatoriosManual(sheet, row, tipoPersona) {
-  // Normalizar equivalencias: "Persona Física" se trata como "Autonomo"
-  let tipoNormManual = String(tipoPersona).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-  if (tipoNormManual === "persona fisica") {
-    tipoPersona = "Autonomo";
-  }
+  // Tratar "Persona Física" igual que "Autónomo" para obligaciones
+  const esAutonomo =
+    tipoPersona === "Autónomo" ||
+    tipoPersona === "Persona Física";
 
-  const columnasObligatorias = tipoPersona === "Autonomo" ? 
+  const columnasObligatorias = esAutonomo ? 
     [2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 17, 18, 19, 21] : // Para autónomos
     [2, 3, 4, 5, 6, 7, 8, 9, 14, 17, 18, 19, 21]; // Para empresas
 
@@ -442,7 +441,7 @@ function saveClientData(formData) {
   let tipoNormSave = String(formData.tipoPersona)
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .toLowerCase().trim();
-  if(tipoNormSave==="autonomo" || tipoNormSave==="persona fisica"){
+  if(tipoNormSave==="Autónomo" || tipoNormSave==="Persona Física"){
     const primerNombre = formData.primerNombre || "";
     const apellido = formData.primerApellido || "";
     nombre = (primerNombre+" "+apellido).trim();
@@ -581,17 +580,14 @@ function verificarDatosObligatorios(e, tipoPersona) {
     tipoPersona = sheet.getRange("D" + String(rowEditada)).getValue(); // Columna 4 para Tipo Persona
   }
 
-  // Normalizar equivalencias: "Persona Física" se trata como "Autonomo"
-  let tipoNorm = String(tipoPersona)
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase().trim();
-  if (tipoNorm === "persona fisica") {
-    tipoPersona = "Autonomo";
-  }
+  // Tratar "Persona Física" igual que "Autónomo" para campos obligatorios
+  const esAutonomo =
+    tipoPersona === "Autónomo" ||
+    tipoPersona === "Persona Física";
 
-  if (tipoPersona === "Autónomo") {
-    // Autonomo: país (14), provincia (15) y población (16) obligatorios
-    columnasObligatorias = [3, 4, 5, 6,7, 8, 10, 12, 14, 15, 16, 18, 21];
+  if (esAutonomo) {
+    // Autónomo / Persona Física: país (14), provincia (15) y población (16) obligatorios
+    columnasObligatorias = [3, 4, 5, 6, 7, 8, 10, 12, 14, 15, 16, 18, 21];
   } else if (tipoPersona === "Empresa") {
     columnasObligatorias = [3, 4, 5, 6, 7,8,9, 14, 15, 16, 18, 21];
   } else {
@@ -683,7 +679,7 @@ function getTypePersonCode(TypePerson) {
   } else if (tipoNorm === "empresa") {
     return "02";
   } else {
-    throw new Error("Valor inválido para TypePerson. Debe ser 'Autonomo' o 'Empresa'.");
+    throw new Error("Valor inválido para TypePerson. Debe ser 'Autónomo' o 'Empresa'.");
   }
 }
 

@@ -89,11 +89,10 @@
     function verificarDatosObligatorios() {
       const form = document.getElementById('clientForm');
       const tipoPersona = document.getElementById('tipoPersona').value;
-      const tipoNorm = String(tipoPersona).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-      const isAutonomo = (tipoNorm === 'autonomo' || tipoNorm === 'persona fisica');
+      const isAutonomo = (tipoPersona === 'Autónomo' || tipoPersona === 'Persona Física');
       const columnasObligatorias = isAutonomo ?
         ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion', 'codigoContacto','regimen',  'primerNombre', 'primerApellido','codigoPostal', 'pais', 'provincia', 'poblacion', 'email'] :
-        tipoNorm === 'empresa' ?
+        tipoPersona === 'Empresa' ?
         ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion',  'codigoContacto','regimen',  'nombreComercial','codigoPostal', 'pais', 'provincia', 'poblacion', 'email'] :
         [];
 
