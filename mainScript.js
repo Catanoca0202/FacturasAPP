@@ -1261,8 +1261,10 @@ function onEdit(e) {
       let lastRowProducto=getLastProductRow(hojaActual, productStartRow, taxSectionStartRow);
       if (lastRowProducto===productStartRow){
         Logger.log("dentro de agg info para TOTLA pero last y start son iguales")
-        // //ESTADO DEAFULT no se hace nada
-        hojaActual.getRange("B31").setValue("=B32+A29-D17+C29-IF(F17=\"Valor libre\";H17;E31*F17)")
+        // ESTADO DEFAULT: una sola línea de producto.
+        // Neto a pagar = B32 + A29 - D17 + C29 - IRPF
+        // IRPF ahora se calcula sobre el SUBTOTAL (F15) y no sobre el bruto (E31).
+        hojaActual.getRange("B31").setValue("=B32+A29-D17+C29-IF(F17=\"Valor libre\";H17;F15*F17)")
 
 
       }else{
@@ -1732,8 +1734,17 @@ function calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRo
     .setValue("=SUM(K15:K"+String(lastRowProducto)+")")
 
   // IRPF: soporta porcentaje (en F[rowIrpf]) o valor fijo cuando F es "Valor libre" y el valor está en H[rowIrpf]
+  // Ahora la base de IRPF es el SUBTOTAL (suma de F15:F[lastRowProducto]) en lugar del valor bruto.
   const rowIrpf = taxSectionStartRow - 2;
-  const formulaIrpfTerm = "IF(F"+String(rowIrpf)+"=\"Valor libre\";H"+String(rowIrpf)+";E"+String(rowParaTotalFactura)+"*F"+String(rowIrpf)+")";
+  const formulaIrpfTerm = "IF(F"
+    + String(rowIrpf)
+    + "=\"Valor libre\";H"
+    + String(rowIrpf)
+    + ";SUM(F15:F"
+    + String(lastRowProducto)
+    + ")*F"
+    + String(rowIrpf)
+    + ")";
 
   // Neto pagar = Importe total - retenciones - descuentos + cargos - IRPF
 
