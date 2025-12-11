@@ -312,8 +312,8 @@ function guardarFactura(){
       return;
     }
     if (estadoFactura.success) {
-      // Aviso al usuario en la interfaz de Google Sheets (tipo popup de la captura)
-      SpreadsheetApp.getUi().alert("Tu factura se está generando, espera un momento por favor.");
+      // Mostrar un diálogo HTML ligero que se cierra solo tras unos segundos
+      mostrarDialogoFacturaGenerando();
       // Validaciones previas a guardar: solo validar consecutivo
       let consecutivoOk = verificarEstadoConsecutivo();
       if (consecutivoOk) {
@@ -1009,6 +1009,18 @@ function enviarEmailPostFactura(email,historial=false,numFacturaAbuscar=null) {
     Logger.log("Error al enviar email: " + error.message);
     return "Error al enviar el email: " + error.message;
   }
+}
+
+/**
+ * Muestra un diálogo HTML sencillo que informa al usuario
+ * de que la factura se está generando y se cierra solo
+ * después de unos segundos.
+ */
+function mostrarDialogoFacturaGenerando() {
+  const html = HtmlService.createHtmlOutputFromFile('facturaGenerando')
+    .setWidth(420)
+    .setHeight(160);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Generando factura');
 }
 
 
@@ -1954,11 +1966,12 @@ function guardarYGenerarInvoice(){
   // Calcular totales finales
   // Para evitar doble conteo en el portal:
   // - sumTotalSubTotalAndTax: SubTotal + IVA (sin recargo)
-  // - sumTotalTotal: igual que sumTotalSubTotalAndTax
-  // - sumTotalNetPayable: (SubTotal + IVA) + Recargo - Retenciones
+  // Además, alineamos los totales que enviamos con los que ve el usuario en la hoja:
+  // - sumTotalTotal: Importe total (tomado de la hoja)
+  // - sumTotalNetPayable: Neto a pagar (tomado de la hoja)
   let sumTotalSubTotalAndTax = round2(totalSubTotal + totalTax);
-  let sumTotalTotalCalc = sumTotalSubTotalAndTax;
-  let sumTotalNetPayable = round2(sumTotalSubTotalAndTax + totalSurCharges - totalWithHoldings);
+  let sumTotalTotalCalc = round2(netoPagar || sumTotalSubTotalAndTax + totalSurCharges); // Importe total hoja
+  let sumTotalNetPayable = round2(totalFactura || (sumTotalSubTotalAndTax + totalSurCharges - totalWithHoldings));
   
   // Crear el JSON con estructura EXACTA de factura.json
   // Fechas coherentes con hoja: invoiceDate = G4, invoiceExpiration = días de G6

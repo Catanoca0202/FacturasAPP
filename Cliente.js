@@ -438,10 +438,11 @@ function saveClientData(formData) {
   ];
   let nombre="";
   // Tratar "Persona Física" como autónomo para construir el identificador único
+  // Normalizamos y comparamos en minúsculas sin tildes
   let tipoNormSave = String(formData.tipoPersona)
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .toLowerCase().trim();
-  if(tipoNormSave==="Autónomo" || tipoNormSave==="Persona Física"){
+  if (tipoNormSave === "autonomo" || tipoNormSave === "persona fisica") {
     const primerNombre = formData.primerNombre || "";
     const apellido = formData.primerApellido || "";
     nombre = (primerNombre+" "+apellido).trim();
