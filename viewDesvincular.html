@@ -1,0 +1,59 @@
+<div class="row py-3 px-4 gx-0">
+  <div class="col-12 py-4">
+    <p class="fs-6">
+      Si estás seguro de desvincular tu cuenta de FacturasApp, por favor escribe la palabra
+      <strong>"DESVINCULAR"</strong> en el campo a continuación y luego haz clic en el botón.
+    </p>
+  </div>
+
+  <div class="col-12 px-0">
+    <form class="row g-3" id="formDesvincular">
+      <div class="col-12">
+        <label for="confirmacionTextoDesvincular" class="form-label">Confirma</label>
+        <input type="text"
+               id="confirmacionTextoDesvincular"
+               class="form-control"
+               placeholder="Escribe DESVINCULAR"
+               oninput="toggleButtonDesvincular()">
+      </div>
+    </form>
+  </div>
+
+  <div class="col-12 mt-3 d-flex justify-content-between">
+    <a href="#" onclick="showView('ajustes')" class="btn btn-outline-secondary btn-lg">
+      <i class="icon-left"></i>
+      <span class="ms-1">Regresar</span>
+    </a>
+    <a href="#" onclick="Desvincular()" id="botonDesvincular" class="btn btn-secondary btn-lg" disabled="disabled">
+      <span class="pe-2">Desvincular</span>
+      <i class="icon-24-editor-broke-link"></i>
+    </a>
+  </div>
+</div>
+
+<script>
+  function toggleButtonDesvincular() {
+    const inputText = document.getElementById('confirmacionTextoDesvincular').value;
+    const boton = document.getElementById('botonDesvincular');
+    if (inputText === 'DESVINCULAR') {
+      boton.removeAttribute('disabled');
+      boton.classList.add('btn-danger');
+      boton.classList.remove('btn-secondary');
+    } else {
+      boton.setAttribute('disabled', 'disabled');
+      boton.classList.remove('btn-danger');
+      boton.classList.add('btn-secondary');
+    }
+  }
+
+  function Desvincular() {
+    const inputText = document.getElementById('confirmacionTextoDesvincular').value;
+    if (inputText === 'DESVINCULAR') {
+      google.script.run.DesvincularFacturasApp();
+    } else {
+      google.script.run.MensajeErrorDesvincularFacturasApp();
+    }
+  }
+</script>
+
+

@@ -1,0 +1,60 @@
+<div class="row py-3 px-4 gx-0">
+  <div class="col-12 py-4">
+    <p class="fs-6">
+      Si estás seguro de borrar la totalidad de la información actual, incluyendo contactos, productos,
+      datos del emisor, etc., por favor escribe <strong>"ELIMINAR"</strong> en el campo a continuación y
+      luego haz clic en el botón.
+    </p>
+  </div>
+
+  <div class="col-12 px-0">
+    <form class="row g-3" id="formEliminarInfo">
+      <div class="col-12">
+        <label for="confirmacionTextoEliminar" class="form-label">Confirma:</label>
+        <input type="text"
+               id="confirmacionTextoEliminar"
+               class="form-control"
+               placeholder="Escribe ELIMINAR"
+               oninput="toggleButtonEliminar()">
+      </div>
+    </form>
+  </div>
+
+  <div class="col-12 mt-3 d-flex justify-content-between">
+    <a href="#" onclick="showView('ajustes')" class="btn btn-outline-secondary btn-lg">
+      <i class="icon-left"></i>
+      <span class="ms-1">Regresar</span>
+    </a>
+    <a href="#" onclick="borrarInformacion()" id="botonEliminarInfo" class="btn btn-secondary btn-lg" disabled="disabled">
+      <span class="pe-2">Eliminar</span>
+      <i class="icon-24-outlined-action-main-delete-2"></i>
+    </a>
+  </div>
+</div>
+
+<script>
+  function toggleButtonEliminar() {
+    const inputText = document.getElementById('confirmacionTextoEliminar').value;
+    const boton = document.getElementById('botonEliminarInfo');
+    if (inputText === 'ELIMINAR') {
+      boton.removeAttribute('disabled');
+      boton.style.backgroundColor = 'red';
+      boton.style.borderColor = 'red';
+    } else {
+      boton.setAttribute('disabled', 'disabled');
+      boton.style.backgroundColor = '';
+      boton.style.borderColor = '';
+    }
+  }
+
+  function borrarInformacion() {
+    const inputText = document.getElementById('confirmacionTextoEliminar').value;
+    if (inputText === 'ELIMINAR') {
+      google.script.run.eliminarTotalidadInformacion();
+    } else {
+      google.script.run.MensajeErrorEliminarFacturasApp();
+    }
+  }
+</script>
+
+

@@ -318,12 +318,19 @@ function showSidebar2() {
     }
   }else{
     var template = HtmlService.createTemplateFromFile('main');
-    template.emailPropietario=propietario
-    const html = template.evaluate().setTitle('Menú');
+    template.emailPropietario = propietario;
+    const html = template
+      .evaluate()
+      .setTitle('Menú');
     SpreadsheetApp.getUi().showSidebar(html);
     console.log("showSidebar Exits"); 
 
   }
+}
+
+// Helper para incluir vistas parciales en main.html (SPA)
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
 function showInstalarHojas() {

@@ -1,0 +1,55 @@
+<div class="row py-3 px-4 gx-0">
+  <div class="col-12 py-4">
+    <p class="fs-6">
+      Por favor, completa la siguiente información para poder vincular tu cuenta de FacturasApp con GoogleSheets.
+      Si no tienes una cuenta, puedes
+      <a href="https://www.facturasapp.com/Publico/registro" target="_blank">registrarte aquí</a>.
+    </p>
+  </div>
+
+  <div class="col-12 px-0">
+    <form class="row g-3" id="clientFormVincular">
+      <div class="col-12">
+        <label for="Usuario" class="form-label">Usuario</label>
+        <input type="text" class="form-control" id="Usuario" placeholder="Ingresa tu usuario">
+      </div>
+      <div class="col-12">
+        <label for="Contra" class="form-label">Contraseña</label>
+        <input type="password" class="form-control" id="Contra" placeholder="Ingresa tu contraseña">
+      </div>
+      <div class="col-md-6">
+        <div class="form-check mb  -3">
+          <input type="checkbox" class="form-check-input" id="togglePassword" onclick="togglePasswordVisibility()">
+          <label class="form-check-label" for="togglePassword">Mostrar contraseña</label>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="col-12 mt-3 d-flex justify-content-between">
+    <a href="#" onclick="showView('ajustes')" class="btn btn-outline-secondary btn-lg">
+      <i class="icon-left"></i>
+      <span class="ms-1">Regresar</span>
+    </a>
+    <a href="#" onclick="obtenerToken()" class="btn btn-primary btn-lg">
+      <span class="pe-2">Vincular</span>
+      <i class="icon-24-outlined-editor-other-link-2-1"></i>
+    </a>
+  </div>
+</div>
+
+<script>
+  function obtenerToken() {
+    var contra = document.getElementById('Contra').value;
+    var usuario = document.getElementById('Usuario').value;
+    google.script.run.obtenerAPIkey(usuario, contra);
+  }
+
+  function togglePasswordVisibility() {
+    const passwordField = document.getElementById('Contra');
+    const checkbox = document.getElementById('togglePassword');
+    passwordField.type = checkbox.checked ? 'text' : 'password';
+  }
+</script>
+
+
