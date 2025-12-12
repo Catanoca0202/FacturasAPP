@@ -1,0 +1,236 @@
+<div class="row py-3 px-4 mt-3 gx-0">
+  <div class="col-12 py-4">
+    <h2 class="mt-1">Crear producto</h2>
+    <p>Ingresa la información de tu nuevo producto.</p>
+  </div>
+
+  <div class="col-12 px-0">
+    <form class="row g-3" onsubmit="handleSubmitProducto(event)" id="productForm">
+      <div class="col-12">
+        <label for="nombre" class="form-label">Nombre</label>
+        <input type="text" class="form-control form-control-lg" id="nombre" name="nombre" required>
+      </div>
+
+      <div class="col-6">
+        <label for="tipoProducto" class="form-label">Tipo producto</label>
+        <select id="tipoProducto" name="tipoProducto" class="form-select form-select-lg" required>
+          <option value="">Selecciona una opción</option>
+          <option value="Producto">Producto</option>
+          <option value="Servicio">Servicio</option>
+        </select>
+      </div>
+
+      <div class="col-6">
+        <label for="tipoUso" class="form-label">Tipo de uso</label>
+        <select id="tipoUso" name="tipoUso" class="form-select form-select-lg" required>
+          <option value="">Selecciona una opción</option>
+          <option value="Venta">Venta</option>
+          <option value="Compra">Compra</option>
+        </select>
+      </div>
+
+      <div class="col-6">
+        <label for="valorUnitario" class="form-label">Valor unitario</label>
+        <input type="number" class="form-control form-control-lg" id="valorUnitario" name="valorUnitario" required step=".01">
+      </div>
+
+      <div class="col-6">
+        <label for="codigoReferencia" class="form-label">Código referencia</label>
+        <input type="text" class="form-control form-control-lg" id="codigoReferencia" name="codigoReferencia" required>
+      </div>
+
+      <div class="col-6">
+        <label for="tipoImpuesto" class="form-label">Tipo de impuesto</label>
+        <select id="tipoImpuesto" name="tipoImpuesto" class="form-select form-select-lg" required>
+          <option value="IVA">IVA</option>
+        </select>
+      </div>
+
+      <div class="col-6">
+        <label for="tarifaImpuesto" class="form-label">Tarifa impuesto</label>
+        <select id="tarifaImpuesto" name="tarifaImpuesto" class="form-select form-select-lg" required>
+          <option value="">Selecciona una opción</option>
+          <option value="0">0%</option>
+          <option value="4">4%</option>
+          <option value="10">10%</option>
+          <option value="21">21%</option>
+        </select>
+      </div>
+
+      <div class="col-12">
+        <div class="form-check mt-2">
+          <input class="form-check-input" type="checkbox" id="aplicarRecargo" name="aplicarRecargo">
+          <label class="form-check-label" for="aplicarRecargo">
+            Aplicar recargo de equivalencia automático
+          </label>
+        </div>
+      </div>
+
+      <div class="col-6">
+        <div class="form-check mt-2">
+          <input class="form-check-input" type="checkbox" id="aplicarRetencion" name="aplicarRetencion">
+          <label class="form-check-label" for="aplicarRetencion">
+            Aplicar retención (7%, 15% o 19%)
+          </label>
+        </div>
+      </div>
+      <div class="col-6">
+        <label for="retenciones" class="form-label">Tarifa retención</label>
+        <select id="retenciones" name="retenciones" class="form-select form-select-lg" disabled>
+          <option value="">Selecciona una opción</option>
+        </select>
+      </div>
+    </form>
+  </div>
+
+  <div class="col-12 mt-4 px-0 d-flex justify-content-between">
+    <a href="#" onclick="showView('productos')" class="btn btn-outline-secondary btn-lg">
+      <i class="icon-left"></i>
+      <span class="ms-1">Regresar</span>
+    </a>
+    <a href="#" onclick="submitFormProducto()" class="btn btn-primary btn-lg">
+      <span class="">Guardar</span>
+      <i class="icon-24-outlined-editor-action-save" style="font-size: 18px;"></i>
+    </a>
+  </div>
+</div>
+
+<script>
+  const IVA_RECARGO_2025 = {
+    '21': '5,20%',
+    '10': '1,40%',
+    '4': '0,50%',
+    '0': '0,00%'
+  };
+
+  const TARIFAS_RETENCION = [
+    { label: 'Selecciona una opción', value: '' },
+    { label: '7%', value: '7' },
+    { label: '15%', value: '15' },
+    { label: '19%', value: '19' }
+  ];
+
+  function mostrarAlerta(mensaje) {
+    google.script.run.mostrarAlertaDesdeServidor(mensaje);
+  }
+
+  function marcarCampo(id, esError) {
+    const campo = document.getElementById(id);
+    if (!campo) return;
+    campo.style.backgroundColor = esError ? '#FFC7C7' : '';
+  }
+
+  function verificarDatosObligatoriosProducto() {
+    const camposObligatorios = [
+      'codigoReferencia',
+      'nombre',
+      'tipoProducto',
+      'tipoUso',
+      'valorUnitario',
+      'tipoImpuesto',
+      'tarifaImpuesto'
+    ];
+
+    let isValid = true;
+
+    camposObligatorios.forEach(id => {
+      const campo = document.getElementById(id);
+      const valor = campo ? campo.value.trim() : '';
+      const esCampoValido = Boolean(valor);
+      marcarCampo(id, !esCampoValido);
+      if (!esCampoValido) {
+        isValid = false;
+      }
+    });
+
+    const aplicarRetencion = document.getElementById('aplicarRetencion').checked;
+    const retencionSel = document.getElementById('retenciones').value;
+    if (aplicarRetencion && !retencionSel) {
+      marcarCampo('retenciones', true);
+      isValid = false;
+    } else {
+      marcarCampo('retenciones', false);
+    }
+
+    return isValid;
+  }
+
+  function submitFormProducto() {
+    if (verificarDatosObligatoriosProducto()) {
+      const form = document.getElementById('productForm');
+      form.dispatchEvent(new Event('submit'));
+    } else {
+      mostrarAlerta('Por favor complete todos los campos obligatorios.');
+    }
+  }
+
+  function handleSubmitProducto(event) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    formData.set('aplicarRecargo', document.getElementById('aplicarRecargo').checked);
+    if (document.getElementById('aplicarRetencion').checked) {
+      formData.set('retenciones', document.getElementById('retenciones').value);
+    } else {
+      formData.set('retenciones', '');
+    }
+
+    const data = {};
+    formData.forEach((value, key) => {
+      data[key] = value;
+    });
+
+    google.script.run.withSuccessHandler(function () {
+      resetFormProducto();
+    }).processForm(data);
+  }
+
+  function resetFormProducto() {
+    const form = document.getElementById('productForm');
+    form.reset();
+    ['codigoReferencia','nombre','tipoProducto','tipoUso','valorUnitario','tipoImpuesto','tarifaImpuesto','retenciones']
+      .forEach(id => marcarCampo(id, false));
+    document.getElementById('aplicarRecargo').checked = false;
+    document.getElementById('aplicarRetencion').checked = false;
+    renderRetencion(false);
+    document.getElementById('nombre').focus();
+  }
+
+  function obtenerTarifaRecargoActual() {
+    const iva = document.getElementById('tarifaImpuesto').value;
+    return IVA_RECARGO_2025[iva] || '';
+  }
+
+  function renderRetencion(activa) {
+    const select = document.getElementById('retenciones');
+    select.innerHTML = '';
+    if (activa) {
+      TARIFAS_RETENCION.forEach(op => select.add(new Option(op.label, op.value)));
+      select.disabled = false;
+    } else {
+      select.disabled = true;
+      select.value = '';
+    }
+  }
+
+  function onTarifaImpuestoChange() {
+    // sin dependencia de recargo para retención
+  }
+
+  function onToggleRecargo(event) {
+    // recargo independiente, no afecta retención
+  }
+
+  function onToggleRetencion(event) {
+    renderRetencion(event.target.checked);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('tarifaImpuesto').addEventListener('change', onTarifaImpuestoChange);
+    document.getElementById('aplicarRecargo').addEventListener('change', onToggleRecargo);
+    document.getElementById('aplicarRetencion').addEventListener('change', onToggleRetencion);
+    renderRetencion(false);
+  });
+</script>
+
+

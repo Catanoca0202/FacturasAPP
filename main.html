@@ -21,7 +21,7 @@
       }
 
       function showView(view) {
-        var views = ['inicio', 'ajustes', 'vincular', 'desvincular', 'eliminarInfo'];
+        var views = ['inicio', 'ajustes', 'vincular', 'desvincular', 'eliminarInfo', 'facturaMenu', 'facturaNueva', 'clientes', 'clienteCrear', 'productos', 'productoCrear'];
         views.forEach(function(v) {
           var el = document.getElementById('view-' + v);
           if (el) el.style.display = (v === view) ? 'block' : 'none';
@@ -29,22 +29,17 @@
       }
 
       function openFactura() {
-        google.script.run
-          .withFailureHandler(handleServerError)
-          .showMenuFactura();
+        showView('facturaMenu');
       }
       function openClientes() {
         google.script.run
           .withFailureHandler(handleServerError)
           .openClientesSheet();
-        google.script.run
-          .withFailureHandler(handleServerError)
-          .showClientes();
+        showView('clientes');
       }
       function showPreProductos() {
-        google.script.run
-          .withFailureHandler(handleServerError)
-          .showPreProductos();
+        // Mostrar menú de productos dentro del SPA
+        showView('productos');
       }
       function openAjustes() {
         // Mantener la navegación a la hoja de Datos de emisor si es necesaria
@@ -63,6 +58,48 @@
       }
       function showEliminarInfo() {
         showView('eliminarInfo');
+      }
+
+      // Flujo de facturación dentro del SPA
+      function iniciarNuevaFactura() {
+        google.script.run
+          .withFailureHandler(handleServerError)
+          .openFacturaSheet();
+        google.script.run
+          .withFailureHandler(handleServerError)
+          .inicarFacturaNueva();
+        showView('facturaNueva');
+      }
+
+      function abrirHistorialFacturas() {
+        google.script.run
+          .withFailureHandler(handleServerError)
+          .openHistorialSheet();
+      }
+
+      function facturaAbrirHoja() {
+        google.script.run
+          .withFailureHandler(handleServerError)
+          .openFacturaSheet();
+      }
+
+      function facturaLimpiar() {
+        google.script.run
+          .withFailureHandler(handleServerError)
+          .limpiarHojaFactura();
+      }
+
+      function facturaAgregarProducto() {
+        // Abre el flujo de agregar producto desde la hoja de factura
+        google.script.run
+          .withFailureHandler(handleServerError)
+          .showAggProductos();
+      }
+
+      function facturaGuardar() {
+        google.script.run
+          .withFailureHandler(handleServerError)
+          .guardarFactura();
       }
 
       function abrirSoporte() {
@@ -125,13 +162,31 @@
        <div id="view-eliminarInfo" style="display:none">
          <?!= include('viewEliminarInfo'); ?>
        </div>
+       <div id="view-facturaMenu" style="display:none">
+         <?!= include('viewFacturaMenu'); ?>
+       </div>
+       <div id="view-facturaNueva" style="display:none">
+         <?!= include('viewFacturaNueva'); ?>
+       </div>
+       <div id="view-clientes" style="display:none">
+         <?!= include('viewClientes'); ?>
+       </div>
+       <div id="view-clienteCrear" style="display:none">
+         <?!= include('viewClienteCrear'); ?>
+      </div>
+      <div id="view-productos" style="display:none">
+        <?!= include('viewProductos'); ?>
+      </div>
+      <div id="view-productoCrear" style="display:none">
+        <?!= include('viewProductoCrear'); ?>
+       </div>
      </main>
 
 
      <footer class="mt-auto">
        <div class="row p-4 gx-0">
            <div class="col-12">
-              <p class="text-center" style="font-size: 14px;">© 2025 FacturasApp V 1.11 QA</p>
+              <p class="text-center" style="font-size: 14px;">© 2025 FacturasApp V 1.14 QA</p>
            </div>
        </div>
      </footer>

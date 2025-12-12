@@ -1,0 +1,36 @@
+<div class="row py-3 px-4 gx-0">
+  <div class="col-12 py-4">
+    <h2 class="mt-1">Productos</h2>
+    <p>Consulta y añade un nuevo producto sin complicaciones, desde un solo lugar.</p>
+  </div>
+
+  <div class="col-12 px-0">
+    <a onclick="productosAbrirLista()" class="btn btn-lg btn-outline-secondary mb-2">
+      <i class="icon-list"></i>
+      <span>Lista de productos</span>
+    </a>
+    <a onclick="productosMostrarCrear()" class="btn btn-lg btn-outline-secondary mb-2">
+      <i class="icon-box-plus"></i>
+      <span>Crear producto</span>
+    </a>
+  </div>
+
+  <div class="col-12 mt-4 px-0">
+    <a onclick="showView('inicio')" class="btn btn-outline-primary btn-lg w-100 btn-menu d-flex align-items-center justify-content-center">
+      <span>Inicio</span>
+      <i class="icon-24-outlined-other-location-home ms-2"></i>
+    </a>
+  </div>
+</div>
+
+<script>
+  function productosAbrirLista() {
+    google.script.run.openProductosSheet();
+  }
+
+  function productosMostrarCrear() {
+    showView('productoCrear');
+  }
+</script>
+
+

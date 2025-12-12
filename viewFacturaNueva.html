@@ -1,0 +1,38 @@
+<div class="row py-3 px-4 gx-0">
+  <div class="col-12 py-4">
+    <p>Crea, edita y guarda tu nueva factura directamente en la hoja <strong>Factura</strong>.</p>
+    <p class="text-center">
+      <img src="https://facturasapp-qa.cenet.ws/Publico/google-sheets-resources/images/nueva-factura.png"
+           class="m-auto img-fluid my-3" alt="Nueva factura">
+    </p>
+  </div>
+
+  <div class="col-12 mt-4 px-0">
+    <div class="row">
+      <div class="col-6">
+        <a onclick="facturaAgregarProducto()" class="btn btn-secondary btn-lg w-100">
+          <i class="icon-plus me-0"></i>
+          <span>Agregar <br>producto</span>
+        </a>
+      </div>
+      <div class="col-6">
+        <a onclick="facturaLimpiar()" class="btn btn-secondary btn-lg w-100">
+          <i class="icon-erase me-0"></i>
+          <span>Limpiar <br>factura</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 mt-4 px-0 d-flex justify-content-between">
+    <a href="#" onclick="showView('facturaMenu')" class="btn btn-outline-primary btn-lg d-flex align-items-center">
+      <span>Volver</span>
+    </a>
+    <a href="#" onclick="facturaGuardar()" class="btn btn-primary btn-lg d-flex align-items-center justify-content-between">
+      <span>Guardar</span>
+      <i class="icon-24-outlined-editor-action-save" style="font-size: 18px;"></i>
+    </a>
+  </div>
+</div>
+
+
