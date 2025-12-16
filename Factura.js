@@ -1185,10 +1185,7 @@ function  insertarImagen(fila) {
 }
 
 function descargarFactura() {
-  var html = HtmlService.createHtmlOutputFromFile('descargaFacturaHistorial')
-    .setTitle('Historial Facturas');
-  SpreadsheetApp.getUi()
-    .showSidebar(html);
+  renderSidebarFromFile('descargaFacturaHistorial', 'Historial Facturas');
 }
 
 function guardarFilaFactura() {

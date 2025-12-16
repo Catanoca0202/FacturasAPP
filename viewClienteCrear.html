@@ -248,6 +248,12 @@
         if (response.success) {
           resetearFormulario();
           document.getElementById('tipoContacto').focus();
+          // Mostrar modal de éxito bonito
+          if (typeof mostrarModalExito === 'function') {
+            mostrarModalExito(response.message || 'Cliente creado exitosamente.', 'Cliente creado');
+          } else {
+            mostrarAlerta(response.message);
+          }
         } else {
           mostrarAlerta(response.message);
         }

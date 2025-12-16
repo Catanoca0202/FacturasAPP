@@ -105,6 +105,77 @@
       function abrirSoporte() {
         window.open('https://soporte.facturasapp.com/hc/es-es/articles/34324157226907-Canales-de-Atenci%C3%B3n');
       }
+
+      // Función para mostrar modal de éxito bonito
+      function mostrarModalExito(mensaje, titulo) {
+        titulo = titulo || 'Éxito';
+        mensaje = mensaje || 'Operación completada exitosamente.';
+        
+        // Crear el modal si no existe
+        let modalExiste = document.getElementById('modalExito');
+        if (!modalExiste) {
+          const modalHTML = `
+            <div class="modal fade" id="modalExito" tabindex="-1" aria-labelledby="modalExitoLabel" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-body text-center p-4">
+                    <div class="mb-3">
+                      <i class="icon-24-outlined-suggested-symbol" style="font-size: 64px; color: #28a745;"></i>
+                    </div>
+                    <h5 class="modal-title mb-2" id="modalExitoTitulo">${titulo}</h5>
+                    <p class="mb-0" id="modalExitoMensaje">${mensaje}</p>
+                  </div>
+                  <div class="modal-footer justify-content-center border-0 pb-4">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="cerrarModalExito()">Aceptar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+          document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+        
+        // Actualizar contenido
+        document.getElementById('modalExitoTitulo').textContent = titulo;
+        document.getElementById('modalExitoMensaje').textContent = mensaje;
+        
+        // Mostrar el modal - usar jQuery si está disponible, sino usar Bootstrap nativo
+        const modalElement = document.getElementById('modalExito');
+        modalElement.style.display = 'block';
+        modalElement.classList.add('show');
+        document.body.classList.add('modal-open');
+        
+        // Crear backdrop
+        const backdrop = document.createElement('div');
+        backdrop.className = 'modal-backdrop fade show';
+        backdrop.id = 'modalExitoBackdrop';
+        backdrop.onclick = cerrarModalExito;
+        document.body.appendChild(backdrop);
+        
+        // Intentar usar Bootstrap Modal si está disponible
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+          try {
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+            return;
+          } catch(e) {
+            console.log('Bootstrap Modal no disponible, usando método alternativo');
+          }
+        }
+      }
+      
+      function cerrarModalExito() {
+        const modalElement = document.getElementById('modalExito');
+        const backdrop = document.getElementById('modalExitoBackdrop');
+        if (modalElement) {
+          modalElement.style.display = 'none';
+          modalElement.classList.remove('show');
+          document.body.classList.remove('modal-open');
+        }
+        if (backdrop) {
+          backdrop.remove();
+        }
+      }
     </script>
   </head>
   <body class="d-flex h-100">
@@ -186,7 +257,7 @@
      <footer class="mt-auto">
        <div class="row p-4 gx-0">
            <div class="col-12">
-              <p class="text-center" style="font-size: 14px;">© 2025 FacturasApp V 1.14 QA</p>
+              <p class="text-center" style="font-size: 14px;">© 2025 FacturasApp V 1.15 QA</p>
            </div>
        </div>
      </footer>

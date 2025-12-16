@@ -3,33 +3,23 @@
 // var factura_sheet= spreadsheet.getSheetByName("Factura")
 
 function showNuevaClienteDesdeFactura() {
-  var html = HtmlService.createHtmlOutputFromFile('menuAgregarClienteDesdeF').setTitle("Nuevo Cliente")
-  SpreadsheetApp.getUi()
-    .showSidebar(html);
+  renderSidebarFromFile('menuAgregarClienteDesdeF', 'Nuevo Cliente');
 }
 
 function showNuevaProductoDesdeFactura(){
-  var html = HtmlService.createHtmlOutputFromFile('agregarProductoDesdeF').setTitle("Nuevo Producto")
-  SpreadsheetApp.getUi()
-    .showSidebar(html);
+  renderSidebarFromFile('agregarProductoDesdeF', 'Nuevo Producto');
 }
 
 function showNuevaClienteV2() {
-  var html = HtmlService.createHtmlOutputFromFile('menuAgregarCliente').setTitle("Nuevo Cliente")
-  SpreadsheetApp.getUi()
-    .showSidebar(html);
+  renderSidebarFromFile('menuAgregarCliente', 'Nuevo Cliente');
 }
 
 function showInactivarCliente() {
-  var html = HtmlService.createHtmlOutputFromFile('menuInactivarCliente').setTitle("Inactivar Cliente")
-  SpreadsheetApp.getUi()
-    .showSidebar(html);
+  renderSidebarFromFile('menuInactivarCliente', 'Inactivar Cliente');
 }
 
 function showActivarCliente() {
-  var html = HtmlService.createHtmlOutputFromFile('menuActivarCliente').setTitle("Activar Cliente")
-  SpreadsheetApp.getUi()
-    .showSidebar(html);
+  renderSidebarFromFile('menuActivarCliente', 'Activar Cliente');
 }
 
 function inactivarCliente(cliente){
@@ -455,9 +445,8 @@ function saveClientData(formData) {
   sheet.getRange(emptyRow, 2).setValue(referenciaUnica);
   Logger.log("dentro de ref unico "+referenciaUnica)
   sheet.getRange(emptyRow, 1).setValue("Valido");
-  SpreadsheetApp.getUi().alert("Nuevo cliente generado satisfactoriamente");
 
-  return { success: true, message: 'Nuevo cliente generado satisfactoriamente.' , refe: referenciaUnica};
+  return { success: true, message: 'Cliente creado exitosamente.' , refe: referenciaUnica};
 }
 function agregarUltimoCliente(referenciaUnica){
   Logger.log("agregarUltimo")

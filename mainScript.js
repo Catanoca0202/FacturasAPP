@@ -277,60 +277,72 @@ SpreadsheetApp.getUi()
   .showSidebar(html);
 }
 
-function showSidebar() {
-  console.log("showSidebar Enters");
- 
-  console.log("setActiveSheet Inicio");
-  var sheet =  SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Inicio");
-  SpreadsheetApp.setActiveSheet(sheet);
+// Render centralizado del sidebar principal (SPA con plantillas parciales)
+function renderMainSidebar() {
+  const propietario = obtenerPropietario();
+  const ui = SpreadsheetApp.getUi();
+  const scriptProps = PropertiesService.getDocumentProperties();
+  scriptProps.setProperties({ propietario });
 
+  const template = HtmlService.createTemplateFromFile('main');
+  template.emailPropietario = propietario;
 
-  var html = HtmlService.createHtmlOutputFromFile('main')
-    .setTitle('Menú');
-  SpreadsheetApp.getUi()
-    .showSidebar(html);
-  console.log("showSidebar Exits");    
+  const html = template.evaluate().setTitle('Menú');
+  ui.showSidebar(html);
+  Logger.log("renderMainSidebar done");
 }
 
-function showSidebar2() {
-  const usuario =obtenerUsuario()
-  const propietario= obtenerPropietario()
-  console.log("showSidebar2 Enters");
-  let ui = SpreadsheetApp.getUi();
-  console.log("setActiveSheet2 Inicio");
-  const scriptProps = PropertiesService.getDocumentProperties();
-  scriptProps.setProperties({
-    'propietario': propietario,
-  });
-  // var sheet =  SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Inicio");
-  // SpreadsheetApp.setActiveSheet(sheet);
-  let hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Datos de emisor");
-  Logger.log("hoja "+hoja)
-  Logger.log(typeof(hoja))
-  if(hoja==null){
-    let respuesta = ui.alert('Primero debes de instalar las hojas necesarias ¿Deseas instalarlas ya?', ui.ButtonSet.YES_NO);
-    if (respuesta == ui.Button.YES) {
-      iniciarHojasFactura()
-      OnOpenSheetInicio()
-      agregarDataValidations()
-    } else {
-      return
-    }
-  }else{
-    var template = HtmlService.createTemplateFromFile('main');
-    template.emailPropietario = propietario;
-    const html = template
-      .evaluate()
-      .setTitle('Menú');
-    SpreadsheetApp.getUi().showSidebar(html);
-    console.log("showSidebar Exits"); 
+// Punto de entrada usado por las vistas antiguas (redirige a la versión SPA)
+function showSidebar() {
+  Logger.log("showSidebar SPA entry");
+  const ui = SpreadsheetApp.getUi();
+  const hojaDatos = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Datos de emisor");
 
+  if (!hojaDatos) {
+    const respuesta = ui.alert(
+      'Primero debes de instalar las hojas necesarias ¿Deseas instalarlas ya?',
+      ui.ButtonSet.YES_NO
+    );
+    if (respuesta === ui.Button.YES) {
+      iniciarHojasFactura();
+      OnOpenSheetInicio();
+      agregarDataValidations();
+    }
+    return;
   }
+
+  renderMainSidebar();
+}
+
+// Alias del menú "Inicio" para mantener compatibilidad
+function showSidebar2() {
+  showSidebar();
 }
 
 // Helper para incluir vistas parciales en main.html (SPA)
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+/**
+ * Renderiza un sidebar evaluando plantillas y con fallback seguro.
+ * Esto evita que haya que clicar varias veces si el HTML contiene <?= include(...) ?>.
+ */
+function renderSidebarFromFile(fileName, title, options) {
+  const opts = options || {};
+  try {
+    const template = HtmlService.createTemplateFromFile(fileName);
+    const html = template.evaluate().setTitle(title || 'Menú');
+    if (opts.width) html.setWidth(opts.width);
+    if (opts.height) html.setHeight(opts.height);
+    SpreadsheetApp.getUi().showSidebar(html);
+  } catch (err) {
+    Logger.log("renderSidebarFromFile fallback for " + fileName + ": " + err);
+    const html = HtmlService.createHtmlOutputFromFile(fileName).setTitle(title || 'Menú');
+    if (opts.width) html.setWidth(opts.width);
+    if (opts.height) html.setHeight(opts.height);
+    SpreadsheetApp.getUi().showSidebar(html);
+  }
 }
 
 function showInstalarHojas() {
@@ -358,20 +370,14 @@ function showPreProductos() {
   console.log("Attempting to show Productos");
   respuesta=verficiarPropietario()
   if(respuesta){
-  var html = HtmlService.createHtmlOutputFromFile('preProductos')
-    .setTitle('Productos');
-  SpreadsheetApp.getUi()
-    .showSidebar(html);
+  renderSidebarFromFile('preProductos','Productos');
   }else{
     SpreadsheetApp.getUi().alert("No tienes permisos para acceder a esta función debido a que tienes activos dos correos en la hoja. Por favor desvincula uno de los correos y vuelve a intentar")
   }
 }
 
 function showAggProductos() {
-  var html = HtmlService.createHtmlOutputFromFile('agregarProducto')
-    .setTitle('Agregar Productos');
-  SpreadsheetApp.getUi()
-    .showSidebar(html);
+  renderSidebarFromFile('agregarProducto','Agregar Productos');
 }
 
 function openFacturaSheet() {
@@ -393,10 +399,7 @@ function showMenuFactura() {
   Logger.log(respuesta)
   if(respuesta){
     Logger.log("showMenuFactura adentro")
-    var html = HtmlService.createHtmlOutputFromFile('menuFactura')
-      .setTitle('Menú Factura');
-    SpreadsheetApp.getUi()
-      .showSidebar(html);
+    renderSidebarFromFile('menuFactura','Menú Factura');
   }else{  
     Logger.log("showMenuFactura adentro2")
     SpreadsheetApp.getUi().alert("No tienes permisos para acceder a esta función debido a que tienes activos dos correos en la hoja. Por favor desvincula uno de los correos y vuelve a intentar")
@@ -439,15 +442,11 @@ function verficiarPropietario() {
 }
 
 function showNuevaFactura() {
-  var html = HtmlService.createHtmlOutputFromFile('nuevaFactura').setTitle("Nueva factura")
-  SpreadsheetApp.getUi()
-    .showSidebar(html);
+  renderSidebarFromFile('nuevaFactura','Nueva factura');
 }
 
 function showAgregarProdcuto() {
-  var html = HtmlService.createHtmlOutputFromFile('menuAgregarProducto').setTitle("Agregar Producto")
-  SpreadsheetApp.getUi()
-    .showSidebar(html);
+  renderSidebarFromFile('menuAgregarProducto','Agregar Producto');
 }
 
 function openClientesSheet() {
@@ -465,20 +464,14 @@ function showClientes() {
   respuesta=verficiarPropietario()
   if(respuesta){
 
-  var html = HtmlService.createHtmlOutputFromFile('menuCliente')
-    .setTitle('Menu cliente');
-  SpreadsheetApp.getUi()
-    .showSidebar(html);
+  renderSidebarFromFile('menuCliente','Menu cliente');
   }else{
     SpreadsheetApp.getUi().alert("No tienes permisos para acceder a esta función debido a que tienes activos dos correos en la hoja. Por favor desvincula uno de los correos y vuelve a intentar")
   }
 }
 
 function showAjustes(){
-  var html = HtmlService.createHtmlOutputFromFile('menuAjustes')
-  .setTitle('Datos emisor');
-SpreadsheetApp.getUi()
-  .showSidebar(html);
+  renderSidebarFromFile('menuAjustes','Datos emisor');
 }
 
 
@@ -489,10 +482,7 @@ function openProductosSheet() {
 }
 
 function showEnviarEmail() {
-  var html = HtmlService.createHtmlOutputFromFile('enviarEmail')
-    .setTitle('Enviar Email');
-  SpreadsheetApp.getUi()
-    .showSidebar(html);
+  renderSidebarFromFile('enviarEmail','Enviar Email');
 }
 
 function inicarFacturaNuevaMain() {
@@ -500,16 +490,10 @@ function inicarFacturaNuevaMain() {
 }
 
 function showPostFactura() {
-  var html = HtmlService.createHtmlOutputFromFile('postFactura')
-    .setTitle('Post Factura');
-  SpreadsheetApp.getUi()
-    .showSidebar(html);
+  renderSidebarFromFile('postFactura','Post Factura');
 }
 function showEnviarEmailHistorial(data){
-  var html = HtmlService.createHtmlOutputFromFile('enviarEmailHistorial')
-    .setTitle('Enviar Email Historial');
-  SpreadsheetApp.getUi()
-    .showSidebar(html);
+  renderSidebarFromFile('enviarEmailHistorial','Enviar Email Historial');
 }
 
 function showEnviarEmailPost() {
@@ -2373,8 +2357,5 @@ function cambiarAmbienete(){
 }
 
 function showModoFacturacion() {
-  var html = HtmlService.createHtmlOutputFromFile('modoFacturacion')
-    .setTitle('Modo de facturación')
-    .setWidth(400);
-  SpreadsheetApp.getUi().showSidebar(html);
+  renderSidebarFromFile('modoFacturacion','Modo de facturación',{width:400});
 }
