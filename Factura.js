@@ -8,6 +8,17 @@ ADDITIONAL_ROWS = 3 + 3; //(Personalizacion)
 // Bandera para mostrar/ocultar el resumen de la factura al finalizar
 const SHOW_SUMMARY_MODAL = false;
 
+// Funciones helper de mensajes (si no están en mainScript.js)
+if (typeof crearMensaje === 'undefined') {
+  function crearMensaje(mensaje, tipo, titulo) {
+    return {
+      tipo: tipo || 'info',
+      mensaje: mensaje || '',
+      titulo: titulo || null
+    };
+  }
+}
+
 
 // var spreadsheet = SpreadsheetApp.getActive();
 // var prefactura_sheet = spreadsheet.getSheetByName('Factura');
@@ -308,8 +319,7 @@ function guardarFactura(){
   let estadoFactura = verificarEstadoValidoFactura();
   try {
     if (estadoVinculacion == "Desvinculado") {
-      SpreadsheetApp.getUi().alert("Recuerda que antes de poder generar una factura es necesario haber vinculado tu cuenta de FacturasApp");
-      return;
+      return crearMensaje("Recuerda que antes de poder generar una factura es necesario haber vinculado tu cuenta de FacturasApp", 'warning', 'Cuenta no vinculada');
     }
     if (estadoFactura.success) {
       // Mostrar un diálogo HTML ligero que se cierra solo tras unos segundos
@@ -322,22 +332,20 @@ function guardarFactura(){
         Logger.log("guardar factura");
         enviarFactura();
         limpiarHojaFactura();
-        return;
+        return crearMensaje("Factura guardada y enviada exitosamente", 'success', 'Éxito');
       } else {
-        SpreadsheetApp.getUi().alert("No fue posible guardar la factura. Verifica el consecutivo configurado.");
-        return;
+        return crearMensaje("No fue posible guardar la factura. Verifica el consecutivo configurado.", 'error', 'Error al guardar');
       }
     } else {
-      SpreadsheetApp.getUi().alert("Error al generar factura. " + estadoFactura.message);
-      return;
+      return crearMensaje("Error al generar factura. " + estadoFactura.message, 'error', 'Error');
     }
   } catch (error) {
     let mensaje = String(error && error.message ? error.message : error);
     if (/TypePerson/i.test(mensaje)) {
       mensaje = "Error en los datos del cliente: Tipo de persona inválido. Debe ser 'Autónomo' o 'Empresa'. Verifica la columna 'Tipo de persona' en la hoja Clientes.";
     }
-    SpreadsheetApp.getUi().alert("No se pudo guardar/enviar la factura. " + mensaje);
     Logger.log("guardarFactura error: " + mensaje);
+    return crearMensaje("No se pudo guardar/enviar la factura. " + mensaje, 'error', 'Error');
   }
 }
 function agregarFilaNueva(){

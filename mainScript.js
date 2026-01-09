@@ -34,6 +34,35 @@ const RETENCION_IRPF_TARIFAS = ['7%','15%','19%'];
 const RETENCION_RECARGO_LABEL = 'Recargo de equivalencia';
 const FACTURA_CHECKBOX_COL = 12; // Columna "Eliminar" en hoja Factura
 
+/**
+ * Sistema de mensajes para reemplazar pop‑ups de SpreadsheetApp.getUi().alert()
+ * Estas funciones devuelven objetos simples que el frontend muestra dentro del sidebar
+ * con el mismo estilo Bootstrap.
+ */
+function crearMensaje(mensaje, tipo, titulo) {
+  return {
+    tipo: tipo || 'info',        // 'success', 'error', 'warning', 'info'
+    mensaje: mensaje || '',
+    titulo: titulo || null
+  };
+}
+
+function mensajeExito(mensaje, titulo) {
+  return crearMensaje(mensaje, 'success', titulo || 'Éxito');
+}
+
+function mensajeError(mensaje, titulo) {
+  return crearMensaje(mensaje, 'error', titulo || 'Error');
+}
+
+function mensajeAdvertencia(mensaje, titulo) {
+  return crearMensaje(mensaje, 'warning', titulo || 'Advertencia');
+}
+
+function mensajeInfo(mensaje, titulo) {
+  return crearMensaje(mensaje, 'info', titulo || 'Información');
+}
+
 function OnOpenVariablesGlobales(){
   var spreadsheet = SpreadsheetApp.getActive();
   var hojaDatosEmisor = spreadsheet.getSheetByName('Datos de emisor');
@@ -140,6 +169,20 @@ function iniciarHojasFactura() {
   // Siempre instalar o reinstalar la hoja "Datos" al final
   reinstalarHojaDatos(ss, plantilla);
 
+  // Ocultar hojas internas que no deben ser visibles al usuario
+  // (evitamos reactivar el bloqueo/ocultamiento masivo para no causar problemas de permisos)
+  try {
+    const hojasAOcultar = ["Datos", "Copia de Factura"];
+    hojasAOcultar.forEach(nombre => {
+      const sh = ss.getSheetByName(nombre);
+      if (sh && !sh.isSheetHidden()) {
+        sh.hideSheet();
+      }
+    });
+  } catch (err) {
+    Logger.log("No se pudieron ocultar hojas internas: " + err);
+  }
+
     // Eliminar hojas que no pertenezcan a la lista de hojas instaladas
     ss.getSheets().forEach(hoja => {
       const nombreHoja = hoja.getName();
@@ -150,7 +193,17 @@ function iniciarHojasFactura() {
       }
     });
 
-  SpreadsheetApp.getUi().alert("Hojas instaladas satisfactoriamente.");
+  // Popup de advertencia post-instalación
+  const ui = SpreadsheetApp.getUi();
+  ui.alert(
+    'Instalación completada',
+    'Hojas instaladas satisfactoriamente.\n\n' +
+      'IMPORTANTE:\n' +
+      '- No elimines ni renombres las hojas de este archivo.\n' +
+      '- No borres las hojas de catálogo (Country/Province/Population) ni la hoja Datos/ListadoEstado.\n\n' +
+      'Eliminar o renombrar hojas puede causar problemas (validaciones, catálogos, generación de facturas y envío).',
+    ui.ButtonSet.OK
+  );
   //SpreadsheetApp.getUi().alert("Recuerda que antes de utilizar FacturasApp debes de crear la carpeta donde se guardarán las facturas. Dirígete a la hoja Datos de emisor y dale clic en el botón crear carpeta.");
 }
 
@@ -277,46 +330,55 @@ SpreadsheetApp.getUi()
   .showSidebar(html);
 }
 
-// Render centralizado del sidebar principal (SPA con plantillas parciales)
-function renderMainSidebar() {
-  const propietario = obtenerPropietario();
-  const ui = SpreadsheetApp.getUi();
-  const scriptProps = PropertiesService.getDocumentProperties();
-  scriptProps.setProperties({ propietario });
-
-  const template = HtmlService.createTemplateFromFile('main');
-  template.emailPropietario = propietario;
-
-  const html = template.evaluate().setTitle('Menú');
-  ui.showSidebar(html);
-  Logger.log("renderMainSidebar done");
-}
-
-// Punto de entrada usado por las vistas antiguas (redirige a la versión SPA)
 function showSidebar() {
-  Logger.log("showSidebar SPA entry");
-  const ui = SpreadsheetApp.getUi();
-  const hojaDatos = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Datos de emisor");
+  console.log("showSidebar Enters");
+ 
+  console.log("setActiveSheet Inicio");
+  var sheet =  SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Inicio");
+  SpreadsheetApp.setActiveSheet(sheet);
 
-  if (!hojaDatos) {
-    const respuesta = ui.alert(
-      'Primero debes de instalar las hojas necesarias ¿Deseas instalarlas ya?',
-      ui.ButtonSet.YES_NO
-    );
-    if (respuesta === ui.Button.YES) {
-      iniciarHojasFactura();
-      OnOpenSheetInicio();
-      agregarDataValidations();
-    }
-    return;
-  }
 
-  renderMainSidebar();
+  var html = HtmlService.createHtmlOutputFromFile('main')
+    .setTitle('Menú');
+  SpreadsheetApp.getUi()
+    .showSidebar(html);
+  console.log("showSidebar Exits");    
 }
 
-// Alias del menú "Inicio" para mantener compatibilidad
 function showSidebar2() {
-  showSidebar();
+  const usuario =obtenerUsuario()
+  const propietario= obtenerPropietario()
+  console.log("showSidebar2 Enters");
+  let ui = SpreadsheetApp.getUi();
+  console.log("setActiveSheet2 Inicio");
+  const scriptProps = PropertiesService.getDocumentProperties();
+  scriptProps.setProperties({
+    'propietario': propietario,
+  });
+  // var sheet =  SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Inicio");
+  // SpreadsheetApp.setActiveSheet(sheet);
+  let hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Datos de emisor");
+  Logger.log("hoja "+hoja)
+  Logger.log(typeof(hoja))
+  if(hoja==null){
+    let respuesta = ui.alert('Primero debes de instalar las hojas necesarias ¿Deseas instalarlas ya?', ui.ButtonSet.YES_NO);
+    if (respuesta == ui.Button.YES) {
+      iniciarHojasFactura()
+      OnOpenSheetInicio()
+      agregarDataValidations()
+    } else {
+      return
+    }
+  }else{
+    var template = HtmlService.createTemplateFromFile('main');
+    template.emailPropietario = propietario;
+    const html = template
+      .evaluate()
+      .setTitle('Menú');
+    SpreadsheetApp.getUi().showSidebar(html);
+    console.log("showSidebar Exits"); 
+
+  }
 }
 
 // Helper para incluir vistas parciales en main.html (SPA)
@@ -325,24 +387,28 @@ function include(filename) {
 }
 
 /**
- * Renderiza un sidebar evaluando plantillas y con fallback seguro.
- * Esto evita que haya que clicar varias veces si el HTML contiene <?= include(...) ?>.
+ * Renderiza un archivo HTML en el sidebar.
+ * Útil para botones/imagenes en hojas que ejecutan funciones (assignScript)
+ * y necesitan abrir un sidebar específico.
+ *
+ * @param {string} filename Nombre del archivo HTML (sin .html)
+ * @param {string=} title   Título del sidebar
+ * @param {{width?:number,height?:number}=} options Opciones de tamaño (Apps Script puede ignorar height en sidebar)
  */
-function renderSidebarFromFile(fileName, title, options) {
-  const opts = options || {};
-  try {
-    const template = HtmlService.createTemplateFromFile(fileName);
-    const html = template.evaluate().setTitle(title || 'Menú');
-    if (opts.width) html.setWidth(opts.width);
-    if (opts.height) html.setHeight(opts.height);
-    SpreadsheetApp.getUi().showSidebar(html);
-  } catch (err) {
-    Logger.log("renderSidebarFromFile fallback for " + fileName + ": " + err);
-    const html = HtmlService.createHtmlOutputFromFile(fileName).setTitle(title || 'Menú');
-    if (opts.width) html.setWidth(opts.width);
-    if (opts.height) html.setHeight(opts.height);
-    SpreadsheetApp.getUi().showSidebar(html);
+function renderSidebarFromFile(filename, title, options) {
+  if (!filename || typeof filename !== 'string') {
+    throw new Error("renderSidebarFromFile: 'filename' es requerido y debe ser string.");
   }
+
+  const safeTitle = (title == null) ? '' : String(title);
+  const opts = options || {};
+
+  let html = HtmlService.createHtmlOutputFromFile(filename);
+  if (safeTitle) html = html.setTitle(safeTitle);
+  if (typeof opts.width === 'number') html = html.setWidth(opts.width);
+  if (typeof opts.height === 'number') html = html.setHeight(opts.height);
+
+  SpreadsheetApp.getUi().showSidebar(html);
 }
 
 function showInstalarHojas() {
@@ -370,14 +436,21 @@ function showPreProductos() {
   console.log("Attempting to show Productos");
   respuesta=verficiarPropietario()
   if(respuesta){
-  renderSidebarFromFile('preProductos','Productos');
+    // En modo SPA ya tenemos la vista en main.html; solo devolvemos éxito
+    return { exito: true };
   }else{
-    SpreadsheetApp.getUi().alert("No tienes permisos para acceder a esta función debido a que tienes activos dos correos en la hoja. Por favor desvincula uno de los correos y vuelve a intentar")
+    return mensajeError(
+      "No tienes permisos para acceder a esta función debido a que tienes activos dos correos en la hoja. Por favor desvincula uno de los correos y vuelve a intentar",
+      "Sin permisos"
+    );
   }
 }
 
 function showAggProductos() {
-  renderSidebarFromFile('agregarProducto','Agregar Productos');
+  var html = HtmlService.createHtmlOutputFromFile('agregarProducto')
+    .setTitle('Agregar Productos');
+  SpreadsheetApp.getUi()
+    .showSidebar(html);
 }
 
 function openFacturaSheet() {
@@ -398,11 +471,16 @@ function showMenuFactura() {
   respuesta=verficiarPropietario()
   Logger.log(respuesta)
   if(respuesta){
-    Logger.log("showMenuFactura adentro")
-    renderSidebarFromFile('menuFactura','Menú Factura');
-  }else{  
-    Logger.log("showMenuFactura adentro2")
-    SpreadsheetApp.getUi().alert("No tienes permisos para acceder a esta función debido a que tienes activos dos correos en la hoja. Por favor desvincula uno de los correos y vuelve a intentar")
+    Logger.log("showMenuFactura adentro (SPA)");
+    // El sidebar SPA ya contiene la vista de menú de factura;
+    // devolvemos bandera de éxito para que el frontend cambie de vista.
+    return { exito: true };
+  }else{
+    Logger.log("showMenuFactura sin permisos");
+    return mensajeError(
+      "No tienes permisos para acceder a esta función debido a que tienes activos dos correos en la hoja. Por favor desvincula uno de los correos y vuelve a intentar",
+      "Sin permisos"
+    );
   }
 
 }
@@ -442,11 +520,15 @@ function verficiarPropietario() {
 }
 
 function showNuevaFactura() {
-  renderSidebarFromFile('nuevaFactura','Nueva factura');
+  var html = HtmlService.createHtmlOutputFromFile('nuevaFactura').setTitle("Nueva factura")
+  SpreadsheetApp.getUi()
+    .showSidebar(html);
 }
 
 function showAgregarProdcuto() {
-  renderSidebarFromFile('menuAgregarProducto','Agregar Producto');
+  var html = HtmlService.createHtmlOutputFromFile('menuAgregarProducto').setTitle("Agregar Producto")
+  SpreadsheetApp.getUi()
+    .showSidebar(html);
 }
 
 function openClientesSheet() {
@@ -464,14 +546,22 @@ function showClientes() {
   respuesta=verficiarPropietario()
   if(respuesta){
 
-  renderSidebarFromFile('menuCliente','Menu cliente');
+    // En modo SPA la vista de clientes ya está cargada en main.html.
+    // Solo devolvemos éxito para que el frontend cambie de vista.
+    return { exito: true };
   }else{
-    SpreadsheetApp.getUi().alert("No tienes permisos para acceder a esta función debido a que tienes activos dos correos en la hoja. Por favor desvincula uno de los correos y vuelve a intentar")
+    return mensajeError(
+      "No tienes permisos para acceder a esta función debido a que tienes activos dos correos en la hoja. Por favor desvincula uno de los correos y vuelve a intentar",
+      "Sin permisos"
+    );
   }
 }
 
 function showAjustes(){
-  renderSidebarFromFile('menuAjustes','Datos emisor');
+  var html = HtmlService.createHtmlOutputFromFile('menuAjustes')
+  .setTitle('Datos emisor');
+SpreadsheetApp.getUi()
+  .showSidebar(html);
 }
 
 
@@ -482,7 +572,10 @@ function openProductosSheet() {
 }
 
 function showEnviarEmail() {
-  renderSidebarFromFile('enviarEmail','Enviar Email');
+  var html = HtmlService.createHtmlOutputFromFile('enviarEmail')
+    .setTitle('Enviar Email');
+  SpreadsheetApp.getUi()
+    .showSidebar(html);
 }
 
 function inicarFacturaNuevaMain() {
@@ -490,10 +583,16 @@ function inicarFacturaNuevaMain() {
 }
 
 function showPostFactura() {
-  renderSidebarFromFile('postFactura','Post Factura');
+  var html = HtmlService.createHtmlOutputFromFile('postFactura')
+    .setTitle('Post Factura');
+  SpreadsheetApp.getUi()
+    .showSidebar(html);
 }
 function showEnviarEmailHistorial(data){
-  renderSidebarFromFile('enviarEmailHistorial','Enviar Email Historial');
+  var html = HtmlService.createHtmlOutputFromFile('enviarEmailHistorial')
+    .setTitle('Enviar Email Historial');
+  SpreadsheetApp.getUi()
+    .showSidebar(html);
 }
 
 function showEnviarEmailPost() {
@@ -1302,6 +1401,10 @@ function onEdit(e) {
       // Validaciones dependientes País (N), Provincia (O), Población (P)
       // Columnas: N=14, O=15, P=16
       if (rowEditada > 1 && colEditada === 14) {
+        try {
+          e.source.toast('Cargando provincias…', 'FacturasApp', 5);
+        } catch (err) {}
+
         // País editado: configurar lista de países y dependientes
         const paises = getCountryNameList_();
         if (paises && paises.length) {
@@ -1323,7 +1426,19 @@ function onEdit(e) {
         // Limpiar valores dependientes
         hojaCliente.getRange(rowEditada, 15).clearContent();
         hojaCliente.getRange(rowEditada, 16).clearContent();
+
+        try {
+          if (provincias && provincias.length) {
+            e.source.toast('Provincias listas. Elige una provincia.', 'FacturasApp', 3);
+          } else {
+            e.source.toast('No se encontraron provincias para ese país.', 'FacturasApp', 4);
+          }
+        } catch (err) {}
       } else if (rowEditada > 1 && colEditada === 15) {
+        try {
+          e.source.toast('Cargando poblaciones…', 'FacturasApp', 5);
+        } catch (err) {}
+
         // Provincia editada: actualizar lista de poblaciones
         const paisSeleccionado = hojaCliente.getRange(rowEditada, 14).getValue();
         const provinciaSeleccionada = hojaCliente.getRange(rowEditada, 15).getValue();
@@ -1334,6 +1449,14 @@ function onEdit(e) {
           .build();
         hojaCliente.getRange(rowEditada, 16).setDataValidation(reglaPoblacion);
         hojaCliente.getRange(rowEditada, 16).clearContent();
+
+        try {
+          if (poblaciones && poblaciones.length) {
+            e.source.toast('Poblaciones listas. Elige una población.', 'FacturasApp', 3);
+          } else {
+            e.source.toast('No se encontraron poblaciones para esa provincia.', 'FacturasApp', 4);
+          }
+        } catch (err) {}
       }
 
       verificarDatosObligatorios(e, tipoPersona);
@@ -2357,5 +2480,8 @@ function cambiarAmbienete(){
 }
 
 function showModoFacturacion() {
-  renderSidebarFromFile('modoFacturacion','Modo de facturación',{width:400});
+  var html = HtmlService.createHtmlOutputFromFile('modoFacturacion')
+    .setTitle('Modo de facturación')
+    .setWidth(400);
+  SpreadsheetApp.getUi().showSidebar(html);
 }

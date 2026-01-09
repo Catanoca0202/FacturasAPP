@@ -108,6 +108,13 @@
         <select id="poblacion" class="form-select form-select-lg"></select>
       </div>
 
+      <div class="col-12">
+        <div id="locationLoader" class="d-none align-items-center gap-2" style="margin-top:-6px;">
+          <div class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></div>
+          <small id="locationLoaderText" class="text-muted">Cargando…</small>
+        </div>
+      </div>
+
       <div class="col-md-12">
         <label for="direccion" class="form-label">Dirección</label>
         <input type="text" class="form-control form-control-lg" id="direccion" placeholder="Dirección">
@@ -149,6 +156,30 @@
 
 <script>
   // Helpers para selects de país / provincia / población
+  function setLocationLoading(isLoading, text) {
+    var loader = document.getElementById('locationLoader');
+    var loaderText = document.getElementById('locationLoaderText');
+    var selPais = document.getElementById('pais');
+    var selProv = document.getElementById('provincia');
+    var selPobl = document.getElementById('poblacion');
+
+    if (loaderText) loaderText.textContent = text || 'Cargando…';
+    if (loader) {
+      if (isLoading) {
+        loader.classList.remove('d-none');
+        loader.classList.add('d-flex');
+      } else {
+        loader.classList.add('d-none');
+        loader.classList.remove('d-flex');
+      }
+    }
+
+    // Deshabilitar selects dependientes durante carga para evitar dobles llamadas
+    if (selPais) selPais.disabled = !!isLoading;
+    if (selProv) selProv.disabled = !!isLoading;
+    if (selPobl) selPobl.disabled = !!isLoading;
+  }
+
   function fillSelectOptions(selectEl, values, placeholder) {
     selectEl.innerHTML = '';
     if (placeholder) {
@@ -166,10 +197,18 @@
   }
 
   function cargarPaises() {
-    google.script.run.withSuccessHandler(function(paises) {
-      var selPais = document.getElementById('pais');
-      fillSelectOptions(selPais, paises, 'Selecciona un país');
-    }).apiGetCountries();
+    setLocationLoading(true, 'Cargando países…');
+    google.script.run
+      .withSuccessHandler(function(paises) {
+        var selPais = document.getElementById('pais');
+        fillSelectOptions(selPais, paises, 'Selecciona un país');
+        setLocationLoading(false);
+      })
+      .withFailureHandler(function(err) {
+        setLocationLoading(false);
+        mostrarAlerta('Error cargando países: ' + (err && err.message ? err.message : err));
+      })
+      .apiGetCountries();
   }
 
   function onPaisChange() {
@@ -179,9 +218,17 @@
     fillSelectOptions(selProv, [], 'Selecciona una provincia');
     fillSelectOptions(selPobl, [], 'Selecciona una población');
     if (!pais) return;
-    google.script.run.withSuccessHandler(function(provincias) {
-      fillSelectOptions(selProv, provincias, 'Selecciona una provincia');
-    }).apiGetProvinces(pais);
+    setLocationLoading(true, 'Cargando provincias…');
+    google.script.run
+      .withSuccessHandler(function(provincias) {
+        fillSelectOptions(selProv, provincias, 'Selecciona una provincia');
+        setLocationLoading(false);
+      })
+      .withFailureHandler(function(err) {
+        setLocationLoading(false);
+        mostrarAlerta('Error cargando provincias: ' + (err && err.message ? err.message : err));
+      })
+      .apiGetProvinces(pais);
   }
 
   function onProvinciaChange() {
@@ -190,9 +237,17 @@
     var selPobl = document.getElementById('poblacion');
     fillSelectOptions(selPobl, [], 'Selecciona una población');
     if (!pais || !provincia) return;
-    google.script.run.withSuccessHandler(function(poblaciones) {
-      fillSelectOptions(selPobl, poblaciones, 'Selecciona una población');
-    }).apiGetPopulations(pais, provincia);
+    setLocationLoading(true, 'Cargando poblaciones…');
+    google.script.run
+      .withSuccessHandler(function(poblaciones) {
+        fillSelectOptions(selPobl, poblaciones, 'Selecciona una población');
+        setLocationLoading(false);
+      })
+      .withFailureHandler(function(err) {
+        setLocationLoading(false);
+        mostrarAlerta('Error cargando poblaciones: ' + (err && err.message ? err.message : err));
+      })
+      .apiGetPopulations(pais, provincia);
   }
 
   function verificarDatosObligatorios() {

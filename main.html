@@ -18,6 +18,52 @@
     <script>
       function handleServerError(error) {
         console.error('Error en llamada a servidor:', error && error.message ? error.message : error);
+        // Mostrar error en el sidebar si es un objeto de mensaje
+        if (error && typeof error === 'object' && error.tipo) {
+          mostrarMensaje(error.mensaje, error.tipo, error.titulo);
+        } else {
+          // Error genérico
+          const mensajeError = error && error.message ? error.message : (typeof error === 'string' ? error : 'Ocurrió un error inesperado');
+          mostrarError(mensajeError);
+        }
+      }
+      
+      // Wrapper para funciones que devuelven mensajes
+      function ejecutarConMensaje(funcion, ...args) {
+        google.script.run
+          .withSuccessHandler(function(resultado) {
+            // Si el resultado es un mensaje, mostrarlo
+            if (resultado && typeof resultado === 'object' && resultado.tipo) {
+              mostrarMensaje(resultado.mensaje, resultado.tipo, resultado.titulo);
+            } else if (resultado && typeof resultado === 'object' && resultado.requiereConfirmacion) {
+              // Mostrar confirmación
+              mostrarConfirmacion(
+                resultado.mensaje,
+                resultado.titulo || 'Confirmar',
+                function() {
+                  // Usuario confirmó, ejecutar acción
+                  if (resultado.funcionConfirmar) {
+                    google.script.run
+                      .withSuccessHandler(function(resp) {
+                        if (resp && typeof resp === 'object' && resp.tipo) {
+                          mostrarMensaje(resp.mensaje, resp.tipo, resp.titulo);
+                        }
+                      })
+                      .withFailureHandler(handleServerError)
+                      [resultado.funcionConfirmar]();
+                  }
+                },
+                function() {
+                  // Usuario canceló
+                  if (resultado.mensajeCancelar) {
+                    mostrarInfo(resultado.mensajeCancelar);
+                  }
+                }
+              );
+            }
+          })
+          .withFailureHandler(handleServerError)
+          [funcion](...args);
       }
 
       function showView(view) {
@@ -29,17 +75,35 @@
       }
 
       function openFactura() {
-        showView('facturaMenu');
+        abrirMenuFactura();
       }
       function openClientes() {
         google.script.run
+          .withSuccessHandler(function(resultado) {
+            if (resultado && typeof resultado === 'object' && resultado.tipo) {
+              mostrarMensaje(resultado.mensaje, resultado.tipo, resultado.titulo);
+            } else if (resultado && resultado.exito) {
+              google.script.run
+                .withFailureHandler(handleServerError)
+                .openClientesSheet();
+              showView('clientes');
+            }
+          })
           .withFailureHandler(handleServerError)
-          .openClientesSheet();
-        showView('clientes');
+          .showClientes();
       }
       function showPreProductos() {
-        // Mostrar menú de productos dentro del SPA
-        showView('productos');
+        google.script.run
+          .withSuccessHandler(function(resultado) {
+            if (resultado && typeof resultado === 'object' && resultado.tipo) {
+              mostrarMensaje(resultado.mensaje, resultado.tipo, resultado.titulo);
+            } else if (resultado && resultado.exito) {
+              // Mostrar menú de productos dentro del SPA
+              showView('productos');
+            }
+          })
+          .withFailureHandler(handleServerError)
+          .showPreProductos();
       }
       function openAjustes() {
         // Mantener la navegación a la hoja de Datos de emisor si es necesaria
@@ -63,12 +127,34 @@
       // Flujo de facturación dentro del SPA
       function iniciarNuevaFactura() {
         google.script.run
+          .withSuccessHandler(function(resultado) {
+            if (resultado && typeof resultado === 'object' && resultado.tipo) {
+              mostrarMensaje(resultado.mensaje, resultado.tipo, resultado.titulo);
+            } else if (resultado && resultado.exito) {
+              google.script.run
+                .withFailureHandler(handleServerError)
+                .openFacturaSheet();
+              google.script.run
+                .withFailureHandler(handleServerError)
+                .inicarFacturaNueva();
+              showView('facturaNueva');
+            }
+          })
           .withFailureHandler(handleServerError)
-          .openFacturaSheet();
+          .showMenuFactura();
+      }
+      
+      function abrirMenuFactura() {
         google.script.run
+          .withSuccessHandler(function(resultado) {
+            if (resultado && typeof resultado === 'object' && resultado.tipo) {
+              mostrarMensaje(resultado.mensaje, resultado.tipo, resultado.titulo);
+            } else if (resultado && resultado.exito) {
+              showView('facturaMenu');
+            }
+          })
           .withFailureHandler(handleServerError)
-          .inicarFacturaNueva();
-        showView('facturaNueva');
+          .showMenuFactura();
       }
 
       function abrirHistorialFacturas() {
@@ -98,6 +184,13 @@
 
       function facturaGuardar() {
         google.script.run
+          .withSuccessHandler(function(resultado) {
+            if (resultado && typeof resultado === 'object' && resultado.tipo) {
+              mostrarMensaje(resultado.mensaje, resultado.tipo, resultado.titulo);
+            } else if (resultado && resultado.exito) {
+              mostrarExito('Operación completada exitosamente.');
+            }
+          })
           .withFailureHandler(handleServerError)
           .guardarFactura();
       }
@@ -106,67 +199,134 @@
         window.open('https://soporte.facturasapp.com/hc/es-es/articles/34324157226907-Canales-de-Atenci%C3%B3n');
       }
 
-      // Función para mostrar modal de éxito bonito
-      function mostrarModalExito(mensaje, titulo) {
-        titulo = titulo || 'Éxito';
-        mensaje = mensaje || 'Operación completada exitosamente.';
+      // Sistema de mensajes dentro del sidebar (reemplaza pop-ups)
+      let mensajeCallback = null;
+      
+      function mostrarMensaje(mensaje, tipo, titulo, callback) {
+        tipo = tipo || 'info'; // info, success, error, warning
+        titulo = titulo || (tipo === 'success' ? 'Éxito' : tipo === 'error' ? 'Error' : tipo === 'warning' ? 'Advertencia' : 'Información');
+        mensaje = mensaje || '';
+        mensajeCallback = callback || null;
         
-        // Crear el modal si no existe
-        let modalExiste = document.getElementById('modalExito');
-        if (!modalExiste) {
+        // Iconos según tipo
+        const iconos = {
+          success: 'icon-24-outlined-suggested-symbol',
+          error: 'icon-24-outlined-suggested-symbol',
+          warning: 'icon-24-outlined-suggested-symbol',
+          info: 'icon-info'
+        };
+        
+        const colores = {
+          success: '#28a745',
+          error: '#dc3545',
+          warning: '#ffc107',
+          info: '#17a2b8'
+        };
+        
+        // Crear o actualizar el modal
+        let modalElement = document.getElementById('sidebarMensaje');
+        if (!modalElement) {
           const modalHTML = `
-            <div class="modal fade" id="modalExito" tabindex="-1" aria-labelledby="modalExitoLabel" aria-hidden="true">
+            <div class="modal fade" id="sidebarMensaje" tabindex="-1" aria-labelledby="sidebarMensajeLabel" aria-hidden="true">
               <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                   <div class="modal-body text-center p-4">
                     <div class="mb-3">
-                      <i class="icon-24-outlined-suggested-symbol" style="font-size: 64px; color: #28a745;"></i>
+                      <i id="sidebarMensajeIcono" class="${iconos[tipo]}" style="font-size: 64px; color: ${colores[tipo]};"></i>
                     </div>
-                    <h5 class="modal-title mb-2" id="modalExitoTitulo">${titulo}</h5>
-                    <p class="mb-0" id="modalExitoMensaje">${mensaje}</p>
+                    <h5 class="modal-title mb-2" id="sidebarMensajeTitulo">${titulo}</h5>
+                    <p class="mb-0" id="sidebarMensajeTexto" style="white-space: pre-wrap;">${mensaje}</p>
                   </div>
                   <div class="modal-footer justify-content-center border-0 pb-4">
-                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="cerrarModalExito()">Aceptar</button>
+                    <button type="button" class="btn btn-primary" id="sidebarMensajeBtn" onclick="cerrarMensaje()">Aceptar</button>
                   </div>
                 </div>
               </div>
             </div>
           `;
           document.body.insertAdjacentHTML('beforeend', modalHTML);
+          modalElement = document.getElementById('sidebarMensaje');
         }
         
         // Actualizar contenido
-        document.getElementById('modalExitoTitulo').textContent = titulo;
-        document.getElementById('modalExitoMensaje').textContent = mensaje;
+        document.getElementById('sidebarMensajeIcono').className = iconos[tipo];
+        document.getElementById('sidebarMensajeIcono').style.color = colores[tipo];
+        document.getElementById('sidebarMensajeTitulo').textContent = titulo;
+        document.getElementById('sidebarMensajeTexto').textContent = mensaje;
         
-        // Mostrar el modal - usar jQuery si está disponible, sino usar Bootstrap nativo
-        const modalElement = document.getElementById('modalExito');
+        // Mostrar modal
         modalElement.style.display = 'block';
         modalElement.classList.add('show');
         document.body.classList.add('modal-open');
         
-        // Crear backdrop
-        const backdrop = document.createElement('div');
-        backdrop.className = 'modal-backdrop fade show';
-        backdrop.id = 'modalExitoBackdrop';
-        backdrop.onclick = cerrarModalExito;
-        document.body.appendChild(backdrop);
-        
-        // Intentar usar Bootstrap Modal si está disponible
-        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-          try {
-            const modal = new bootstrap.Modal(modalElement);
-            modal.show();
-            return;
-          } catch(e) {
-            console.log('Bootstrap Modal no disponible, usando método alternativo');
-          }
+        // Crear backdrop si no existe
+        let backdrop = document.getElementById('sidebarMensajeBackdrop');
+        if (!backdrop) {
+          backdrop = document.createElement('div');
+          backdrop.className = 'modal-backdrop fade show';
+          backdrop.id = 'sidebarMensajeBackdrop';
+          backdrop.onclick = cerrarMensaje;
+          document.body.appendChild(backdrop);
         }
       }
       
-      function cerrarModalExito() {
-        const modalElement = document.getElementById('modalExito');
-        const backdrop = document.getElementById('modalExitoBackdrop');
+      function mostrarConfirmacion(mensaje, titulo, callbackSi, callbackNo) {
+        titulo = titulo || 'Confirmar';
+        mensaje = mensaje || '¿Estás seguro?';
+        
+        // Crear o actualizar el modal de confirmación
+        let modalElement = document.getElementById('sidebarConfirmacion');
+        if (!modalElement) {
+          const modalHTML = `
+            <div class="modal fade" id="sidebarConfirmacion" tabindex="-1" aria-labelledby="sidebarConfirmacionLabel" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-body text-center p-4">
+                    <div class="mb-3">
+                      <i class="icon-info" style="font-size: 64px; color: #17a2b8;"></i>
+                    </div>
+                    <h5 class="modal-title mb-2" id="sidebarConfirmacionTitulo">${titulo}</h5>
+                    <p class="mb-0" id="sidebarConfirmacionTexto" style="white-space: pre-wrap;">${mensaje}</p>
+                  </div>
+                  <div class="modal-footer justify-content-center border-0 pb-4 gap-2">
+                    <button type="button" class="btn btn-secondary" id="sidebarConfirmacionNo" onclick="cerrarConfirmacion(false)">No</button>
+                    <button type="button" class="btn btn-primary" id="sidebarConfirmacionSi" onclick="cerrarConfirmacion(true)">Sí</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+          document.body.insertAdjacentHTML('beforeend', modalHTML);
+          modalElement = document.getElementById('sidebarConfirmacion');
+        }
+        
+        // Guardar callbacks
+        window.confirmacionCallbackSi = callbackSi || null;
+        window.confirmacionCallbackNo = callbackNo || null;
+        
+        // Actualizar contenido
+        document.getElementById('sidebarConfirmacionTitulo').textContent = titulo;
+        document.getElementById('sidebarConfirmacionTexto').textContent = mensaje;
+        
+        // Mostrar modal
+        modalElement.style.display = 'block';
+        modalElement.classList.add('show');
+        document.body.classList.add('modal-open');
+        
+        // Crear backdrop si no existe
+        let backdrop = document.getElementById('sidebarConfirmacionBackdrop');
+        if (!backdrop) {
+          backdrop = document.createElement('div');
+          backdrop.className = 'modal-backdrop fade show';
+          backdrop.id = 'sidebarConfirmacionBackdrop';
+          backdrop.onclick = function() { cerrarConfirmacion(false); };
+          document.body.appendChild(backdrop);
+        }
+      }
+      
+      function cerrarMensaje() {
+        const modalElement = document.getElementById('sidebarMensaje');
+        const backdrop = document.getElementById('sidebarMensajeBackdrop');
         if (modalElement) {
           modalElement.style.display = 'none';
           modalElement.classList.remove('show');
@@ -175,6 +335,47 @@
         if (backdrop) {
           backdrop.remove();
         }
+        if (mensajeCallback) {
+          mensajeCallback();
+          mensajeCallback = null;
+        }
+      }
+      
+      function cerrarConfirmacion(respuesta) {
+        const modalElement = document.getElementById('sidebarConfirmacion');
+        const backdrop = document.getElementById('sidebarConfirmacionBackdrop');
+        if (modalElement) {
+          modalElement.style.display = 'none';
+          modalElement.classList.remove('show');
+          document.body.classList.remove('modal-open');
+        }
+        if (backdrop) {
+          backdrop.remove();
+        }
+        if (respuesta && window.confirmacionCallbackSi) {
+          window.confirmacionCallbackSi();
+        } else if (!respuesta && window.confirmacionCallbackNo) {
+          window.confirmacionCallbackNo();
+        }
+        window.confirmacionCallbackSi = null;
+        window.confirmacionCallbackNo = null;
+      }
+      
+      // Funciones de conveniencia
+      function mostrarExito(mensaje, titulo, callback) {
+        mostrarMensaje(mensaje, 'success', titulo, callback);
+      }
+      
+      function mostrarError(mensaje, titulo, callback) {
+        mostrarMensaje(mensaje, 'error', titulo, callback);
+      }
+      
+      function mostrarAdvertencia(mensaje, titulo, callback) {
+        mostrarMensaje(mensaje, 'warning', titulo, callback);
+      }
+      
+      function mostrarInfo(mensaje, titulo, callback) {
+        mostrarMensaje(mensaje, 'info', titulo, callback);
       }
     </script>
   </head>
@@ -257,7 +458,7 @@
      <footer class="mt-auto">
        <div class="row p-4 gx-0">
            <div class="col-12">
-              <p class="text-center" style="font-size: 14px;">© 2025 FacturasApp V 1.15 QA</p>
+              <p class="text-center" style="font-size: 14px;">© 2025 FacturasApp V 1.13</p>
            </div>
        </div>
      </footer>
@@ -267,5 +468,56 @@
 
 
    <script src="js/bootstrap.min.js"></script>
+   
+   <script>
+     // Verificar si necesita instalación al cargar el sidebar
+     (function() {
+       // Esperar a que el DOM esté listo
+       if (document.readyState === 'loading') {
+         document.addEventListener('DOMContentLoaded', verificarInstalacion);
+       } else {
+         verificarInstalacion();
+       }
+       
+       function verificarInstalacion() {
+         // Llamar a showSidebar2 para obtener el estado
+         google.script.run
+           .withSuccessHandler(function(resultado) {
+             if (resultado && resultado.requiereConfirmacion) {
+               mostrarConfirmacion(
+                 resultado.mensaje,
+                 resultado.titulo || 'Confirmar',
+                 function() {
+                   // Usuario confirmó
+                   if (resultado.funcionConfirmar) {
+                     google.script.run
+                       .withSuccessHandler(function(resp) {
+                         if (resp && typeof resp === 'object' && resp.tipo) {
+                           mostrarMensaje(resp.mensaje, resp.tipo, resp.titulo);
+                         } else if (resp && resp.exito) {
+                           mostrarExito('Instalación completada exitosamente.');
+                         }
+                       })
+                       .withFailureHandler(handleServerError)
+                       [resultado.funcionConfirmar]();
+                   }
+                 },
+                 function() {
+                   // Usuario canceló
+                   if (resultado.mensajeCancelar) {
+                     mostrarInfo(resultado.mensajeCancelar);
+                   }
+                 }
+               );
+             }
+           })
+           .withFailureHandler(function(error) {
+             // Si falla, no hacer nada (puede ser que ya esté instalado)
+             console.log('Verificación de instalación:', error);
+           })
+           .verificarEstadoInstalacion();
+       }
+     })();
+   </script>
   </body>
 </html>
