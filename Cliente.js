@@ -725,8 +725,9 @@ function getCustomerInformation(customer) {
   let DocumentIdentificationType = datos_sheet.getRange("J2").getValue();
   DocumentIdentificationType= getIdentificationCodeDocument(DocumentIdentificationType)
 
-  let TypePerson=datos_sheet.getRange("L2").getValue();
-  TypePerson=getTypePersonCode(TypePerson)
+  // Conservar el valor original para validaciones de negocio (p.ej. recargo de equivalencia)
+  let TypePersonOriginal = datos_sheet.getRange("L2").getValue();
+  let TypePerson = getTypePersonCode(TypePersonOriginal);
 
   range = datos_sheet.getRange("K2");
   var Identification = range.getValue();//numero de identificacion
@@ -809,6 +810,11 @@ function getCustomerInformation(customer) {
     "PartecipationPercent": 100,
     "AdditionalCustomer": [],
     "TypePerson":TypePerson,
+    // Metadatos para reglas específicas (NO impactan el payload del API)
+    "TypePersonName": TypePersonOriginal,
+    "TypePersonNorm": String(TypePersonOriginal || "")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase().trim(),
     "Regimen":Regimen,
     // Códigos adicionales para el contacto en el JSON (province / population)
     "ProvinceCode": locationCodes.provinceCode || "",

@@ -232,6 +232,42 @@ var diccionarioCaluclarIva={
   "0": 0
 }
 
+/**
+ * Helpers de factura (validaciones rápidas sobre la hoja)
+ */
+function obtenerCantidadProductosFactura_(hojaFactura) {
+  const posicionTotalProductos = hojaFactura.getRange("A16").getValue();
+  if (posicionTotalProductos === "Total filas") {
+    return Number(hojaFactura.getRange("B16").getValue() || 0) || 0;
+  }
+  const startingRowTax = getTaxSectionStartRow(hojaFactura);
+  const pos = startingRowTax - 3;
+  return Number(hojaFactura.getRange("B" + String(pos)).getValue() || 0) || 0;
+}
+
+function facturaTieneRecargoEquivalencia_(hojaFactura, cantidadProductos) {
+  const n = Math.max(0, Number(cantidadProductos) || 0);
+  if (!n) return false;
+  // En la hoja Factura: columna I = Tarifa recargo
+  const recargos = hojaFactura.getRange(15, 9, n, 1).getValues();
+  for (let i = 0; i < recargos.length; i++) {
+    const num = Number(recargos[i][0]);
+    if (!isNaN(num) && num > 0) return true;
+  }
+  return false;
+}
+
+function clienteEsSoloAutonomo_(customerInformation) {
+  // Regla estricta: SOLO "Autónomo" (no "Persona Física")
+  const raw = String(
+    (customerInformation && (customerInformation.TypePersonNorm || customerInformation.TypePersonName)) || ''
+  );
+  const norm = raw
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().trim();
+  return norm === 'autonomo';
+}
+
 function verificarEstadoValidoFactura() {
   const spreadsheet = SpreadsheetApp.getActive();
   const hojaFactura = spreadsheet.getSheetByName('Factura');
@@ -294,12 +330,22 @@ function verificarEstadoValidoFactura() {
 
 
   // Verificar productos
-  const totalProductos = hojaFactura.getRange("A16").getValue();
-  if (totalProductos === "Total filas") {
-    const valorTotalProductos = hojaFactura.getRange("B16").getValue();
-    if (valorTotalProductos === 0 || valorTotalProductos === "") {
+  const cantidadProductos = obtenerCantidadProductosFactura_(hojaFactura);
+  if (!cantidadProductos || cantidadProductos === 0) {
+    estaValido.success = false;
+    estaValido.message = "No se han agregado productos a la factura.";
+    return estaValido;
+  }
+
+  // Regla: si hay recargo de equivalencia en alguna línea, el cliente debe ser Autónomo/Persona Física
+  const tieneRecargo = facturaTieneRecargoEquivalencia_(hojaFactura, cantidadProductos);
+  if (tieneRecargo) {
+    const customerInfo = getCustomerInformation(clienteActual);
+    if (!clienteEsSoloAutonomo_(customerInfo)) {
       estaValido.success = false;
-      estaValido.message = "No se han agregado productos a la factura.";
+      estaValido.message =
+        "Esta factura contiene productos con Recargo de equivalencia, pero el cliente no es de tipo Autónomo.\n" +
+        "Solución: cambia el 'Tipo de persona' del cliente a 'Autónomo' en la hoja Clientes, o elimina el recargo de las líneas.";
       return estaValido;
     }
   }
@@ -1673,6 +1719,7 @@ function guardarYGenerarInvoice(){
   // Acumuladores explícitos para validaciones
   let sumIvaAmount = 0;            // Suma de IVA (CuotaRepercutida)
   let sumRecargoAmount = 0;        // Suma de Recargo Equivalencia
+  let hasRecargoEquivalencia = false;
   let hasAnyTaxOrSurcharge = false;
   let totalWithHoldings = 0;
   let totalSurCharges = 0;
@@ -1730,6 +1777,7 @@ function guardarYGenerarInvoice(){
     let taxAmount = round2(baseNeta * ivaRate);
     let withHoldingsAmount = round2(baseNeta * retencionRate);
     let surChargesAmount = round2(baseNeta * recargoEquivalenciaRate);
+    if (recargoEquivalenciaRate > 0) hasRecargoEquivalencia = true;
     
     // Validar campos obligatorios
     if (!descripcion || descripcion.trim() === "") {
@@ -1856,6 +1904,14 @@ function guardarYGenerarInvoice(){
     totalDiscounts = round2(totalDiscounts + discountAmount);
     // Guardar base neta para posible IRPF general
     productBaseNetList.push(baseNeta);
+  }
+
+  // Doble seguridad: si hay recargo de equivalencia, solo válido para clientes Autónomos/Persona Física
+  if (hasRecargoEquivalencia && !clienteEsSoloAutonomo_(CustomerInformation)) {
+    throw new Error(
+      "Regla de validación: la factura incluye Recargo de equivalencia, pero el cliente no es de tipo Autónomo. " +
+      "Cambia el 'Tipo de persona' del cliente a 'Autónomo' o elimina el recargo."
+    );
   }
   // totalTax a nivel factura debe incluir únicamente IVA (no recargo)
   totalTax = round2(sumIvaAmount);
