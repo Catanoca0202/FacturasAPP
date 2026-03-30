@@ -268,6 +268,52 @@ function clienteEsSoloAutonomo_(customerInformation) {
   return norm === 'autonomo';
 }
 
+function getSpreadsheetTimeZone_() {
+  try {
+    const tz = SpreadsheetApp.getActive().getSpreadsheetTimeZone();
+    if (tz) return tz;
+  } catch (e) {}
+  try {
+    const tz2 = Session.getScriptTimeZone();
+    if (tz2) return tz2;
+  } catch (e) {}
+  // Fallback razonable para este proyecto (usuarios España)
+  return "Europe/Madrid";
+}
+
+function parseFacturaDateValue_(value, tz) {
+  if (!value) return null;
+  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {
+    return value;
+  }
+  const s = String(value || '').trim();
+  if (!s) return null;
+
+  // Intentar dd/MM/yyyy (formato usado en la hoja en algunos flujos)
+  try {
+    const d = Utilities.parseDate(s, tz, "dd/MM/yyyy");
+    if (d && !isNaN(d.getTime())) return d;
+  } catch (e) {}
+
+  // Intentar yyyy-MM-dd
+  try {
+    const d2 = Utilities.parseDate(s, tz, "yyyy-MM-dd");
+    if (d2 && !isNaN(d2.getTime())) return d2;
+  } catch (e) {}
+
+  // Último intento: constructor nativo
+  const d3 = new Date(s);
+  return isNaN(d3.getTime()) ? null : d3;
+}
+
+function formatInvoiceDateForPortal_(dateObj, tz) {
+  // Evitar bug de -1 día por UTC al usar toISOString() en fechas a medianoche local.
+  // Estrategia: tomar SOLO la parte de fecha en timezone del spreadsheet y enviar una
+  // fecha ISO a mediodía UTC (misma fecha para España, y estable en el portal).
+  const ymd = Utilities.formatDate(dateObj, tz, "yyyy-MM-dd");
+  return ymd + "T12:00:00.000Z";
+}
+
 function verificarEstadoValidoFactura() {
   const spreadsheet = SpreadsheetApp.getActive();
   const hojaFactura = spreadsheet.getSheetByName('Factura');
@@ -1334,9 +1380,19 @@ function verificarYCopiarContacto(e) {
   let hojaContactos = e.source.getSheetByName('Clientes');
   let celdaEditada = e.range;
 
-
-
-  let nombreContacto = celdaEditada.getValue();
+  // La validación de cliente está aplicada en B2:C2.
+  // Si el usuario edita C2, e.range no apunta al valor real en B2.
+  // Por eso leemos SIEMPRE desde la hoja.
+  let nombreContacto = hojaFacturas.getRange("B2").getValue();
+  if (!nombreContacto) {
+    nombreContacto = hojaFacturas.getRange("C2").getValue();
+  }
+  Logger.log("[verificarYCopiarContacto] edited=%s nombreContacto=%s (B2=%s C2=%s)",
+    String(celdaEditada.getA1Notation()),
+    String(nombreContacto || ''),
+    String(hojaFacturas.getRange("B2").getValue() || ''),
+    String(hojaFacturas.getRange("C2").getValue() || '')
+  );
   let ultimaColumnaPermitida = 20; // Columna del estado en la hoja de contactos
   let datosARetornar = ["B", "O","M","L","N","Q"]; // Columnas que quiero de la hoja de contactos
 
@@ -1350,65 +1406,124 @@ function verificarYCopiarContacto(e) {
     }else{
       //asigna el valor del coldigo solamente porque ese fue lo que me pidieron no mas
       hojaFacturas.getRange("B3").setValue(listaConInformacion["Código cliente"]);
+      Logger.log("[verificarYCopiarContacto] B3 set to código cliente=%s",
+        String(listaConInformacion["Código cliente"] || '')
+      );
     }
   }
 
 
 }
 
+/**
+ * Reintenta asegurar que G2 no quede en 0/vacío tras un edit de cliente.
+ * Esto ayuda cuando hay recalculos/fórmulas que pisan temporalmente el valor.
+ */
+function asegurarNumeroFacturaEnG2_(sheet, intentos, sleepMs) {
+  const sh = sheet || SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Factura');
+  const tries = Math.max(1, Number(intentos) || 3);
+  const wait = Math.max(0, Number(sleepMs) || 250);
+
+  for (let i = 0; i < tries; i++) {
+    SpreadsheetApp.flush();
+    if (wait) Utilities.sleep(wait);
+
+    const rng = sh.getRange("G2");
+    const val = rng.getValue();
+    const display = rng.getDisplayValue();
+    const formula = rng.getFormula();
+
+    // Si hay una fórmula en G2, algo la está reponiendo (p.ej. ARRAYFORMULA/plantilla).
+    if (formula) {
+      Logger.log("G2 tiene fórmula después del set: " + formula);
+    }
+
+    const isZero = (val === 0) || String(val).trim() === "0" || String(display).trim() === "0";
+    const isEmpty = (val === null) || String(val).trim() === "" || String(display).trim() === "";
+
+    Logger.log("[asegurarNumeroFacturaEnG2_] intento %s/%s: G2(value)=%s G2(display)=%s G2(formula)=%s isZero=%s isEmpty=%s",
+      String(i + 1), String(tries),
+      String(val), String(display), String(formula || ''),
+      String(isZero), String(isEmpty)
+    );
+
+    if (!isZero && !isEmpty) return true;
+
+    // Reintentar generar el consecutivo (idempotente mientras no se guarde en historial)
+    Logger.log("[asegurarNumeroFacturaEnG2_] reintentando generarNumeroFactura() porque G2 está en 0/vacío");
+    generarNumeroFactura();
+  }
+  return false;
+}
+
 
 function generarNumeroFactura(){
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = spreadsheet.getSheetByName('Factura');
-  let sheetHistorial = spreadsheet.getSheetByName("Historial Facturas Data");
-  let columnaNumeroFactura = 1;
-  let lastActiveRow = sheetHistorial.getLastRow();
-  
-  if (lastActiveRow <= 2) {
-    lastActiveRow = 2;
-  }
-  
-  let rangeNumeroFactura = sheetHistorial.getRange(2, columnaNumeroFactura, lastActiveRow - 1);
-  let numeroFacturas = rangeNumeroFactura.getValues();
-  
-  let numeroMayor = -Infinity;
-  let ultimoConsecutivo = "";
+  const sheet = spreadsheet.getSheetByName('Factura');
+  const sheetHistorial = spreadsheet.getSheetByName("Historial Facturas Data");
 
-  // Iterar sobre la columna para encontrar el mayor número
-  for (let i = 0; i < numeroFacturas.length; i++) {
-    let consecutivo = numeroFacturas[i][0]; 
-    let cumple = cumpleEstructura(consecutivo)
-    if(!cumple){
-      Logger.log("No cumple con la estructura")
-    }else{
-      let numero = obtenerParteNumerica(consecutivo);
-      
-      if (numero > numeroMayor) {
-        numeroMayor = numero;
-        ultimoConsecutivo = consecutivo; // Guardamos el último número en formato original
+  // Leer configuración de consecutivo (preferir nueva plantilla; fallback a propiedades antiguas)
+  const scriptProperties = PropertiesService.getDocumentProperties();
+  const nuevoPrefijo = scriptProperties.getProperty('ConsecutivoPlantillaPrefijo');
+  const nuevoDigitos = scriptProperties.getProperty('ConsecutivoPlantillaDigitos');
+  const letraOld = scriptProperties.getProperty('LetraConescutivo');
+  const numeroOld = scriptProperties.getProperty('NumeroConescutivo');
+
+  const prefijo = (nuevoPrefijo != null && String(nuevoPrefijo).trim() !== '')
+    ? String(nuevoPrefijo)
+    : (letraOld != null ? String(letraOld) : '');
+
+  let digitos = (nuevoDigitos != null && String(nuevoDigitos).trim() !== '')
+    ? Number(nuevoDigitos)
+    : (numeroOld != null ? String(numeroOld).length : 0);
+
+  Logger.log("[generarNumeroFactura] prefijo=%s digitos=%s props(prefijo=%s,digitos=%s,oldLetra=%s,oldNumero=%s)",
+    String(prefijo),
+    String(digitos),
+    String(nuevoPrefijo || ''),
+    String(nuevoDigitos || ''),
+    String(letraOld || ''),
+    String(numeroOld || '')
+  );
+
+  if (!prefijo || !isFinite(digitos) || digitos < 1) {
+    // Si no hay plantilla válida, NO sobrescribir G2 con 0 (esto causaba el bug intermitente).
+    Logger.log("generarNumeroFactura: consecutivo no configurado; se deja G2 sin cambios.");
+    return;
+  }
+
+  // Número inicial de plantilla (si no hay historial válido). Forzamos mínimo 1 para evitar "0".
+  let numeroPlantilla = parseInt(String(numeroOld || '').replace(/[^\d]/g, ''), 10);
+  if (!isFinite(numeroPlantilla) || numeroPlantilla < 1) numeroPlantilla = 1;
+  Logger.log("[generarNumeroFactura] numeroPlantilla=%s (desde NumeroConescutivo=%s)", String(numeroPlantilla), String(numeroOld || ''));
+
+  // Buscar el consecutivo máximo en historial que cumpla la estructura actual
+  let numeroMayor = -1;
+  if (sheetHistorial) {
+    const lastRow = sheetHistorial.getLastRow();
+    if (lastRow >= 2) {
+      const values = sheetHistorial.getRange(2, 1, lastRow - 1, 1).getDisplayValues();
+      for (let i = 0; i < values.length; i++) {
+        const consecutivo = String(values[i][0] || '').trim();
+        if (!consecutivo) continue;
+        if (!cumpleEstructura(consecutivo)) continue;
+        const numero = obtenerParteNumerica(consecutivo);
+        if (isFinite(numero) && numero > numeroMayor) {
+          numeroMayor = numero;
+        }
       }
     }
-    let numeroActual=0
-    if (numeroMayor==-Infinity){
-      const scriptProperties = PropertiesService.getDocumentProperties();
-      const nuevoPrefijo = scriptProperties.getProperty('ConsecutivoPlantillaPrefijo');
-      const nuevoDigitos = scriptProperties.getProperty('ConsecutivoPlantillaDigitos');
-      let prefijo = nuevoPrefijo || scriptProperties.getProperty('LetraConescutivo') || "";
-      let numeroPlantilla = scriptProperties.getProperty('NumeroConescutivo') || "0";
-      let digitos = nuevoDigitos ? Number(nuevoDigitos) : String(numeroPlantilla).length;
-      numeroActual = parseInt(String(numeroPlantilla),10);
-      if(!isFinite(numeroActual)){
-        numeroActual = 0;
-      }
-      // Construimos un original coherente para mantener el padding
-      ultimoConsecutivo = String(prefijo) + String(numeroActual).padStart(digitos,'0');
-    }else{
-      numeroActual = numeroMayor + 1;
-    }
-    let nuevoConsecutivo = generarNuevoConsecutivo(ultimoConsecutivo, numeroActual);
-
-    sheet.getRange("G2").setValue(nuevoConsecutivo);
   }
+
+  const siguienteNumero = (numeroMayor >= 0) ? (numeroMayor + 1) : numeroPlantilla;
+  const nuevoConsecutivo = String(prefijo) + String(siguienteNumero).padStart(digitos, '0');
+  Logger.log("[generarNumeroFactura] numeroMayor=%s siguienteNumero=%s nuevoConsecutivo=%s", String(numeroMayor), String(siguienteNumero), String(nuevoConsecutivo));
+  sheet.getRange("G2").setValue(nuevoConsecutivo);
+  Logger.log("[generarNumeroFactura] G2 escrito. Ahora G2(value)=%s G2(display)=%s G2(formula)=%s",
+    String(sheet.getRange("G2").getValue()),
+    String(sheet.getRange("G2").getDisplayValue()),
+    String(sheet.getRange("G2").getFormula() || '')
+  );
 }
 
 // Extrae la parte numérica de una cadena
@@ -1559,33 +1674,56 @@ function getInvoiceGeneralInformation() {
 
 // Mapea el medio de pago textual (E4) al código idPayment requerido por RG
 function mapIdPaymentCode(medioPagoTxt){
-  Logger.log("medioPagoTxt"+medioPagoTxt)
-  if(!medioPagoTxt) return "ND"; // No definido
-  // const normalizado = String(medioPagoTxt).toLowerCase().trim();
-  switch(medioPagoTxt){
-    case 'Efectivo':
-      return 'EF';
-    case 'Transferencia bancaria':
-      return 'TF';
-    case 'Tarjeta bancaria':
-    case 'tarjeta':
-      return 'TB';
-    case 'Domiciliación bancaria':
-    case 'Domiciliacion bancaria':
-      return 'DB';
-    case 'PayPal':
-      return 'PP';
-    case 'Talón':
-    case 'Talon':
-      return 'TL';
-    case 'Factoring':
-      return 'FR';
-    case 'Confirming':
-      return 'CF';
-    case 'No definido':
-    default:
-      return 'ND';
-  }
+  Logger.log("medioPagoTxt" + medioPagoTxt);
+  if (!medioPagoTxt) return "ND"; // No definido
+
+  // Normalizar para aceptar variantes con/sin tildes, mayúsculas, etc.
+  const normKey = (s) => String(s || '')
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().trim();
+  const norm = normKey(medioPagoTxt);
+
+  // Catálogo de forma de pago (idPayment)
+  // Fuente: tabla ValueOption/NameOption proporcionada por el usuario (2026)
+  const MAP_RAW = {
+    // Existentes / compatibilidad
+    "No definido": "ND",
+    "Efectivo": "EF",
+    "Transferencia bancaria": "TF",
+    "Tarjeta bancaria": "TB",
+    "Tarjeta": "TB",
+    "Domiciliación bancaria": "DB",
+    "Domiciliacion bancaria": "DB",
+    "PayPal": "PP",
+    "Paypal": "PP",
+    "Factoring": "FR",
+    "Confirming": "CF",
+    "Talón": "TL",
+    "Talon": "TL",
+    "Talonario": "TL",
+
+    // Nuevos
+    "Tarjeta de crédito": "TC",
+    "Tarjeta de credito": "TC",
+    "Tarjeta de débito": "TD",
+    "Tarjeta de debito": "TD",
+    "Pagaré": "PA",
+    "Pagare": "PA",
+    "Cheque": "CH",
+    "Recibo bancario": "RB",
+    "Contado": "CD",
+    "Bizum": "BZ",
+    "Letra de cambio": "LC",
+    "Compensación": "CP",
+    "Compensacion": "CP"
+  };
+
+  const MAP = {};
+  Object.keys(MAP_RAW).forEach((k) => {
+    MAP[normKey(k)] = MAP_RAW[k];
+  });
+
+  return MAP[norm] || "ND";
 }
 function getPaymentSummary(startingRowTaxation) {
   let spreadsheet = SpreadsheetApp.getActive();
@@ -1670,6 +1808,8 @@ function guardarYGenerarInvoice(){
   let listadoestado_sheet = spreadsheet.getSheetByName('ListadoEstado');
   let prefactura_sheet = spreadsheet.getSheetByName('Factura');
   let FacturaDatos = spreadsheet.getSheetByName('Datos de emisor');
+  let hojaProductos = spreadsheet.getSheetByName('Productos');
+  const tz = getSpreadsheetTimeZone_();
 
   // Obtener el total de productos
   let posicionTotalProductos = prefactura_sheet.getRange("A16").getValue();
@@ -1691,17 +1831,13 @@ function guardarYGenerarInvoice(){
   let startingRowTaxation = getTaxSectionStartRow(prefactura_sheet);
   let usuario = FacturaDatos.getRange("B11").getValue()
   // Obtener fechas
-  let fechaFactura = new Date(prefactura_sheet.getRange("G4").getValue());
-  let fechaVencimiento = new Date(prefactura_sheet.getRange("G3").getValue());
+  let fechaFactura = parseFacturaDateValue_(prefactura_sheet.getRange("G4").getValue(), tz) || new Date();
+  let fechaVencimiento = parseFacturaDateValue_(prefactura_sheet.getRange("G3").getValue(), tz) || new Date();
   let horaFactura = new Date().toTimeString().split(' ')[0] + ".0000000";
   
-  // Validar fechas
-  if (isNaN(fechaFactura.getTime())) {
-    fechaFactura = new Date();
-  }
-  if (isNaN(fechaVencimiento.getTime())) {
-    fechaVencimiento = new Date();
-  }
+  // Validar fechas (por seguridad)
+  if (isNaN(fechaFactura.getTime())) fechaFactura = new Date();
+  if (isNaN(fechaVencimiento.getTime())) fechaVencimiento = new Date();
 
   // Recalcular invoiceExpiration coherente con días de vencimiento (G6)
   let diasVencimiento = Number(prefactura_sheet.getRange("G6").getValue() || 0);
@@ -1731,21 +1867,67 @@ function guardarYGenerarInvoice(){
   let fieldTaxations = [];
   let taxGroups = {};            // IVA agrupado por porcentaje
   let recargoTaxGroups = {};     // Recargo equivalencia agrupado por porcentaje
+  let totalExemptBase = 0;       // Base exenta (productos con IVA 0%)
+
+  // Pre-fetch product regimens from Productos sheet
+  let productRegimenMap = {};
+  try {
+    let prodUltFila = hojaProductos.getLastRow();
+    if (prodUltFila > 1) {
+      let prodIds = hojaProductos.getRange(2, PRODUCT_COLUMNS.IDENTIFICADOR_UNICO, prodUltFila - 1, 1).getValues();
+      let prodRegimens = hojaProductos.getRange(2, PRODUCT_COLUMNS.REGIMEN, prodUltFila - 1, 1).getValues();
+      for (let p = 0; p < prodIds.length; p++) {
+        let idKey = String(prodIds[p][0]).trim();
+        if (idKey) {
+          try {
+            productRegimenMap[idKey] = getRegimenCode(String(prodRegimens[p][0]));
+          } catch (e) {
+            productRegimenMap[idKey] = "01";
+          }
+        }
+      }
+    }
+  } catch (e) {
+    Logger.log("Error pre-fetching product regimens: " + e);
+  }
   
-  // IRPF general (totales): si está configurado y no hay retenciones por producto
-  const rowIrpf = startingRowTaxation - 2; // Fila donde está el IRPF en totales
+  // IRPF general (totales): viene de la hoja Factura
+  // - F17: selector (7% / 15% / 19% / "Valor libre")
+  // - H17: valor fijo cuando F17 = "Valor libre"
+  // Nota: "Valor libre" es un VALOR FIJO (importe), NO un porcentaje.
+  const rowIrpf = startingRowTaxation - 2; // Fila donde está el IRPF en totales (por plantilla default: 17)
   const irpfSelDisplay = String(prefactura_sheet.getRange(rowIrpf, 6).getDisplayValue() || '').trim().toLowerCase(); // Columna F
-  let generalIrpfRate = 0; // fracción (0.07, 0.15, 0.19 o libre)
+  const irpfFixedRaw = Number(prefactura_sheet.getRange(rowIrpf, 8).getValue() || 0); // Columna H
+
+  const generalIrpf = {
+    mode: 'none',       // 'none' | 'percent' | 'fixed'
+    rateFrac: 0,        // 0.07 / 0.15 / 0.19
+    fixedAmount: 0,     // importe fijo
+    idRateWithHoldings: null
+  };
+
   if (irpfSelDisplay) {
     if (irpfSelDisplay === 'valor libre') {
-      const libreVal = Number(prefactura_sheet.getRange(rowIrpf, 8).getValue() || 0); // Columna H
-      generalIrpfRate = Number(libreVal) || 0;
-      if (generalIrpfRate < 0) generalIrpfRate = 0;
+      const fixed = round2(irpfFixedRaw);
+      if (fixed > 0) {
+        generalIrpf.mode = 'fixed';
+        generalIrpf.fixedAmount = fixed;
+        // No existe un idRate explícito para "valor fijo" en el catálogo expuesto;
+        // usamos 20 (7%) como fallback para que el PDF muestre la retención.
+        generalIrpf.idRateWithHoldings = "20";
+      }
     } else {
       const rateNum = parsePercentToNumberES(prefactura_sheet.getRange(rowIrpf, 6).getDisplayValue());
-      generalIrpfRate = rateNum ? Number(rateNum) / 100 : 0;
+      const frac = rateNum ? Number(rateNum) / 100 : 0;
+      if (frac > 0) {
+        generalIrpf.mode = 'percent';
+        generalIrpf.rateFrac = frac;
+        // Mapear 7/15/19 a su idRateWithHoldings (20/21/22)
+        generalIrpf.idRateWithHoldings = obtenerIdRateWithHoldings(Number(rateNum), 10);
+      }
     }
   }
+
   let hasPerProductRetention = false;
   const productBaseNetList = [];
   for (let i = 15; i < 15 + cantidadProductos; i++) {
@@ -1754,7 +1936,10 @@ function guardarYGenerarInvoice(){
     let productoData = rangoProducto.getValues()[0];
     
     let referencia = String(productoData[0] || "");
-    let descripcion = String(productoData[1] || "");
+    let descripcionRaw = String(productoData[1] || "");
+    let descripcion = referencia && descripcionRaw.endsWith("-" + referencia)
+      ? descripcionRaw.slice(0, -(referencia.length + 1)).trim()
+      : descripcionRaw;
     let cantidad = Number(productoData[2]) || 1;
     let precioUnitario = Number(productoData[3]) || 0;
     // subtotal en hoja (col F) YA tiene el descuento aplicado.
@@ -1790,17 +1975,19 @@ function guardarYGenerarInvoice(){
       cantidad = 1;
     }
     
+    // Obtener regimen del producto desde el mapa pre-fetched
+    let regimenProducto = productRegimenMap[descripcion.trim()] || "01";
+
     // Crear arrays de taxes, withHoldings y discounts según factura.json
     let taxes = [];
     if (ivaRate > 0) {
       taxes.push({
         taxName: "IVA",
-        rate: ivaRate * 100, // Convertir a porcentaje
+        rate: ivaRate * 100,
         taxBase: baseNeta,
         valueTax: taxAmount
       });
       
-      // Agrupar para fieldTaxations
       let rateKey = ivaRate * 100;
       if (!taxGroups[rateKey]) {
         taxGroups[rateKey] = {
@@ -1812,6 +1999,27 @@ function guardarYGenerarInvoice(){
       }
       taxGroups[rateKey].taxBase = round2(taxGroups[rateKey].taxBase + baseNeta);
       taxGroups[rateKey].valueTax = round2(taxGroups[rateKey].valueTax + taxAmount);
+    } else {
+      // IVA 0% - producto exento: agregar idExento
+      taxes.push({
+        taxName: "IVA",
+        rate: 0,
+        taxBase: baseNeta,
+        valueTax: 0,
+        idExento: "E1"
+      });
+
+      let rateKey = 0;
+      if (!taxGroups[rateKey]) {
+        taxGroups[rateKey] = {
+          taxName: "IVA",
+          rate: 0,
+          taxBase: 0,
+          valueTax: 0
+        };
+      }
+      taxGroups[rateKey].taxBase = round2(taxGroups[rateKey].taxBase + baseNeta);
+      totalExemptBase = round2(totalExemptBase + baseNeta);
     }
     // Acumular para totales y regla de validación
     sumIvaAmount = round2(sumIvaAmount + taxAmount);
@@ -1823,7 +2031,9 @@ function guardarYGenerarInvoice(){
       let codigoRetencion = obtenerIdRateWithHoldings(retencionRate * 100, 10);
       Logger.log("Producto: " + descripcion + " - Retención: " + (retencionRate * 100) + "% - Código: " + codigoRetencion);
       withHoldingsSurChargesDto.push({
-        idRateWithHoldings: codigoRetencion, // Retención
+        isWithHolding: true,
+        idRateWithHoldings: String(codigoRetencion),
+        rateValueWithHoldings: retencionRate,
         subTotalWithHoldings: baseNeta,
         cuotaWithHoldings: withHoldingsAmount
       });
@@ -1835,7 +2045,9 @@ function guardarYGenerarInvoice(){
       let codigoRecargo = obtenerIdRateWithHoldings(recargoEquivalenciaRate * 100, 11);
       Logger.log("Producto: " + descripcion + " - Recargo: " + (recargoEquivalenciaRate * 100) + "% - Código: " + codigoRecargo);
       withHoldingsSurChargesDto.push({
-        idRateWithHoldings: codigoRecargo, // Recargo de equivalencia
+        isWithHolding: false,
+        idRateWithHoldings: String(codigoRecargo),
+        rateValueWithHoldings: recargoEquivalenciaRate,
         subTotalWithHoldings: baseNeta,
         cuotaWithHoldings: surChargesAmount
       });
@@ -1871,6 +2083,7 @@ function guardarYGenerarInvoice(){
       typeUse: "VEN",
       reference: String(referencia).substring(0, 50),
       description: String(descripcion).substring(0, 100),
+      regime: regimenProducto,
       unitPrice: Number(precioUnitario),
       quantity: quantityInt,
       // IMPORTANTE: Enviar subTotal BRUTO (antes de descuento) para que el servicio
@@ -1894,10 +2107,11 @@ function guardarYGenerarInvoice(){
     products.push(producto);
     
     // Acumular totales
-    // totalSubTotal: suma de subTotal BRUTO (igual a hoja: Valor bruto sin impuestos)
+    // sumTotalSubTotal = subtotal BRUTO (antes de descuentos), para que la plataforma
+    // pueda calcular: Base imponible = Subtotal - Descuentos = baseNeta.
+    // sumTotalTaxBase = base NETA (después de descuentos, antes de impuestos).
     totalSubTotal = round2(totalSubTotal + baseBruta);
-    // totalTaxBase: solicitado por el usuario como "Valor bruto" -> usar base BRUTA
-    totalTaxBase = round2(totalTaxBase + baseBruta);
+    totalTaxBase = round2(totalTaxBase + baseNeta);
     // totalTax se calculará después del bucle con sumIvaAmount + sumRecargoAmount
     totalWithHoldings = round2(totalWithHoldings + withHoldingsAmount);
     totalSurCharges = round2(totalSurCharges + surChargesAmount);
@@ -1915,18 +2129,21 @@ function guardarYGenerarInvoice(){
   }
   // totalTax a nivel factura debe incluir únicamente IVA (no recargo)
   totalTax = round2(sumIvaAmount);
-  
-  // Aplicar IRPF general si NO hubo retenciones por producto.
-  // En lugar de crear retenciones por producto, solo acumulamos el total
-  // para reportarlo en sumTotalRetentionIRPF a nivel de factura.
-  if (generalIrpfRate > 0 && !hasPerProductRetention && products.length === productBaseNetList.length) {
-    for (let idx = 0; idx < products.length; idx++) {
-      const baseNeta = productBaseNetList[idx];
-      const cuota = round2(baseNeta * generalIrpfRate);
-      if (cuota <= 0) continue;
-      totalWithHoldings = round2(totalWithHoldings + cuota);
+
+  // Leer IRPF directamente desde la celda E{rowParaTotales} (E29 en plantilla default).
+  // La hoja ya calcula este valor tanto para porcentaje (7%/15%/19%) como "Valor libre".
+  // Cuando no hay IRPF, la celda vale 0.
+  let irpfGlobalAmount = 0;
+  const rowTotalesIrpf = startingRowTaxation + 10;
+  try {
+    const irpfCellValue = Number(prefactura_sheet.getRange(rowTotalesIrpf, 5).getValue() || 0);
+    if (isFinite(irpfCellValue) && irpfCellValue > 0) {
+      irpfGlobalAmount = round2(irpfCellValue);
     }
+  } catch (e) {
+    Logger.log("No se pudo leer IRPF desde hoja: " + e);
   }
+  Logger.log("IRPF global desde celda E" + rowTotalesIrpf + ": " + irpfGlobalAmount);
   
   // Crear fieldTaxations desde grupos (IVA + Recargo Equivalencia)
   for (let rate in taxGroups) {
@@ -1934,6 +2151,24 @@ function guardarYGenerarInvoice(){
   }
   for (let rate in recargoTaxGroups) {
     fieldTaxations.push(recargoTaxGroups[rate]);
+  }
+
+  // --- Descuento total: incluir descuento de factura + descuentos por producto ---
+  // El loop anterior solo suma descuentos por producto (discountAmount).
+  // Pero la hoja ya calcula el TOTAL descuentos (incluye "descuento de factura" + descuentos por línea)
+  // en la celda D de la fila de totales (ej: D29 en estructura default).
+  try {
+    const rowTotales = startingRowTaxation + 10; // coincide con calcularImporteYTotal()
+    const sheetDiscountRaw = prefactura_sheet.getRange(rowTotales, 4).getValue(); // Columna D
+    const sheetDiscountNum = Number(sheetDiscountRaw);
+    if (isFinite(sheetDiscountNum) && sheetDiscountNum > 0) {
+      Logger.log("Descuento total tomado de hoja (D" + rowTotales + "): " + sheetDiscountNum);
+      totalDiscounts = round2(sheetDiscountNum);
+    } else {
+      Logger.log("Descuento total hoja no numérico/0 (D" + rowTotales + "): " + sheetDiscountRaw + " | se usa descuentos por producto=" + totalDiscounts);
+    }
+  } catch (e) {
+    Logger.log("No se pudo leer descuento total desde hoja: " + e);
   }
 
   // Obtener totales de la factura
@@ -1974,7 +2209,7 @@ function guardarYGenerarInvoice(){
     identificationType:CustomerInformation.DocumentIdentificationType,
     identification: String(CustomerInformation.Identification || "12345678A").substring(0, 20),
     tradeName: String(cliente).substring(0, 450),
-    regime: CustomerInformation.Regimen, // Según factura.json
+    regime: "01",
     // Códigos oficiales de país / provincia / población tomados del catálogo externo
     country: String(CustomerInformation.CountryCode || "").substring(0, 10),
     province: String(CustomerInformation.ProvinceCode || "").substring(0, 10),
@@ -2003,36 +2238,74 @@ function guardarYGenerarInvoice(){
     currentNumber = Math.floor(Date.now() / 1000);
   }
   
-  // Crear chargeAndDiscount: incluir solo valores reales, sin cargos por defecto
+  // Crear chargeAndDiscount según especificación:
+  // CG = Cargo, DT = Descuento, RT = Retención IRPF
+  // "En caso de no aplicar Cargo o Descuento, suprimir el array."
+  // idTypeValueFeeDiscount: VR = Por valor, PJ = Por porcentaje
+  // Cuando PJ: baseFeeDiscount = base, valueFeeDiscount = tarifa (%), totalFeeDiscount = base × tarifa
+  // Cuando VR: baseFeeDiscount = 0, valueFeeDiscount = totalFeeDiscount
   let chargeAndDiscount = [];
+
+  // Cargo global (CG)
   if (cargoTotal > 0) {
     chargeAndDiscount.push({
       idtypeFeeDiscount: "CG",
-      idTypeValueFeeDiscount: "PJ",
-      baseFeeDiscount: totalTaxBase,
-      valueFeeDiscount: 1,
+      idTypeValueFeeDiscount: "VR",
+      baseFeeDiscount: 0,
+      valueFeeDiscount: cargoTotal,
       totalFeeDiscount: cargoTotal
     });
-  } else {
-    // Mantener estructura compatible con valores en cero
+  }
+
+  // Descuento de factura (DT) — solo el descuento a nivel de factura (D{rowIrpf}),
+  // NO el total de descuentos (D29) que incluye descuentos por producto.
+  let descuentoFactura = 0;
+  try {
+    const dtoFacturaRaw = Number(prefactura_sheet.getRange(rowIrpf, 4).getValue() || 0);
+    if (isFinite(dtoFacturaRaw) && dtoFacturaRaw > 0) {
+      descuentoFactura = round2(dtoFacturaRaw);
+    }
+  } catch (e) {
+    Logger.log("No se pudo leer descuento factura desde D" + rowIrpf + ": " + e);
+  }
+  if (descuentoFactura > 0) {
     chargeAndDiscount.push({
-      idtypeFeeDiscount: "CG",
-      idTypeValueFeeDiscount: "PJ",
+      idtypeFeeDiscount: "DT",
+      idTypeValueFeeDiscount: "VR",
       baseFeeDiscount: 0,
-      valueFeeDiscount: 0,
-      totalFeeDiscount: 0
+      valueFeeDiscount: descuentoFactura,
+      totalFeeDiscount: descuentoFactura
     });
   }
+
+  // Retención IRPF global (RT) — leído desde E{rowTotalesIrpf}
+  if (irpfGlobalAmount > 0) {
+    if (generalIrpf.mode === 'percent' && generalIrpf.rateFrac > 0) {
+      chargeAndDiscount.push({
+        idtypeFeeDiscount: "RT",
+        idTypeValueFeeDiscount: "PJ",
+        baseFeeDiscount: totalTaxBase,
+        valueFeeDiscount: round2(generalIrpf.rateFrac * 100),
+        totalFeeDiscount: irpfGlobalAmount
+      });
+    } else {
+      chargeAndDiscount.push({
+        idtypeFeeDiscount: "RT",
+        idTypeValueFeeDiscount: "VR",
+        baseFeeDiscount: 0,
+        valueFeeDiscount: irpfGlobalAmount,
+        totalFeeDiscount: irpfGlobalAmount
+      });
+    }
+  }
   
-  // Calcular totales finales
-  // Para evitar doble conteo en el portal:
-  // - sumTotalSubTotalAndTax: SubTotal + IVA (sin recargo)
-  // Además, alineamos los totales que enviamos con los que ve el usuario en la hoja:
-  // - sumTotalTotal: Importe total (tomado de la hoja)
-  // - sumTotalNetPayable: Neto a pagar (tomado de la hoja)
-  let sumTotalSubTotalAndTax = round2(totalSubTotal + totalTax);
-  let sumTotalTotalCalc = round2(netoPagar || sumTotalSubTotalAndTax + totalSurCharges); // Importe total hoja
-  let sumTotalNetPayable = round2(totalFactura || (sumTotalSubTotalAndTax + totalSurCharges - totalWithHoldings));
+  // Calcular totales finales según especificación:
+  // sumTotalSubTotalAndTax = sumTotalTaxBase + sumTotalTax (Base imponible neta + IVA)
+  // sumTotalTotal = sumTotalSubTotalAndTax + cuotaWithHoldings(recargo equivalencia)
+  // sumTotalNetPayable = sumTotalTotal - retenciones_producto - descuento_global + cargo_global - IRPF_global
+  let sumTotalSubTotalAndTax = round2(totalTaxBase + totalTax);
+  let sumTotalTotalCalc = round2(sumTotalSubTotalAndTax + totalSurCharges);
+  let sumTotalNetPayable = round2(sumTotalTotalCalc - totalWithHoldings - descuentoFactura + cargoTotal - irpfGlobalAmount);
   
   // Crear el JSON con estructura EXACTA de factura.json
   // Fechas coherentes con hoja: invoiceDate = G4, invoiceExpiration = días de G6
@@ -2047,35 +2320,37 @@ function guardarYGenerarInvoice(){
     textCustomerObservations: String(prefactura_sheet.getRange("D11").getValue() || "").substring(0, 350) || null,
     invoiceNumber: numeroFacturaValidado.substring(0, 50),
     currentNumber: currentNumber,
-    invoiceDate: fechaFactura.toISOString(),
+    // Importante: no usar toISOString() directo con fechas de hoja a medianoche,
+    // porque en España se convierte a UTC y puede quedar "un día antes".
+    invoiceDate: formatInvoiceDateForPortal_(fechaFactura, tz),
     invoiceTime: horaFactura,
     invoiceExpiration: String(diasExpiracion),
-    invoiceIdTypeRegAEAT: "AI",// null
-    invoiceIdTypeRegSIF: null,//null
+    invoiceIdTypeRegAEAT: "AI",
+    invoiceIdTypeRegSIF: null,
     contactName: String(prefactura_sheet.getRange("G8").getValue()|| "").substring(0, 30) || "",
+    operationDate: Utilities.formatDate(new Date(), tz, "dd-MM-yyyy"),
     contacts: contacts,
     products: products,
     idPayment: idPaymentCode,
     paymentNote: String(prefactura_sheet.getRange("D11").getValue() || "").substring(0, 300) || null,
     textObservations: String(prefactura_sheet.getRange("B10").getValue() || "").substring(0, 500) || null,
     idOperations: "S1", // Según factura.json
-    // Si hay impuestos (IVA o recargo) no es exenta: usar E0. Si no hay impuestos, E3
-    idOperationsExenta: "E0",
-    valueExemptBase: (hasAnyTaxOrSurcharge) ? 0 : baseNetaTotal,
-    chargeAndDiscount: chargeAndDiscount, // Siempre incluir - nunca null
+    idOperationsExenta: totalExemptBase > 0 ? "E1" : "E0",
+    valueExemptBase: totalExemptBase,
+    chargeAndDiscount: chargeAndDiscount.length > 0 ? chargeAndDiscount : [],
     fieldTaxations: fieldTaxations.length > 0 ? fieldTaxations : [],
     sumTotalSubTotal: totalSubTotal,
     sumTotalTaxBase: totalTaxBase,
     sumTotalTax: totalTax,
     sumTotalSubTotalAndTax: sumTotalSubTotalAndTax,
-    sumTotalExemptBase: 0,
-    sumTotalDiscount: totalDiscounts,
+    sumTotalExemptBase: totalExemptBase,
+    sumTotalDiscount: descuentoFactura,
     sumTotalCharge: cargoTotal,
-    // Nuevo campo: total de retenciones IRPF (por producto + general)
-    sumTotalRetentionIRPF: totalWithHoldings,
-    // Total de la factura (sin recargo; el portal suma el recargo por separado)
+    // Retención IRPF global (del chargeAndDiscount RT, NO incluye retenciones por producto)
+    sumTotalRetentionIRPF: irpfGlobalAmount,
+    // Total = sumTotalSubTotalAndTax + cuotaWithHoldings(recargo equivalencia)
     sumTotalTotal: sumTotalTotalCalc,
-    // Neto a pagar: (SubTotal + IVA) + Recargo - Retenciones
+    // Neto = sumTotalTotal - retenciones_producto - descuento + cargo - IRPF
     sumTotalNetPayable: sumTotalNetPayable,
     invoiceTypeId: 0, // Según factura.json
     invoiceRectificativeTypeId: 0,
@@ -2114,7 +2389,7 @@ function guardarYGenerarInvoice(){
   Logger.log("✓ paymentNote: " + (fieldInvoice.paymentNote !== undefined));
   Logger.log("✓ textObservations: " + (fieldInvoice.textObservations !== undefined));
   Logger.log("✓ valueExemptBase: " + (fieldInvoice.valueExemptBase !== undefined));
-  Logger.log("✓ chargeAndDiscount: " + (fieldInvoice.chargeAndDiscount !== undefined && fieldInvoice.chargeAndDiscount.length > 0));
+  Logger.log("✓ chargeAndDiscount: " + (fieldInvoice.chargeAndDiscount !== null && fieldInvoice.chargeAndDiscount !== undefined));
   Logger.log("✓ fieldTaxations: " + (fieldInvoice.fieldTaxations !== undefined));
   Logger.log("✓ Contacto con todos los campos: " + (fieldInvoice.contacts[0].postalCodeCustomer !== undefined));
   

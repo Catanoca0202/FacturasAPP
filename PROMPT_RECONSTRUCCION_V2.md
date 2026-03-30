@@ -454,7 +454,7 @@ const API_URLS = {
     }]
   }],
   
-  "idPayment": "EF|TF|TB|DB|PP|TL|FR|CF|ND",
+  "idPayment": "ND|EF|TF|TB|DB|PP|FR|CF|TL|TC|TD|PA|CH|RB|CD|BZ|LC|CP",
   "paymentNote": "string|null",
   "textObservations": "string|null",
   "idOperations": "S1|N1",

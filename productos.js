@@ -3,39 +3,47 @@
 // a cambiar cuando se pregunte y agg los otros porcinetos
 function obtenerInformacionProducto(producto) {
     let spreadsheet = SpreadsheetApp.getActive();
-    let datos_sheet = spreadsheet.getSheetByName('Datos');
-    let celdaProducto = datos_sheet.getRange("I11");
-    Logger.log("producto dentro de obtener "+producto)
-    celdaProducto.setValue(producto);
-  
-  
-  
-    let codigoProducto = datos_sheet.getRange("H11").getValue();
-    let valorUnitario = datos_sheet.getRange("J11").getValue();
-    let porcientoIva = datos_sheet.getRange("K11").getValue();
-    let precioConIva = datos_sheet.getRange("L11").getValue();
-    let impuestos = datos_sheet.getRange("M11").getValue();
-    let descunetos=datos_sheet.getRange("N11").getValue();
-    let retencion=datos_sheet.getRange("O11").getValue();
-    let RecgEquivalencia=datos_sheet.getRange("P11").getValue();
-    let estado=datos_sheet.getRange("Q11").getValue();
-    // Logger.log("Dentro de funcion dict porcientoIva "+ porcientoIva)
-    // Logger.log("Dentro de funcion dict porcientoIva sin string"+ datos_sheet.getRange("K11").getValue())
-    
+    let hojaProductos = spreadsheet.getSheetByName('Productos');
+    let ultimaFila = hojaProductos.getLastRow();
+
+    Logger.log("producto dentro de obtener " + producto);
+
+    let fila = -1;
+    let identificadores = hojaProductos.getRange(2, PRODUCT_COLUMNS.IDENTIFICADOR_UNICO, ultimaFila - 1, 1).getValues();
+    for (let i = 0; i < identificadores.length; i++) {
+      if (String(identificadores[i][0]).trim() === String(producto).trim()) {
+        fila = i + 2;
+        break;
+      }
+    }
+    if (fila === -1) {
+      throw new Error("Producto no encontrado: " + producto);
+    }
+
+    let codigoProducto = hojaProductos.getRange(fila, PRODUCT_COLUMNS.CODIGO_REFERENCIA).getValue();
+    let regimen = hojaProductos.getRange(fila, PRODUCT_COLUMNS.REGIMEN).getValue();
+    let valorUnitario = hojaProductos.getRange(fila, PRODUCT_COLUMNS.VALOR_UNITARIO).getValue();
+    let porcientoIva = hojaProductos.getRange(fila, PRODUCT_COLUMNS.TARIFA_IMPUESTO).getDisplayValue();
+    let precioConIva = hojaProductos.getRange(fila, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO).getValue();
+    let tipoImpuesto = hojaProductos.getRange(fila, PRODUCT_COLUMNS.TIPO_IMPUESTO).getValue();
+    let checkRecargo = hojaProductos.getRange(fila, PRODUCT_COLUMNS.CHECK_RECARGO).getValue();
+    let tarifaRecargo = hojaProductos.getRange(fila, PRODUCT_COLUMNS.TARIFA_RECARGO).getDisplayValue();
+    let checkRetencion = hojaProductos.getRange(fila, PRODUCT_COLUMNS.CHECK_RETENCION).getValue();
+    let tarifaRetencion = hojaProductos.getRange(fila, PRODUCT_COLUMNS.TARIFA_RETENCION).getDisplayValue();
+    let estado = hojaProductos.getRange(fila, PRODUCT_COLUMNS.ESTADO).getValue();
 
     let informacionProducto = {
       "codigo Producto": codigoProducto,
+      "regimen": regimen,
       "valor Unitario": valorUnitario,
       "IVA": porcientoIva,
       "precio Con Iva": precioConIva,
-      "impuestos": impuestos,
-      "descuentos": descunetos,
-      "retencion":retencion,
-      "Recargo de equivalencia":RecgEquivalencia,
-      "Estado":estado
-
+      "impuestos": tipoImpuesto,
+      "Recargo de equivalencia": checkRecargo === true || checkRecargo === "TRUE" ? tarifaRecargo : "",
+      "retencion": checkRetencion === true || checkRetencion === "TRUE" ? tarifaRetencion : "",
+      "Estado": estado
     };
-  
+
     return informacionProducto;
   }
 
@@ -45,8 +53,7 @@ function obtenerInformacionProducto(producto) {
     var ultimaFila = hojaProductos.getLastRow();
     if (ultimaFila <= 1) return [];
 
-    // Columna N (14): Identificador único "Nombre-Código"
-    var identificadores = hojaProductos.getRange(2, 14, ultimaFila - 1, 1).getValues();
+    var identificadores = hojaProductos.getRange(2, PRODUCT_COLUMNS.IDENTIFICADOR_UNICO, ultimaFila - 1, 1).getValues();
     // Columna A (1): Estado ("Valido"/"No Valido")
     var estados = hojaProductos.getRange(2, 1, ultimaFila - 1, 1).getValues();
 

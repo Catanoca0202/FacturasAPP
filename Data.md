@@ -8,6 +8,7 @@ Prueba produccion (Usuario Personal - Produccion)
 
 copy facturasApp v2 1kpONX_Q97Jr-ayYKxr9svVxstW6S_ZZDNbEJ2ibm2SC3-gDWbjAtmKbr
 
-prueba amibnete QA (186NgOivey1zIlfzL_1MNh5ubRLOUjrUjQMinKi41N0UmeV9dUZd-jbvI)
+prueba amibnete QA (186NgOivey1zIlfzL_1MNh5ubRLOUjrUjQMinKi41N0UmeV9dUZd-jbvI) OLD YA NO
+(1UocFdTyfyKxCIsUveYLAnTJf3gJCTEBcuiDCFsDsKxs10nOc5u219UTS)NUEVO, FUNCIONAL
 
 clasp log in

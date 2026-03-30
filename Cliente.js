@@ -40,7 +40,6 @@ function inactivarCliente(cliente){
   let tipoDoc=datos_sheet.getRange("J2").getValue();
   let numIdentificacion=datos_sheet.getRange("K2").getValue();
   let codigoContacto=datos_sheet.getRange("I2").getValue();
-  let regimen=datos_sheet.getRange("M2").getValue();
   let nomnbreComercial=datos_sheet.getRange("N2").getValue();
   let primerNombre=datos_sheet.getRange("O2").getValue();
   let segundoNombre=datos_sheet.getRange("P2").getValue();
@@ -66,21 +65,20 @@ function inactivarCliente(cliente){
   hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 5).setValue(tipoDoc);
   hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 6).setValue(numIdentificacion);
   hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 7).setValue(codigoContacto);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 8).setValue(regimen);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 9).setValue(nomnbreComercial);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 10).setValue(primerNombre);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 11).setValue(segundoNombre);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 12).setValue(primerApellido);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 13).setValue(segundoApellido);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 14).setValue(pais);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 15).setValue(provicnica);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 16).setValue(poblacion);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 17).setValue(direccion);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 18).setValue(codigoPostal);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 19).setValue(telefono);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 20).setValue(sitioWeb);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 21).setValue(email);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 22).setValue(cliente);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 8).setValue(nomnbreComercial);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 9).setValue(primerNombre);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 10).setValue(segundoNombre);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 11).setValue(primerApellido);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 12).setValue(segundoApellido);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 13).setValue(pais);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 14).setValue(provicnica);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 15).setValue(poblacion);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 16).setValue(direccion);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 17).setValue(codigoPostal);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 18).setValue(telefono);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 19).setValue(sitioWeb);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 20).setValue(email);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 21).setValue(cliente);
 
   //eliminar cliente de la hoja clientes
 
@@ -111,8 +109,7 @@ function activarCliente(cliente) {
     datos_sheet.getRange('L6').getValue(), // tipoDoc
     datos_sheet.getRange('M6').getValue(), // numIdentificacion
     datos_sheet.getRange('N6').getValue(), // codigoContacto
-    datos_sheet.getRange('O6').getValue(), // regimen
-    datos_sheet.getRange('P6').getValue(), // nombreComercial
+    datos_sheet.getRange('O6').getValue(), // nombreComercial
     datos_sheet.getRange('Q6').getValue(), // primerNombre
     datos_sheet.getRange('R6').getValue(), // segundoNombre
     datos_sheet.getRange('S6').getValue(), // primerApellido
@@ -146,11 +143,11 @@ function verificarDatosObligatoriosManual(sheet, row, tipoPersona) {
     tipoPersona === "Persona Física";
 
   const columnasObligatorias = esAutonomo ? 
-    [2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 17, 18, 19, 21] : // Para autónomos
-    [2, 3, 4, 5, 6, 7, 8, 9, 14, 17, 18, 19, 21]; // Para empresas
+    [2, 3, 4, 5, 6, 7, 9, 11, 13, 14, 15, 17, 20] : // Para autónomos
+    [2, 3, 4, 5, 6, 7, 8, 13, 14, 15, 17, 20]; // Para empresas
 
-  const todasLasColumnas = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
-  const estadosDefault = ["", "Tipo Documento", "Regimen", "Tipo de persona"];
+  const todasLasColumnas = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+  const estadosDefault = ["", "Tipo Documento", "Tipo de persona"];
   let estaCompleto = true;
   let estaVacioOPredeterminado = true;
 
@@ -411,7 +408,6 @@ function saveClientData(formData) {
     formData.tipoDocumento,
     formData.numeroIdentificacion,
     formData.codigoContacto,
-    formData.regimen,
     formData.nombreComercial,
     formData.primerNombre,
     formData.segundoNombre,
@@ -471,6 +467,7 @@ function verificarDatosObligatoriosProductos(e){
   const columnasObligatorias = [
     PRODUCT_COLUMNS.CODIGO_REFERENCIA,
     PRODUCT_COLUMNS.NOMBRE,
+    PRODUCT_COLUMNS.REGIMEN,
     PRODUCT_COLUMNS.TIPO_PRODUCTO,
     PRODUCT_COLUMNS.TIPO_USO,
     PRODUCT_COLUMNS.VALOR_UNITARIO,
@@ -551,7 +548,7 @@ function verificarDatosObligatoriosProductos(e){
   if (estaCompleto) {
     sheet.getRange(rowEditada, PRODUCT_COLUMNS.VALOR_UNITARIO).setNumberFormat('€#,##0.00');
     sheet.getRange(rowEditada, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO)
-      .setFormula(`=IF(AND(F${rowEditada}<>"";H${rowEditada}<>"");F${rowEditada}*(1+H${rowEditada});"")`);
+      .setFormula(`=IF(AND(G${rowEditada}<>"";I${rowEditada}<>"");G${rowEditada}*(1+I${rowEditada});"")`);
     sheet.getRange(rowEditada, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO).setNumberFormat('€#,##0.00');
   }
 }
@@ -561,30 +558,30 @@ function verificarDatosObligatorios(e, tipoPersona) {
   let range = e.range;
   let rowEditada = range.getRow();
   let colEditada = range.getColumn();
-  let ultimaColumnaPermitida = 21; // Actualizado para reflejar el número de columnas
+  let ultimaColumnaPermitida = 20;
   let columnasObligatorias = [];
-  let todasLasColumnas = [ 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,21];
+  let todasLasColumnas = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 
   if (tipoPersona === "") {
     Logger.log("Vacio hizo edicion no en tipoPersona, cogemos el viejo");
-    tipoPersona = sheet.getRange("D" + String(rowEditada)).getValue(); // Columna 4 para Tipo Persona
+    tipoPersona = sheet.getRange("D" + String(rowEditada)).getValue();
   }
 
-  // Tratar "Persona Física" igual que "Autónomo" para campos obligatorios
   const esAutonomo =
     tipoPersona === "Autónomo" ||
     tipoPersona === "Persona Física";
 
   if (esAutonomo) {
-    // Autónomo / Persona Física: país (14), provincia (15) y población (16) obligatorios
-    columnasObligatorias = [3, 4, 5, 6, 7, 8, 10, 12, 14, 15, 16, 18, 21];
+    // primerNombre(9), primerApellido(11), pais(13), provincia(14), poblacion(15), codigoPostal(17), email(20)
+    columnasObligatorias = [3, 4, 5, 6, 7, 9, 11, 13, 14, 15, 17, 20];
   } else if (tipoPersona === "Empresa") {
-    columnasObligatorias = [3, 4, 5, 6, 7,8,9, 14, 15, 16, 18, 21];
+    // nombreComercial(8), pais(13), provincia(14), poblacion(15), codigoPostal(17), email(20)
+    columnasObligatorias = [3, 4, 5, 6, 7, 8, 13, 14, 15, 17, 20];
   } else {
     Logger.log("Vacio tipo de persona");
   }
   
-  let estadosDefault = ["", "Tipo Documento", "Regimen", "Tipo de persona"]; // Aquí otros estados predeterminados si es necesario
+  let estadosDefault = ["", "Tipo Documento", "Tipo de persona"]; // Aquí otros estados predeterminados si es necesario
 
   if (rowEditada > 1 && colEditada <= ultimaColumnaPermitida) {
     let estaCompleto = true;
@@ -762,9 +759,6 @@ function getCustomerInformation(customer) {
   //Browser.msgBox(Email);
 
 
-  let Regimen = datos_sheet.getRange("M2").getValue();
-  Regimen =getRegimenCode(Regimen)
-
   range = datos_sheet.getRange("W2");
   var WebSiteURI = range.getValue();
 
@@ -815,8 +809,6 @@ function getCustomerInformation(customer) {
     "TypePersonNorm": String(TypePersonOriginal || "")
       .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
       .toLowerCase().trim(),
-    "Regimen":Regimen,
-    // Códigos adicionales para el contacto en el JSON (province / population)
     "ProvinceCode": locationCodes.provinceCode || "",
     "PopulationCode": locationCodes.populationCode || ""
 
