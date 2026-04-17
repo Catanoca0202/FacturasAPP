@@ -12,21 +12,134 @@
 // }
 
 const PRODUCT_COLUMNS = {
-  ESTADO: 1,
-  CODIGO_REFERENCIA: 2,
-  NOMBRE: 3,
-  TIPO_PRODUCTO: 4,
-  TIPO_USO: 5,
-  VALOR_UNITARIO: 6,
-  TIPO_IMPUESTO: 7,
-  TARIFA_IMPUESTO: 8,
-  PRECIO_CON_IMPUESTO: 9,
-  CHECK_RECARGO: 10,   // J
-  TARIFA_RECARGO: 11,  // K
-  CHECK_RETENCION: 12, // L
-  TARIFA_RETENCION: 13, // M
-  IDENTIFICADOR_UNICO: 14 // N
+  ESTADO: 1,               // A
+  CODIGO_REFERENCIA: 2,    // B
+  NOMBRE: 3,               // C
+  REGIMEN: 4,              // D
+  OPERACION_EXENTA: 5,     // E (nuevo)
+  TIPO_PRODUCTO: 6,        // F
+  TIPO_USO: 7,             // G
+  VALOR_UNITARIO: 8,       // H
+  TIPO_IMPUESTO: 9,        // I
+  TARIFA_IMPUESTO: 10,     // J
+  PRECIO_CON_IMPUESTO: 11, // K
+  CHECK_RECARGO: 12,       // L
+  TARIFA_RECARGO: 13,      // M
+  CHECK_RETENCION: 14,     // N
+  TARIFA_RETENCION: 15,    // O
+  IDENTIFICADOR_UNICO: 16  // P
 };
+
+const REGIMEN_CONFIG = {
+  '01': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E4','E5','E6'] },
+  '02': { ivaRates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+  '03': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+  '04': { ivaRates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+  '05': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+  '07': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E6'] },
+  '09': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+  '10': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'], requiresNifIva: true },
+  '11': { ivaRates: [21], allowRecargo: false, exentoOps: [] },
+  '15': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+  '17': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+  '18': { ivaRates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+  '19': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+  '20': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] }
+};
+
+const OPERACION_EXENTA_LABELS = {
+  'E1': 'E1 - Operaciones interiores exentas (servicios)',
+  'E2': 'E2 - Exportaciones de bienes fuera de la UE',
+  'E3': 'E3 - Entregas intracomunitarias de bienes',
+  'E4': 'E4 - Prestaciones de servicios relacionados con',
+  'E5': 'E5 - Operaciones asimiladas a exportaciones',
+  'E6': 'E6 - Exenta por otros'
+};
+
+// Lista de regímenes para data-validation en la hoja Productos
+const REGIMEN_LISTA_VALORES = [
+  "Operación de régimen general",
+  "Exportación",
+  "Operaciones a las que se aplique el régimen especial de bienes usados, objetos de arte, antigüedades y objetos de colección",
+  "Régimen especial del oro de inversión",
+  "Régimen especial de las agencias de viajes",
+  "Régimen especial del criterio de caja",
+  "Facturación de las prestaciones de servicios de agencias de viaje que actúan como mediadoras en nombre y por cuenta ajena (D.A.4ª RD1619/2012)",
+  "Cobros por cuenta de terceros de honorarios profesionales o de derechos derivados de la propiedad industrial, de autor u otros por cuenta de sus socios, asociados o colegiados efectuados por sociedades, asociaciones, colegios profesionales u otras entidades que realicen estas funciones de cobro",
+  "Operaciones de arrendamiento de local de negocio",
+  "Factura con IVA pendiente de devengo en operaciones de tracto sucesivo",
+  "Operación acogida a alguno de los regímenes previstos en el Capítulo XI del Título IX (OSS e IOSS)",
+  "Recargo de equivalencia",
+  "Operaciones de actividades incluidas en el Régimen Especial de Agricultura, Ganadería y Pesca (REAGYP)",
+  "Régimen simplificado"
+];
+
+function aplicarValidacionIvaSegunRegimen(hoja, fila) {
+  const regimenTexto = String(hoja.getRange(fila, PRODUCT_COLUMNS.REGIMEN).getValue() || '').trim();
+  if (!regimenTexto) return;
+
+  let code;
+  try { code = getRegimenCode(regimenTexto); } catch (e) { return; }
+
+  const config = REGIMEN_CONFIG[code];
+  if (!config) return;
+
+  const listaIva = config.ivaRates.map(function(r) { return r + '%'; });
+  const reglaIva = SpreadsheetApp.newDataValidation()
+    .requireValueInList(listaIva, true)
+    .setAllowInvalid(false)
+    .build();
+  const celdaIva = hoja.getRange(fila, PRODUCT_COLUMNS.TARIFA_IMPUESTO);
+  celdaIva.setDataValidation(reglaIva);
+
+  const ivaActual = parsePercentToNumberES(celdaIva.getDisplayValue());
+  if (ivaActual !== null && config.ivaRates.indexOf(ivaActual) === -1) {
+    celdaIva.clearContent();
+    hoja.getRange(fila, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO).clearContent();
+  }
+
+  if (config.ivaRates.length === 1) {
+    celdaIva.setNumberFormat('0%');
+    celdaIva.setValue(config.ivaRates[0] / 100);
+  }
+
+}
+
+function aplicarValidacionOperacionExenta(hoja, fila) {
+  const regimenTexto = String(hoja.getRange(fila, PRODUCT_COLUMNS.REGIMEN).getValue() || '').trim();
+  if (!regimenTexto) return;
+
+  let code;
+  try { code = getRegimenCode(regimenTexto); } catch (e) { return; }
+
+  const config = REGIMEN_CONFIG[code];
+  if (!config) return;
+
+  const celdaExenta = hoja.getRange(fila, PRODUCT_COLUMNS.OPERACION_EXENTA);
+
+  if (config.exentoOps && config.exentoOps.length > 0) {
+    const listaLabels = config.exentoOps.map(function(op) { return OPERACION_EXENTA_LABELS[op] || op; });
+    const regla = SpreadsheetApp.newDataValidation()
+      .requireValueInList(listaLabels, true)
+      .setAllowInvalid(false)
+      .build();
+    celdaExenta.setDataValidation(regla);
+    const valorActual = String(celdaExenta.getValue() || '').trim();
+    if (valorActual && listaLabels.indexOf(valorActual) === -1) {
+      celdaExenta.clearContent();
+    }
+  } else {
+    celdaExenta.clearDataValidations();
+    celdaExenta.clearContent();
+  }
+}
+
+function extraerCodigoExento(valorCelda) {
+  var s = String(valorCelda || '').trim();
+  if (!s) return '';
+  var match = s.match(/^(E\d)/);
+  return match ? match[1] : s;
+}
 
 // Retenciones IRPF permitidas como etiquetas visibles en la validación
 const RETENCION_IRPF_TARIFAS = ['7%','15%','19%'];
@@ -338,10 +451,11 @@ function showSidebar() {
   SpreadsheetApp.setActiveSheet(sheet);
 
 
-  var html = HtmlService.createHtmlOutputFromFile('main')
-    .setTitle('Menú');
-  SpreadsheetApp.getUi()
-    .showSidebar(html);
+  // IMPORTANTE: `main.html` es un template (usa <?!= include(...) ?>).
+  // Si se carga con createHtmlOutputFromFile, los tags se muestran literal y se rompe el diseño.
+  var template = HtmlService.createTemplateFromFile('main');
+  var html = template.evaluate().setTitle('Menú');
+  SpreadsheetApp.getUi().showSidebar(html);
   console.log("showSidebar Exits");    
 }
 
@@ -680,9 +794,9 @@ function agregarDataValidations() {
   // Rango de valores para los dropdowns
   const rangoValoresClienteInvalido = hojaValoresCInvalidos.getRange("V2:V1000");
   const rangoValoresClienteDatos = hojaValoresC.getRange("B2:B1000");
-  const rangoValoresProductosDatos = hojaValoresP.getRange("N2:N996");
+  const rangoValoresProductosDatos = hojaValoresP.getRange("P2:P996");
   const rangoValoresClienteFactura = hojaValoresC.getRange("$B$2:$B$1000");
-  const rangoValoresProductosFactura = hojaValoresP.getRange("$N$2:$N$996");
+  const rangoValoresProductosFactura = hojaValoresP.getRange("$P$2:$P$996");
 
   // Crear y aplicar validaciones
   const reglas = [
@@ -724,6 +838,19 @@ function agregarDataValidations() {
     rango.setDataValidation(regla); // Aplicar la regla
   });
 
+  // Validación de Régimen en la columna D de Productos
+  try {
+    if (hojaValoresP) {
+      const reglaReg = SpreadsheetApp.newDataValidation()
+        .requireValueInList(REGIMEN_LISTA_VALORES, true)
+        .setAllowInvalid(false)
+        .build();
+      hojaValoresP.getRange("D2:D996").setDataValidation(reglaReg);
+    }
+  } catch (err) {
+    Logger.log("No se pudo aplicar validación de régimen en Productos: " + err);
+  }
+
   // Validación por defecto para País en hoja Clientes (columna N)
   try {
     const hojaClientes = ss.getSheetByName("Clientes");
@@ -734,7 +861,7 @@ function agregarDataValidations() {
           .requireValueInList(paises, true)
           .setAllowInvalid(false)
           .build();
-        hojaClientes.getRange("N2:N1000").setDataValidation(reglaPais);
+        hojaClientes.getRange("M2:M1000").setDataValidation(reglaPais);
       }
     }
   } catch (err) {
@@ -770,6 +897,8 @@ function processForm(data) {
 
     const codigoReferencia = data.codigoReferencia;
     const nombre = data.nombre;
+    const regimen = data.regimen || '';
+    const operacionExenta = data.operacionExenta || '';
     const tipoProducto = data.tipoProducto || '';
     // Normalizar tipoUso para que quede estrictamente "Venta" o "Compra"
     let tipoUso = data.tipoUso || '';
@@ -779,13 +908,15 @@ function processForm(data) {
     const valorUnitario = parseFloat(data.valorUnitario);
     const tipoImpuesto = data.tipoImpuesto || 'IVA';
     const tarifaImpuestoRaw = data.tarifaImpuesto || data.iva || '';
-    // Normalizar IVA a enteros permitidos y mostrar sin decimales (0%, 4%, 10%, 21%)
-    const ALLOWED_IVA = [0, 4, 10, 21];
+    let regimenCode;
+    try { regimenCode = getRegimenCode(regimen); } catch (_) { regimenCode = null; }
+    const regimenCfg = regimenCode ? REGIMEN_CONFIG[regimenCode] : null;
+    const ALLOWED_IVA = regimenCfg ? regimenCfg.ivaRates : [0, 4, 10, 21];
     let tarifaImpuestoNum = tarifaImpuestoRaw === '' ? null : parsePercentToNumberES(tarifaImpuestoRaw);
     if (tarifaImpuestoNum !== null) {
       tarifaImpuestoNum = Math.round(Number(tarifaImpuestoNum));
       if (!ALLOWED_IVA.includes(tarifaImpuestoNum)) {
-        tarifaImpuestoNum = null; // invalida si no está en la lista permitida
+        tarifaImpuestoNum = null;
       }
     }
     const tarifaImpuestoStr = tarifaImpuestoNum !== null ? `${tarifaImpuestoNum}%` : '';
@@ -840,6 +971,33 @@ function processForm(data) {
     sheet.getRange(newRow, PRODUCT_COLUMNS.NOMBRE).setValue(nombre);
     sheet.getRange(newRow, PRODUCT_COLUMNS.NOMBRE).setHorizontalAlignment('center');
 
+    const celdaRegimen = sheet.getRange(newRow, PRODUCT_COLUMNS.REGIMEN);
+    const reglaRegimen = SpreadsheetApp.newDataValidation()
+      .requireValueInList(REGIMEN_LISTA_VALORES, true)
+      .setAllowInvalid(false)
+      .build();
+    celdaRegimen.setDataValidation(reglaRegimen);
+    celdaRegimen.setValue(regimen);
+    celdaRegimen.setHorizontalAlignment('center');
+
+    // Operación exenta: solo escribir si IVA = Exento
+    const esExentoForm = tarifaImpuestoNum === 0;
+    const celdaOpExenta = sheet.getRange(newRow, PRODUCT_COLUMNS.OPERACION_EXENTA);
+    if (regimenCfg && regimenCfg.exentoOps && regimenCfg.exentoOps.length > 0) {
+      const listaLabels = regimenCfg.exentoOps.map(function(op) { return OPERACION_EXENTA_LABELS[op] || op; });
+      const reglaExenta = SpreadsheetApp.newDataValidation()
+        .requireValueInList(listaLabels, true)
+        .setAllowInvalid(false)
+        .build();
+      celdaOpExenta.setDataValidation(reglaExenta);
+      if (operacionExenta) {
+        celdaOpExenta.setValue(operacionExenta);
+      }
+    } else {
+      celdaOpExenta.clearDataValidations();
+      celdaOpExenta.clearContent();
+    }
+
     sheet.getRange(newRow, PRODUCT_COLUMNS.TIPO_PRODUCTO).setValue(tipoProducto);
     // Aplicar validación estricta y valor para Tipo de uso
     const reglaUso = SpreadsheetApp.newDataValidation()
@@ -861,18 +1019,17 @@ function processForm(data) {
     sheet.getRange(newRow, PRODUCT_COLUMNS.TIPO_IMPUESTO).setValue(tipoImpuesto);
     if (tarifaImpuestoStr !== '') {
       const tarifaImpuestoRange = sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_IMPUESTO);
-      // Validación estricta a 0%, 4%, 10%, 21%
+      const listaIvaForm = ALLOWED_IVA.map(function(r) { return r + '%'; });
       const reglaIva = SpreadsheetApp.newDataValidation()
-        .requireValueInList(['0%','4%','10%','21%'], true)
+        .requireValueInList(listaIvaForm, true)
         .setAllowInvalid(false)
         .build();
       tarifaImpuestoRange.setDataValidation(reglaIva);
-      // Guardar como número porcentaje y formatear sin decimales
       tarifaImpuestoRange.setNumberFormat('0%');
       tarifaImpuestoRange.setValue(Number(tarifaImpuestoNum) / 100);
     }
 
-    const precioConImpuestoFormula = `=IF(AND(F${newRow}<>"";H${newRow}<>"");F${newRow}*(1+H${newRow});"")`;
+    const precioConImpuestoFormula = `=IF(AND(H${newRow}<>"";J${newRow}<>"");H${newRow}*(1+J${newRow});"")`;
     sheet.getRange(newRow, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO).setFormula(precioConImpuestoFormula);
     sheet.getRange(newRow, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO).setNumberFormat('€#,##0.00');
 
@@ -908,10 +1065,18 @@ function processForm(data) {
       sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_RETENCION).clearContent();
     }
 
-    const camposRequeridos = [codigoReferencia, nombre, tipoProducto, tipoUso, tipoImpuesto, tarifaImpuestoStr];
+    const camposRequeridos = [codigoReferencia, nombre, regimen, tipoProducto, tipoUso, tipoImpuesto, tarifaImpuestoStr];
     let estado = camposRequeridos.some(valor => valor === '' || valor === null || String(valor).toLowerCase() === 'seleccione') || isNaN(valorUnitario)
       ? 'No Valido'
       : 'Valido';
+
+    // Operación exenta obligatoria cuando IVA = Exento
+    if (estado === 'Valido' && esExentoForm) {
+      const opExentaVal = String(sheet.getRange(newRow, PRODUCT_COLUMNS.OPERACION_EXENTA).getValue() || '').trim();
+      if (!opExentaVal) {
+        estado = 'No Valido';
+      }
+    }
 
     // Estado adicional por consistencia de selección de recargo/retención
     if (estado === 'Valido') {
@@ -1138,6 +1303,24 @@ function onEdit(e) {
       let columnaContactos = 2; // Ajusta según sea necesario
       let rowContactos = 2;
 
+      // Logging específico para el caso intermitente del consecutivo (cliente en B2/C2)
+      try {
+        if (rowEditada === rowContactos && (colEditada === columnaContactos || colEditada === (columnaContactos + 1))) {
+          const a1 = celdaEditada.getA1Notation();
+          const evVal = (typeof e.value === 'undefined') ? '(undefined)' : String(e.value);
+          const evOld = (typeof e.oldValue === 'undefined') ? '(undefined)' : String(e.oldValue);
+          const b2v = String(factura_sheet.getRange("B2").getValue() || '');
+          const c2v = String(factura_sheet.getRange("C2").getValue() || '');
+          const g2 = factura_sheet.getRange("G2");
+          Logger.log("[onEdit Factura cliente] a1=%s row=%s col=%s e.value=%s e.oldValue=%s B2=%s C2=%s G2(value)=%s G2(display)=%s G2(formula)=%s",
+            a1, rowEditada, colEditada, evVal, evOld, b2v, c2v,
+            String(g2.getValue()), String(g2.getDisplayValue()), String(g2.getFormula() || '')
+          );
+        }
+      } catch (logErr) {
+        Logger.log("Error logging onEdit cliente: " + logErr);
+      }
+
 
       const productStartRow = 15; // prodcutos empeiza aca
       const productEndColumn = 8; //   procutos terminan en column H
@@ -1153,6 +1336,13 @@ function onEdit(e) {
       else if (colEditada === columnaContactos && rowEditada === rowContactos) {
         //celda de elegir contacto en hoja factura
         Logger.log("No se editó un contacto válido");
+        try {
+          const g2pre = factura_sheet.getRange("G2");
+          Logger.log("[cliente B2] pre: G2(value)=%s G2(display)=%s G2(formula)=%s",
+            String(g2pre.getValue()), String(g2pre.getDisplayValue()), String(g2pre.getFormula() || '')
+          );
+        } catch (err) { Logger.log(err); }
+
         verificarYCopiarContacto(e);
         obtenerFechaYHoraActual()
         //generarNumeroFactura()
@@ -1160,7 +1350,41 @@ function onEdit(e) {
         let  iban= hojaInfoUsuario.getRange("B10").getValue();
         factura_sheet.getRange("B11").setValue(iban)
         generarNumeroFactura()
+        // Asegurar que G2 no quede en 0 por recalculo
+        try { asegurarNumeroFacturaEnG2_(factura_sheet, 3, 250); } catch (err) { Logger.log(err); }
 
+        try {
+          const g2post = factura_sheet.getRange("G2");
+          Logger.log("[cliente B2] post: G2(value)=%s G2(display)=%s G2(formula)=%s",
+            String(g2post.getValue()), String(g2post.getDisplayValue()), String(g2post.getFormula() || '')
+          );
+        } catch (err) { Logger.log(err); }
+      }
+      else if ((colEditada === (columnaContactos + 1)) && rowEditada === rowContactos) {
+        // La validación de cliente también está en C2 (B2:C2). Si el usuario edita C2,
+        // debemos ejecutar el mismo flujo.
+        Logger.log("Cliente editado en C2; refrescando factura");
+        try {
+          const g2pre = factura_sheet.getRange("G2");
+          Logger.log("[cliente C2] pre: G2(value)=%s G2(display)=%s G2(formula)=%s",
+            String(g2pre.getValue()), String(g2pre.getDisplayValue()), String(g2pre.getFormula() || '')
+          );
+        } catch (err) { Logger.log(err); }
+
+        verificarYCopiarContacto(e);
+        obtenerFechaYHoraActual();
+        let hojaInfoUsuario = spreadsheet.getSheetByName('Datos de emisor');
+        let iban = hojaInfoUsuario.getRange("B10").getValue();
+        factura_sheet.getRange("B11").setValue(iban);
+        generarNumeroFactura();
+        try { asegurarNumeroFacturaEnG2_(factura_sheet, 3, 250); } catch (err) { Logger.log(err); }
+
+        try {
+          const g2post = factura_sheet.getRange("G2");
+          Logger.log("[cliente C2] post: G2(value)=%s G2(display)=%s G2(formula)=%s",
+            String(g2post.getValue()), String(g2post.getDisplayValue()), String(g2post.getFormula() || '')
+          );
+        } catch (err) { Logger.log(err); }
       }
       else if(rowEditada >= productStartRow && (colEditada == 2 || colEditada == 3) && rowEditada < posRowTotalProductos)  {//asegurar que si sea dentro del espacio permititdo(donde empieza el taxinfo)
         if (colEditada == 2){
@@ -1351,10 +1575,12 @@ function onEdit(e) {
       let lastRowProducto=getLastProductRow(hojaActual, productStartRow, taxSectionStartRow);
       if (lastRowProducto===productStartRow){
         Logger.log("dentro de agg info para TOTLA pero last y start son iguales")
-        // ESTADO DEFAULT: una sola línea de producto.
-        // Neto a pagar = B32 + A29 - D17 + C29 - IRPF
-        // IRPF ahora se calcula sobre el SUBTOTAL (F15) y no sobre el bruto (E31).
-        hojaActual.getRange("B31").setValue("=B32+A29-D17+C29-IF(F17=\"Valor libre\";H17;F15*F17)")
+        // ESTADO DEFAULT: una sola línea de producto (taxSectionStartRow=19).
+        // Importe total = base gravable + IVA + recargo equivalencia
+        hojaActual.getRange("B32").setValue("=A26+C26+G26")
+        // Neto a pagar = importe total - retenciones - descuentos + cargos - IRPF
+        // E29 contiene el valor del IRPF
+        hojaActual.getRange("B31").setValue("=B32-A29-D17+C29-E29")
 
 
       }else{
@@ -1398,9 +1624,9 @@ function onEdit(e) {
         }
       }
 
-      // Validaciones dependientes País (N), Provincia (O), Población (P)
-      // Columnas: N=14, O=15, P=16
-      if (rowEditada > 1 && colEditada === 14) {
+      // Validaciones dependientes País (M), Provincia (N), Población (O)
+      // Columnas: M=13, N=14, O=15
+      if (rowEditada > 1 && colEditada === 13) {
         try {
           e.source.toast('Cargando provincias…', 'FacturasApp', 5);
         } catch (err) {}
@@ -1412,20 +1638,20 @@ function onEdit(e) {
             .requireValueInList(paises, true)
             .setAllowInvalid(false)
             .build();
-          hojaCliente.getRange(rowEditada, 14).setDataValidation(reglaPais);
+          hojaCliente.getRange(rowEditada, 13).setDataValidation(reglaPais);
         }
 
-        const paisSeleccionado = hojaCliente.getRange(rowEditada, 14).getValue();
+        const paisSeleccionado = hojaCliente.getRange(rowEditada, 13).getValue();
         const provincias = getProvinceNamesForCountry_(paisSeleccionado);
         const reglaProvincia = SpreadsheetApp.newDataValidation()
           .requireValueInList(provincias, true)
           .setAllowInvalid(false)
           .build();
-        hojaCliente.getRange(rowEditada, 15).setDataValidation(reglaProvincia);
+        hojaCliente.getRange(rowEditada, 14).setDataValidation(reglaProvincia);
 
         // Limpiar valores dependientes
+        hojaCliente.getRange(rowEditada, 14).clearContent();
         hojaCliente.getRange(rowEditada, 15).clearContent();
-        hojaCliente.getRange(rowEditada, 16).clearContent();
 
         try {
           if (provincias && provincias.length) {
@@ -1434,21 +1660,21 @@ function onEdit(e) {
             e.source.toast('No se encontraron provincias para ese país.', 'FacturasApp', 4);
           }
         } catch (err) {}
-      } else if (rowEditada > 1 && colEditada === 15) {
+      } else if (rowEditada > 1 && colEditada === 14) {
         try {
           e.source.toast('Cargando poblaciones…', 'FacturasApp', 5);
         } catch (err) {}
 
         // Provincia editada: actualizar lista de poblaciones
-        const paisSeleccionado = hojaCliente.getRange(rowEditada, 14).getValue();
-        const provinciaSeleccionada = hojaCliente.getRange(rowEditada, 15).getValue();
+        const paisSeleccionado = hojaCliente.getRange(rowEditada, 13).getValue();
+        const provinciaSeleccionada = hojaCliente.getRange(rowEditada, 14).getValue();
         const poblaciones = getPopulationNames_(paisSeleccionado, provinciaSeleccionada);
         const reglaPoblacion = SpreadsheetApp.newDataValidation()
           .requireValueInList(poblaciones, true)
           .setAllowInvalid(false)
           .build();
-        hojaCliente.getRange(rowEditada, 16).setDataValidation(reglaPoblacion);
-        hojaCliente.getRange(rowEditada, 16).clearContent();
+        hojaCliente.getRange(rowEditada, 15).setDataValidation(reglaPoblacion);
+        hojaCliente.getRange(rowEditada, 15).clearContent();
 
         try {
           if (poblaciones && poblaciones.length) {
@@ -1494,8 +1720,38 @@ function onEdit(e) {
         }
       }
 
+      if (colEditada === PRODUCT_COLUMNS.REGIMEN){
+        aplicarValidacionIvaSegunRegimen(hojaActual, rowEditada);
+        aplicarValidacionOperacionExenta(hojaActual, rowEditada);
+        verificarDatosObligatoriosProductos(e);
+        agregarCodigoIdentificador(e);
+      }
+
       if (colEditada === PRODUCT_COLUMNS.TARIFA_IMPUESTO){
+        const regimenActual = String(hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.REGIMEN).getValue() || '').trim();
+        if (regimenActual) {
+          let codReg;
+          try { codReg = getRegimenCode(regimenActual); } catch (_) { codReg = null; }
+          const cfgReg = codReg ? REGIMEN_CONFIG[codReg] : null;
+          if (cfgReg) {
+            const ivaEditado = parsePercentToNumberES(celdaEditada.getDisplayValue());
+            if (ivaEditado !== null && cfgReg.ivaRates.indexOf(ivaEditado) === -1) {
+              SpreadsheetApp.getUi().alert(
+                'La tarifa de IVA ' + ivaEditado + '% no es válida para el régimen ' + codReg +
+                '. Valores permitidos: ' + cfgReg.ivaRates.join(', ') + '%.'
+              );
+              celdaEditada.clearContent();
+            }
+          }
+        }
         sincronizarRecargoSegunIva(hojaActual, rowEditada);
+        aplicarValidacionOperacionExenta(hojaActual, rowEditada);
+        verificarDatosObligatoriosProductos(e);
+        agregarCodigoIdentificador(e);
+      }
+
+      // Si se edita la operación exenta directamente
+      if (colEditada === PRODUCT_COLUMNS.OPERACION_EXENTA){
         verificarDatosObligatoriosProductos(e);
         agregarCodigoIdentificador(e);
       }
@@ -1515,7 +1771,6 @@ function onEdit(e) {
       }
 
       if (colEditada === PRODUCT_COLUMNS.CHECK_RECARGO){
-        // Evitar activar recargo en Servicios
         const tipoProductoValor = String(hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.TIPO_PRODUCTO).getDisplayValue() || '').trim().toLowerCase();
         if (tipoProductoValor === 'servicio' && hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.CHECK_RECARGO).getValue() === true){
           SpreadsheetApp.getUi().alert('El recargo de equivalencia no aplica a servicios.');
@@ -1563,7 +1818,7 @@ function validarEmailDeCelda(e) {
   let rowEditada = range.getRow();
   let colEditada = range.getColumn();
   // Nombre de la hoja y celda a leer
-  const cellRange = "U"+String(rowEditada);
+  const cellRange = "T"+String(rowEditada);
 
   // Obtiene la hoja y el valor de la celda
 
@@ -1749,11 +2004,11 @@ function agregarCodigoIdentificador(e){
       let nombre=""
       // Usar directamente el tipo de persona tal y como viene configurado
       if(tipoPersona==="Autónomo" || tipoPersona==="Persona Física"){
-        let primerNombre=hoja.getRange(rowEditada,10).getValue()
-        let apellido=hoja.getRange(rowEditada,12).getValue()
+        let primerNombre=hoja.getRange(rowEditada,9).getValue()
+        let apellido=hoja.getRange(rowEditada,11).getValue()
         nombre =primerNombre+" "+apellido
       }else{
-        nombre=hoja.getRange(rowEditada,9).getValue()
+        nombre=hoja.getRange(rowEditada,8).getValue()
       }
       
       let numeroIdentificacion=hoja.getRange(rowEditada,6).getValue()
@@ -1837,31 +2092,30 @@ function calcularImporteYTotal(lastRowProducto,productStartRow,taxSectionStartRo
   hojaActual.getRange("B"+String(rowParaTotales)).setValue("=SUMPRODUCT(F15:F"+String(lastRowProducto)+";I15:I"+String(lastRowProducto)+")")
 
   //total descuentos FACTURA
-  let rowDescuentos=taxSectionStartRow-1
-  hojaActual.getRange("D"+String(rowParaTotales)).setValue("=B"+String(rowDescuentos)+"+(SUMPRODUCT(D15:D"+String(lastRowProducto)+";C15:C"+String(lastRowProducto)+";H15:H"+String(lastRowProducto)+"))")
+  // En la hoja Factura:
+  // - "Descuentos factura" está en D17 (misma fila donde está IRPF y Cargos)
+  // - "Total descuentos" se muestra en D29 (fila de totales)
+  // Como la sección de impuestos puede moverse, tomamos la fila relativa al bloque:
+  // rowIrpf = taxSectionStartRow - 2  => corresponde a la fila 17 en la plantilla default.
+  const rowIrpfTotales = taxSectionStartRow - 2;
+  // Total descuentos = Descuento de factura (D[rowIrpfTotales]) + descuentos por línea (SUMPRODUCT precio * cantidad * %descuento)
+  hojaActual.getRange("D"+String(rowParaTotales)).setValue(
+    "=D"+String(rowIrpfTotales)
+    +"+(SUMPRODUCT(D15:D"+String(lastRowProducto)
+    +";C15:C"+String(lastRowProducto)
+    +";H15:H"+String(lastRowProducto)
+    +"))"
+  )
 
   //netopagar
   let rowParaTotalFactura=taxSectionStartRow+12
-  // Importe total (suma de total de línea K)
+  // Importe total = base gravable + IVA + recargo equivalencia
   hojaActual.getRange("B"+String(rowParaTotalFactura+1))
-    .setValue("=SUM(K15:K"+String(lastRowProducto)+")")
+    .setValue("=A"+String(rowTotalBaseImponibleEIvaGeneral)+"+C"+String(rowTotalBaseImponibleEIvaGeneral)+"+G"+String(rowTotalBaseImponibleEIvaGeneral))
 
-  // IRPF: soporta porcentaje (en F[rowIrpf]) o valor fijo cuando F es "Valor libre" y el valor está en H[rowIrpf]
-  // Ahora la base de IRPF es el SUBTOTAL (suma de F15:F[lastRowProducto]) en lugar del valor bruto.
-  const rowIrpf = taxSectionStartRow - 2;
-  const formulaIrpfTerm = "IF(F"
-    + String(rowIrpf)
-    + "=\"Valor libre\";H"
-    + String(rowIrpf)
-    + ";SUM(F15:F"
-    + String(lastRowProducto)
-    + ")*F"
-    + String(rowIrpf)
-    + ")";
-
-  // Neto pagar = Importe total - retenciones - descuentos + cargos - IRPF
-
-  const formulaNeto = "=B"+String(rowParaTotalFactura+1)+"+A"+String(rowParaTotales)+"-D"+String(rowParaTotales-12)+"+C"+String(rowParaTotales)+"-"+formulaIrpfTerm;
+  // Neto a pagar = importe total - retenciones - descuentos + cargos - IRPF
+  // E{rowParaTotales} contiene el valor del IRPF (celda E29 en plantilla default)
+  const formulaNeto = "=B"+String(rowParaTotalFactura+1)+"-A"+String(rowParaTotales)+"-D"+String(rowIrpfTotales)+"+C"+String(rowParaTotales)+"-E"+String(rowParaTotales);
   hojaActual.getRange("B"+String(rowParaTotalFactura)).setValue(formulaNeto)
 
   //valorBruto
@@ -2254,21 +2508,21 @@ Output: no tiene output pero regresa un mensaje en caso de que sea erroneo el ti
   let sheet = e.range.getSheet();
 
   if (sheet.getName() === "Clientes") {//aca filtro de hoja, por cada hoja verifica cosas distintas
-    let numIdentificacion = sheet.getRange("D2:D1000");
-    let codigoContacto = sheet.getRange("E2:E1000");
-    let nomberComercial=sheet.getRange("G2:G1000");
-    let primerNombre = sheet.getRange("H2:H1000");
-    let segundoNombre = sheet.getRange("I2:I1000");
-    let primeraApellido = sheet.getRange("J2:J1000");
-    let segundoApellido = sheet.getRange("K2:K1000");
-    let pais = sheet.getRange("l2:l1000");
-    let provincia = sheet.getRange("M2:M1000");
-    let poblacion = sheet.getRange("N2:N1000");
-    let direccion = sheet.getRange("O2:O1000");
-    let codigoPostal = sheet.getRange("P2:P1000");
-    let telefono = sheet.getRange("Q2:Q1000");
-    let sitioWeb = sheet.getRange("R2:R1000");
-    let email = sheet.getRange("S2:S1000");
+    let numIdentificacion = sheet.getRange("F2:F1000");
+    let codigoContacto = sheet.getRange("G2:G1000");
+    let nomberComercial=sheet.getRange("H2:H1000");
+    let primerNombre = sheet.getRange("I2:I1000");
+    let segundoNombre = sheet.getRange("J2:J1000");
+    let primeraApellido = sheet.getRange("K2:K1000");
+    let segundoApellido = sheet.getRange("L2:L1000");
+    let pais = sheet.getRange("M2:M1000");
+    let provincia = sheet.getRange("N2:N1000");
+    let poblacion = sheet.getRange("O2:O1000");
+    let direccion = sheet.getRange("P2:P1000");
+    let codigoPostal = sheet.getRange("Q2:Q1000");
+    let telefono = sheet.getRange("R2:R1000");
+    let sitioWeb = sheet.getRange("S2:S1000");
+    let email = sheet.getRange("T2:T1000");
     let editedCell = e.range;
 
     esCeldaEnRango(numIdentificacion, editedCell, undefined, e);

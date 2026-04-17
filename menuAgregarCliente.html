@@ -36,6 +36,30 @@
       }
 
     // Helpers para selects de país / provincia / población
+    function setLocationLoading(isLoading, text) {
+      var loader = document.getElementById('locationLoader');
+      var loaderText = document.getElementById('locationLoaderText');
+      var selPais = document.getElementById('pais');
+      var selProv = document.getElementById('provincia');
+      var selPobl = document.getElementById('poblacion');
+
+      if (loaderText) loaderText.textContent = text || 'Cargando…';
+      if (loader) {
+        if (isLoading) {
+          loader.classList.remove('d-none');
+          loader.classList.add('d-flex');
+        } else {
+          loader.classList.add('d-none');
+          loader.classList.remove('d-flex');
+        }
+      }
+
+      // Deshabilitar selects durante carga para evitar dobles llamadas
+      if (selPais) selPais.disabled = !!isLoading;
+      if (selProv) selProv.disabled = !!isLoading;
+      if (selPobl) selPobl.disabled = !!isLoading;
+    }
+
     function fillSelectOptions(selectEl, values, placeholder) {
       selectEl.innerHTML = '';
       if (placeholder) {
@@ -53,10 +77,18 @@
     }
 
     function cargarPaises() {
-      google.script.run.withSuccessHandler(function(paises) {
-        var selPais = document.getElementById('pais');
-        fillSelectOptions(selPais, paises, 'Selecciona un país');
-      }).apiGetCountries();
+      setLocationLoading(true, 'Cargando países…');
+      google.script.run
+        .withSuccessHandler(function(paises) {
+          var selPais = document.getElementById('pais');
+          fillSelectOptions(selPais, paises, 'Selecciona un país');
+          setLocationLoading(false);
+        })
+        .withFailureHandler(function(err) {
+          setLocationLoading(false);
+          mostrarAlerta('Error cargando países: ' + (err && err.message ? err.message : err));
+        })
+        .apiGetCountries();
     }
 
     function onPaisChange() {
@@ -66,9 +98,17 @@
       fillSelectOptions(selProv, [], 'Selecciona una provincia');
       fillSelectOptions(selPobl, [], 'Selecciona una población');
       if (!pais) return;
-      google.script.run.withSuccessHandler(function(provincias) {
-        fillSelectOptions(selProv, provincias, 'Selecciona una provincia');
-      }).apiGetProvinces(pais);
+      setLocationLoading(true, 'Cargando provincias…');
+      google.script.run
+        .withSuccessHandler(function(provincias) {
+          fillSelectOptions(selProv, provincias, 'Selecciona una provincia');
+          setLocationLoading(false);
+        })
+        .withFailureHandler(function(err) {
+          setLocationLoading(false);
+          mostrarAlerta('Error cargando provincias: ' + (err && err.message ? err.message : err));
+        })
+        .apiGetProvinces(pais);
     }
 
     function onProvinciaChange() {
@@ -77,9 +117,17 @@
       var selPobl = document.getElementById('poblacion');
       fillSelectOptions(selPobl, [], 'Selecciona una población');
       if (!pais || !provincia) return;
-      google.script.run.withSuccessHandler(function(poblaciones) {
-        fillSelectOptions(selPobl, poblaciones, 'Selecciona una población');
-      }).apiGetPopulations(pais, provincia);
+      setLocationLoading(true, 'Cargando poblaciones…');
+      google.script.run
+        .withSuccessHandler(function(poblaciones) {
+          fillSelectOptions(selPobl, poblaciones, 'Selecciona una población');
+          setLocationLoading(false);
+        })
+        .withFailureHandler(function(err) {
+          setLocationLoading(false);
+          mostrarAlerta('Error cargando poblaciones: ' + (err && err.message ? err.message : err));
+        })
+        .apiGetPopulations(pais, provincia);
     }
 
     function verificarDatosObligatorios() {
@@ -87,9 +135,9 @@
       const tipoPersona = document.getElementById('tipoPersona').value;
       const isAutonomo = (tipoPersona === 'Autónomo' || tipoPersona === 'Persona Física');
       const columnasObligatorias = isAutonomo ?
-        ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion', 'codigoContacto','regimen',  'primerNombre', 'primerApellido','codigoPostal', 'pais', 'provincia', 'poblacion', 'email'] :
+        ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion', 'codigoContacto', 'primerNombre', 'primerApellido', 'codigoPostal', 'pais', 'provincia', 'poblacion', 'email'] :
         tipoPersona === 'Empresa' ?
-        ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion',  'codigoContacto','regimen',  'nombreComercial', 'codigoPostal', 'pais', 'provincia', 'poblacion', 'email'] :
+        ['tipoContacto', 'tipoPersona', 'tipoDocumento', 'numeroIdentificacion', 'codigoContacto', 'nombreComercial', 'codigoPostal', 'pais', 'provincia', 'poblacion', 'email'] :
         [];
 
       let isValid = true;
@@ -116,7 +164,6 @@
       tipoDocumento: document.getElementById('tipoDocumento').value,
       numeroIdentificacion: document.getElementById('numeroIdentificacion').value,
       codigoContacto: document.getElementById('codigoContacto').value,
-      regimen: document.getElementById('regimen').value,
       nombreComercial: document.getElementById('nombreComercial').value,
       primerNombre: document.getElementById('primerNombre').value,
       segundoNombre: document.getElementById('segundoNombre').value,
@@ -267,29 +314,6 @@ function resetearFormulario() {
                 </div>
 
                 <div class="col-md-6">
-                    <label for="regimen" class="form-label">Régimen</label>
-                    <select id="regimen" class="form-select form-select-lg">
-                      <option selected>Operación de régimen general</option>
-                      <option>Exportación</option>
-                      <option>Operaciones a las que se aplique el régimen especial de bienes usados, objetos de arte, antigüedades y objetos de colección</option>
-                      <option>Régimen especial del oro de inversión</option>
-                      <option>Régimen especial de las agencias de viajes</option>
-                      <option>Régimen especial grupo de entidades en IVA (Nivel Avanzado)</option>
-                      <option>Régimen especial del criterio de caja</option>
-                      <option>Operaciones sujetas al IPSI / IGIC (Impuesto sobre la producción, los servicios y la importación / Impuesto general indirecto canario)</option>
-                      <option>Facturación de las prestaciones de servicios de agencias de viaje que actúan como mediadoras en nombre y por cuenta ajena</option>
-                      <option>Cobros por cuenta de terceros de honorarios profesionales o de derechos derivados de la propiedad industrial, de autor u otros por cuenta de sus socios, asociados o colegiados efectuados por sociedades, asociaciones, colegios profesionales u otras entidades que realicen estas funciones de cobro</option>
-                      <option>Operaciones de arrendamiento de local de negocio</option>
-                      <option>Factura con IVA pendiente de devengo en certificaciones de obra cuyo destinatario sea una Administración pública</option>
-                      <option>Factura con IVA pendiente de devengo en operaciones de tracto sucesivo</option>
-                      <option>Régimen simplificado</option>
-                      <option>Recargo de equivalencia</option>
-                      <option>Régimen especial de la agricultura</option>
-                      <option>Operación acogida a alguno de los regímenes previstos en el Capítulo XI del Título IX (OSS e IOSS)</option>
-                    </select>
-                </div>
-
-                <div class="col-md-6">
                     <label for="nombreComercial" class="form-label">Nombre empresa</label>
                     <input type="text" class="form-control form-control-lg" id="nombreComercial" placeholder="Nombre empresa">
                 </div>
@@ -327,6 +351,13 @@ function resetearFormulario() {
                 <div class="col-md-12">
                     <label for="poblacion" class="form-label">Población</label>
                     <select id="poblacion" class="form-select form-select-lg"></select>
+                </div>
+
+                <div class="col-12">
+                  <div id="locationLoader" class="d-none align-items-center gap-2" style="margin-top:-6px;">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></div>
+                    <small id="locationLoaderText" class="text-muted">Cargando…</small>
+                  </div>
                 </div>
 
                 <div class="col-md-12">
