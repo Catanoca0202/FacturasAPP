@@ -1882,12 +1882,14 @@ function guardarYGenerarInvoice(){
   // Pre-fetch product regimens and operación exenta from Productos sheet
   let productRegimenMap = {};
   let productExentaMap = {};
+  let productTypeIdMap = {};
   try {
     let prodUltFila = hojaProductos.getLastRow();
     if (prodUltFila > 1) {
       let prodIds = hojaProductos.getRange(2, PRODUCT_COLUMNS.IDENTIFICADOR_UNICO, prodUltFila - 1, 1).getValues();
       let prodRegimens = hojaProductos.getRange(2, PRODUCT_COLUMNS.REGIMEN, prodUltFila - 1, 1).getValues();
       let prodExentas = hojaProductos.getRange(2, PRODUCT_COLUMNS.OPERACION_EXENTA, prodUltFila - 1, 1).getValues();
+      let prodTipos = hojaProductos.getRange(2, PRODUCT_COLUMNS.TIPO_PRODUCTO, prodUltFila - 1, 1).getValues();
       for (let p = 0; p < prodIds.length; p++) {
         let idKey = String(prodIds[p][0]).trim();
         if (idKey) {
@@ -1897,6 +1899,15 @@ function guardarYGenerarInvoice(){
             productRegimenMap[idKey] = "01";
           }
           productExentaMap[idKey] = extraerCodigoExento(prodExentas[p][0]);
+          // Map "Producto" -> 1 (venta de bienes), "Servicio" -> 2
+          let tipoProductoStr = String(prodTipos[p][0] || '').trim().toLowerCase();
+          if (tipoProductoStr === 'producto') {
+            productTypeIdMap[idKey] = 1;
+          } else if (tipoProductoStr === 'servicio') {
+            productTypeIdMap[idKey] = 2;
+          } else {
+            productTypeIdMap[idKey] = 0;
+          }
         }
       }
     }
@@ -1990,6 +2001,9 @@ function guardarYGenerarInvoice(){
     
     // Obtener regimen del producto desde el mapa pre-fetched
     let regimenProducto = productRegimenMap[descripcion.trim()] || "01";
+    // Tipo de producto: 1 = Producto (venta de bienes), 2 = Servicio, 0 = no definido
+    let productTypeIdProducto = productTypeIdMap[descripcion.trim()];
+    if (productTypeIdProducto === undefined) productTypeIdProducto = 0;
 
     // Crear arrays de taxes, withHoldings y discounts según factura.json
     let taxes = [];
@@ -2102,6 +2116,7 @@ function guardarYGenerarInvoice(){
       reference: String(referencia).substring(0, 50),
       description: String(descripcion).substring(0, 100),
       regime: regimenProducto,
+      productTypeId: productTypeIdProducto,
       unitPrice: Number(precioUnitario),
       quantity: quantityInt,
       // IMPORTANTE: Enviar subTotal BRUTO (antes de descuento) para que el servicio
