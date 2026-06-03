@@ -475,6 +475,7 @@ function verificarDatosObligatoriosProductos(e){
     PRODUCT_COLUMNS.TARIFA_IMPUESTO
   ];
   const columnasARevisar = columnasObligatorias.concat([
+    PRODUCT_COLUMNS.CALIFICACION_OPERACION,
     PRODUCT_COLUMNS.OPERACION_EXENTA,
     PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO,
     PRODUCT_COLUMNS.TARIFA_RECARGO,
@@ -492,6 +493,7 @@ function verificarDatosObligatoriosProductos(e){
     sheet.getRange(rowEditada, columna).setBackground(null);
   });
 
+  // Accept edits up to the last column (IDENTIFICADOR_UNICO)
   if (colEditada > PRODUCT_COLUMNS.IDENTIFICADOR_UNICO) {
     return;
   }
@@ -536,13 +538,32 @@ function verificarDatosObligatoriosProductos(e){
     }
   }
 
-  // Operación exenta obligatoria cuando IVA = Exento (0%)
-  const ivaParaExenta = parsePercentToNumberES(sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_IMPUESTO).getDisplayValue());
-  if (ivaParaExenta === 0) {
+  // Validate Calificación Operación and Exento (checkbox boolean) with mutual exclusivity
+  const isExentoFlag = sheet.getRange(rowEditada, PRODUCT_COLUMNS.EXENTO).getValue() === true;
+  const calificacionRaw = String(sheet.getRange(rowEditada, PRODUCT_COLUMNS.CALIFICACION_OPERACION).getValue() || '').trim();
+  const calificacion = calificacionRaw.indexOf(' - ') > 0 ? calificacionRaw.substring(0, calificacionRaw.indexOf(' - ')).trim() : calificacionRaw;
+
+  if (isExentoFlag) {
+    // Exento: require operación exenta, calificación not required
     const opExentaVal = String(sheet.getRange(rowEditada, PRODUCT_COLUMNS.OPERACION_EXENTA).getValue() || '').trim();
     if (!opExentaVal) {
       estaCompleto = false;
       sheet.getRange(rowEditada, PRODUCT_COLUMNS.OPERACION_EXENTA).setBackground('#FFC7C7');
+    }
+  } else {
+    // Not exento: require calificación (must be S1/S2/N1/N2)
+    if (calificacion && !['S1','S2','N1','N2'].includes(calificacion)) {
+      estaCompleto = false;
+      sheet.getRange(rowEditada, PRODUCT_COLUMNS.CALIFICACION_OPERACION).setBackground('#FFC7C7');
+    }
+    // If tarifa = 0, also require operación exenta
+    const ivaParaExenta = parsePercentToNumberES(sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_IMPUESTO).getDisplayValue());
+    if (ivaParaExenta === 0) {
+      const opExentaVal = String(sheet.getRange(rowEditada, PRODUCT_COLUMNS.OPERACION_EXENTA).getValue() || '').trim();
+      if (!opExentaVal) {
+        estaCompleto = false;
+        sheet.getRange(rowEditada, PRODUCT_COLUMNS.OPERACION_EXENTA).setBackground('#FFC7C7');
+      }
     }
   }
 
@@ -559,7 +580,7 @@ function verificarDatosObligatoriosProductos(e){
   if (estaCompleto) {
     sheet.getRange(rowEditada, PRODUCT_COLUMNS.VALOR_UNITARIO).setNumberFormat('€#,##0.00');
     sheet.getRange(rowEditada, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO)
-      .setFormula(`=IF(AND(H${rowEditada}<>"";J${rowEditada}<>"");H${rowEditada}*(1+J${rowEditada});"")`);
+      .setFormula(`=IF(AND(G${rowEditada}<>"";I${rowEditada}<>"");G${rowEditada}*(1+I${rowEditada});"")`);
     sheet.getRange(rowEditada, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO).setNumberFormat('€#,##0.00');
   }
 }

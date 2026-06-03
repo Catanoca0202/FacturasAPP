@@ -1772,43 +1772,43 @@ function validarValorWithHolding(valor, tipoWithHolding) {
   return valoresPermitidos.includes(valorRedondeado);
 }
 
-function obtenerIdRateWithHoldings(valorRetencion, tipoWithHolding) {
-  // Mapeo según la tabla de configuración
-  // tipoWithHolding: 10 = Retención, 11 = Recargo de equivalencia
-  
-  // Convertir a número y redondear para evitar problemas de precisión
-  let valor = Math.round(Number(valorRetencion) * 10) / 10;
-  
-  if (tipoWithHolding === 10) { // Retención
-    switch (valor) {
-      case 7:
-        return "20";
-      case 15:
-        return "21";
-      case 19:
-        return "22";
-      default:
-        Logger.log("Valor de retención no reconocido: " + valor + ". Usando código por defecto 20");
-        return "20"; // Valor por defecto
-    }
-  } else if (tipoWithHolding === 11) { // Recargo de equivalencia
-    switch (valor) {
-      case 5.2:
-        return "23";
-      case 1.4:
-        return "24";
-      case 0.5:
-        return "25";
-      case 1.75:
-        return "26";
-      default:
-        Logger.log("Valor de recargo de equivalencia no reconocido: " + valor + ". Usando código por defecto 23");
-        return "23"; // Valor por defecto
-    }
+function getIdTypeWithHoldings_(tipoRetencion) {
+  // Returns the TypeWithHoldings code (not the old tariff code).
+  // Backend recomputes the percentage from cuotaWithHoldings / subTotalWithHoldings.
+  switch (tipoRetencion) {
+    case 'retencion': return "10";
+    case 'recargo':   return "11";
+    case 'irpf':      return "99";
+    default:          return null;
   }
-  
-  Logger.log("Tipo de withholding no reconocido: " + tipoWithHolding + ". Usando código por defecto 20");
-  return "20"; // Valor por defecto si no coincide
+}
+
+function getTaxNameForCode_(code) {
+  switch (code) {
+    case '01': return 'IVA';
+    case '02': return 'IPSI';
+    case '03': return 'IGIC';
+    case '05': return 'Otros';
+    default:   return 'IVA';
+  }
+}
+
+// Derives the tax code from the display label stored in TIPO_IMPUESTO column
+function getTaxCodeFromName_(name) {
+  switch (String(name || '').trim().toUpperCase()) {
+    case 'IVA':   return '01';
+    case 'IPSI':  return '02';
+    case 'IGIC':  return '03';
+    case 'OTROS': return '05';
+    default:      return '01';
+  }
+}
+
+// Extracts code prefix from display labels like "S1 - No exenta..." → "S1"
+function extractCodePrefix_(value) {
+  var str = String(value || '').trim();
+  var dashIdx = str.indexOf(' - ');
+  return dashIdx > 0 ? str.substring(0, dashIdx).trim() : str;
 }
 
 function guardarYGenerarInvoice(){
@@ -1879,10 +1879,13 @@ function guardarYGenerarInvoice(){
   let totalExemptBase = 0;       // Base exenta (productos con IVA 0%)
   let firstIdExento = null;      // Primer código de operación exenta encontrado
 
-  // Pre-fetch product regimens and operación exenta from Productos sheet
+  // Pre-fetch product regimens, exenta, type, taxCode, calificacion, exento from Productos sheet
   let productRegimenMap = {};
   let productExentaMap = {};
   let productTypeIdMap = {};
+  let productTaxCodeMap = {};
+  let productCalificacionMap = {};
+  let productExentoMap = {};
   try {
     let prodUltFila = hojaProductos.getLastRow();
     if (prodUltFila > 1) {
@@ -1890,6 +1893,10 @@ function guardarYGenerarInvoice(){
       let prodRegimens = hojaProductos.getRange(2, PRODUCT_COLUMNS.REGIMEN, prodUltFila - 1, 1).getValues();
       let prodExentas = hojaProductos.getRange(2, PRODUCT_COLUMNS.OPERACION_EXENTA, prodUltFila - 1, 1).getValues();
       let prodTipos = hojaProductos.getRange(2, PRODUCT_COLUMNS.TIPO_PRODUCTO, prodUltFila - 1, 1).getValues();
+      // Read TIPO_IMPUESTO (display label), CALIFICACION_OPERACION, EXENTO (checkbox)
+      let prodTipoImpuestos = hojaProductos.getRange(2, PRODUCT_COLUMNS.TIPO_IMPUESTO, prodUltFila - 1, 1).getValues();
+      let prodCalificaciones = hojaProductos.getRange(2, PRODUCT_COLUMNS.CALIFICACION_OPERACION, prodUltFila - 1, 1).getValues();
+      let prodExentos = hojaProductos.getRange(2, PRODUCT_COLUMNS.EXENTO, prodUltFila - 1, 1).getValues();
       for (let p = 0; p < prodIds.length; p++) {
         let idKey = String(prodIds[p][0]).trim();
         if (idKey) {
@@ -1908,11 +1915,17 @@ function guardarYGenerarInvoice(){
           } else {
             productTypeIdMap[idKey] = 0;
           }
+          // Derive tax code from TIPO_IMPUESTO display label (e.g. "IVA" → "01")
+          productTaxCodeMap[idKey] = getTaxCodeFromName_(prodTipoImpuestos[p][0]);
+          // Calificación stores display labels like "S1 - No exenta..."; extract code prefix
+          productCalificacionMap[idKey] = extractCodePrefix_(prodCalificaciones[p][0]) || 'S1';
+          // EXENTO is a checkbox (boolean TRUE/FALSE)
+          productExentoMap[idKey] = prodExentos[p][0] === true;
         }
       }
     }
   } catch (e) {
-    Logger.log("Error pre-fetching product regimens: " + e);
+    Logger.log("Error pre-fetching product data: " + e);
   }
   
   // IRPF general (totales): viene de la hoja Factura
@@ -1936,9 +1949,7 @@ function guardarYGenerarInvoice(){
       if (fixed > 0) {
         generalIrpf.mode = 'fixed';
         generalIrpf.fixedAmount = fixed;
-        // No existe un idRate explícito para "valor fijo" en el catálogo expuesto;
-        // usamos 20 (7%) como fallback para que el PDF muestre la retención.
-        generalIrpf.idRateWithHoldings = "20";
+        generalIrpf.idRateWithHoldings = getIdTypeWithHoldings_('irpf');
       }
     } else {
       const rateNum = parsePercentToNumberES(prefactura_sheet.getRange(rowIrpf, 6).getDisplayValue());
@@ -1946,8 +1957,7 @@ function guardarYGenerarInvoice(){
       if (frac > 0) {
         generalIrpf.mode = 'percent';
         generalIrpf.rateFrac = frac;
-        // Mapear 7/15/19 a su idRateWithHoldings (20/21/22)
-        generalIrpf.idRateWithHoldings = obtenerIdRateWithHoldings(Number(rateNum), 10);
+        generalIrpf.idRateWithHoldings = getIdTypeWithHoldings_('irpf');
       }
     }
   }
@@ -2005,52 +2015,85 @@ function guardarYGenerarInvoice(){
     let productTypeIdProducto = productTypeIdMap[descripcion.trim()];
     if (productTypeIdProducto === undefined) productTypeIdProducto = 0;
 
+    // New product fields from columns Q/R/S
+    let taxCodeProducto = productTaxCodeMap[descripcion.trim()] || '01';
+    let calificacionProducto = productCalificacionMap[descripcion.trim()] || 'S1';
+    let isExentoProducto = productExentoMap[descripcion.trim()] || false;
+    let taxNameProducto = getTaxNameForCode_(taxCodeProducto);
+    // Override regime to "18" when product has recargo de equivalencia
+    if (recargoEquivalenciaRate > 0) {
+      regimenProducto = "18";
+    }
+
     // Crear arrays de taxes, withHoldings y discounts según factura.json
     let taxes = [];
     if (ivaRate > 0) {
-      taxes.push({
-        taxName: "IVA",
+      // Non-zero rate: qualificationOperation from product, no idExento
+      let taxEntry = {
+        taxName: taxNameProducto,
         rate: ivaRate * 100,
         taxBase: baseNeta,
-        valueTax: taxAmount
-      });
-      
+        valueTax: taxAmount,
+        taxCode: taxCodeProducto,
+        isExemptOperation: false,
+        qualificationOperation: isExentoProducto ? null : calificacionProducto,
+        regime: regimenProducto
+      };
+      taxes.push(taxEntry);
+
       let rateKey = ivaRate * 100;
-      if (!taxGroups[rateKey]) {
-        taxGroups[rateKey] = {
-          taxName: "IVA",
+      let groupKey = taxCodeProducto + '_' + rateKey;
+      if (!taxGroups[groupKey]) {
+        taxGroups[groupKey] = {
+          taxName: taxNameProducto,
           rate: rateKey,
           taxBase: 0,
-          valueTax: 0
+          valueTax: 0,
+          taxCode: taxCodeProducto,
+          qualificationOperation: isExentoProducto ? null : calificacionProducto,
+          regime: regimenProducto
         };
       }
-      taxGroups[rateKey].taxBase = round2(taxGroups[rateKey].taxBase + baseNeta);
-      taxGroups[rateKey].valueTax = round2(taxGroups[rateKey].valueTax + taxAmount);
+      taxGroups[groupKey].taxBase = round2(taxGroups[groupKey].taxBase + baseNeta);
+      taxGroups[groupKey].valueTax = round2(taxGroups[groupKey].valueTax + taxAmount);
     } else {
-      // IVA 0% - producto exento: agregar idExento desde la hoja Productos
-      let idExentoProducto = productExentaMap[descripcion.trim()] || "E1";
+      // IVA 0%: mutual exclusivity — exento uses idExento, non-exento uses qualificationOperation
+      let idExentoProducto = isExentoProducto ? (productExentaMap[descripcion.trim()] || "E1") : null;
       let taxExento = {
-        taxName: "IVA",
+        taxName: taxNameProducto,
         rate: 0,
         taxBase: baseNeta,
         valueTax: 0,
-        idExento: idExentoProducto
+        taxCode: taxCodeProducto,
+        isExemptOperation: isExentoProducto,
+        qualificationOperation: isExentoProducto ? null : calificacionProducto,
+        regime: regimenProducto
       };
+      if (isExentoProducto && idExentoProducto) {
+        taxExento.idExento = idExentoProducto;
+      }
       taxes.push(taxExento);
       if (!firstIdExento && idExentoProducto) {
         firstIdExento = idExentoProducto;
       }
 
       let rateKey = 0;
-      if (!taxGroups[rateKey]) {
-        taxGroups[rateKey] = {
-          taxName: "IVA",
+      let groupKey = taxCodeProducto + '_' + rateKey + (isExentoProducto ? '_ex' : '');
+      if (!taxGroups[groupKey]) {
+        taxGroups[groupKey] = {
+          taxName: taxNameProducto,
           rate: 0,
           taxBase: 0,
-          valueTax: 0
+          valueTax: 0,
+          taxCode: taxCodeProducto,
+          qualificationOperation: isExentoProducto ? null : calificacionProducto,
+          regime: regimenProducto
         };
+        if (isExentoProducto && idExentoProducto) {
+          taxGroups[groupKey].idExento = idExentoProducto;
+        }
       }
-      taxGroups[rateKey].taxBase = round2(taxGroups[rateKey].taxBase + baseNeta);
+      taxGroups[groupKey].taxBase = round2(taxGroups[groupKey].taxBase + baseNeta);
       totalExemptBase = round2(totalExemptBase + baseNeta);
     }
     // Acumular para totales y regla de validación
@@ -2060,25 +2103,23 @@ function guardarYGenerarInvoice(){
     
     let withHoldingsSurChargesDto = [];
     if (retencionRate > 0) {
-      let codigoRetencion = obtenerIdRateWithHoldings(retencionRate * 100, 10);
-      Logger.log("Producto: " + descripcion + " - Retención: " + (retencionRate * 100) + "% - Código: " + codigoRetencion);
+      Logger.log("Producto: " + descripcion + " - Retención: " + (retencionRate * 100) + "% - Tipo: 10");
       withHoldingsSurChargesDto.push({
         isWithHolding: true,
-        idRateWithHoldings: String(codigoRetencion),
+        idRateWithHoldings: getIdTypeWithHoldings_('retencion'),
         rateValueWithHoldings: retencionRate,
         subTotalWithHoldings: baseNeta,
         cuotaWithHoldings: withHoldingsAmount
       });
       hasPerProductRetention = true;
     }
-    
+
     // Agregar recargo de equivalencia si existe
     if (recargoEquivalenciaRate > 0) {
-      let codigoRecargo = obtenerIdRateWithHoldings(recargoEquivalenciaRate * 100, 11);
-      Logger.log("Producto: " + descripcion + " - Recargo: " + (recargoEquivalenciaRate * 100) + "% - Código: " + codigoRecargo);
+      Logger.log("Producto: " + descripcion + " - Recargo: " + (recargoEquivalenciaRate * 100) + "% - Tipo: 11");
       withHoldingsSurChargesDto.push({
         isWithHolding: false,
-        idRateWithHoldings: String(codigoRecargo),
+        idRateWithHoldings: getIdTypeWithHoldings_('recargo'),
         rateValueWithHoldings: recargoEquivalenciaRate,
         subTotalWithHoldings: baseNeta,
         cuotaWithHoldings: surChargesAmount
@@ -2086,16 +2127,19 @@ function guardarYGenerarInvoice(){
 
       // Agrupar recargo de equivalencia para fieldTaxations
       let recargoRateKey = recargoEquivalenciaRate * 100;
-      if (!recargoTaxGroups[recargoRateKey]) {
-        recargoTaxGroups[recargoRateKey] = {
+      let recargoGroupKey = taxCodeProducto + '_' + recargoRateKey;
+      if (!recargoTaxGroups[recargoGroupKey]) {
+        recargoTaxGroups[recargoGroupKey] = {
           taxName: "RecargoEquivalencia",
           rate: recargoRateKey,
           taxBase: 0,
-          valueTax: 0
+          valueTax: 0,
+          taxCode: taxCodeProducto,
+          regime: "18"
         };
       }
-      recargoTaxGroups[recargoRateKey].taxBase = round2(recargoTaxGroups[recargoRateKey].taxBase + baseNeta);
-      recargoTaxGroups[recargoRateKey].valueTax = round2(recargoTaxGroups[recargoRateKey].valueTax + surChargesAmount);
+      recargoTaxGroups[recargoGroupKey].taxBase = round2(recargoTaxGroups[recargoGroupKey].taxBase + baseNeta);
+      recargoTaxGroups[recargoGroupKey].valueTax = round2(recargoTaxGroups[recargoGroupKey].valueTax + surChargesAmount);
     }
     
     let discountDtoModules = [];
@@ -2251,9 +2295,10 @@ function guardarYGenerarInvoice(){
     postalCodeCustomer: String(CustomerInformation.CityCode || null).substring(0, 10), //CityCode
     phoneCustomer: String(CustomerInformation.Telephone || "").substring(0, 20),
     webSite: String(CustomerInformation.WebSiteURI || "").substring(0, 100) || null,
-    emailCustomer: String(CustomerInformation.Email || "").substring(0, 100) || null
+    emailCustomer: String(CustomerInformation.Email || "").substring(0, 100) || null,
+    applySurchargeEquivalence: hasRecargoEquivalencia
   }];
-  
+
   // Mantener todos los campos, asignar null si están vacíos
   if (!contacts[0].webSite || contacts[0].webSite.trim() === "") contacts[0].webSite = null;
   if (!contacts[0].emailCustomer || contacts[0].emailCustomer.trim() === "") contacts[0].emailCustomer = null;

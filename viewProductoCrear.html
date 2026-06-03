@@ -62,8 +62,11 @@
 
       <div class="col-6">
         <label for="tipoImpuesto" class="form-label">Tipo de impuesto</label>
-        <select id="tipoImpuesto" name="tipoImpuesto" class="form-select form-select-lg" required>
+        <select id="tipoImpuesto" name="tipoImpuesto" class="form-select form-select-lg" required onchange="onTipoImpuestoChange()">
           <option value="IVA">IVA</option>
+          <option value="IPSI">IPSI</option>
+          <option value="IGIC">IGIC</option>
+          <option value="Otros">Otros</option>
         </select>
       </div>
 
@@ -72,6 +75,8 @@
         <select id="tarifaImpuesto" name="tarifaImpuesto" class="form-select form-select-lg" required onchange="onTarifaChange()">
           <option value="">Selecciona régimen primero</option>
         </select>
+        <input type="number" class="form-control form-control-lg" id="tarifaImpuestoLibre"
+          min="0" max="100" step="0.01" placeholder="0-100%" style="display:none" onchange="onTarifaChange()">
       </div>
 
       <div class="col-12" id="operacionExentaContainer" style="display:none">
@@ -79,6 +84,25 @@
         <select id="operacionExenta" name="operacionExenta" class="form-select form-select-lg">
           <option value="">Selecciona una opción</option>
         </select>
+      </div>
+
+      <div class="col-6" id="calificacionContainer">
+        <label for="calificacionOperacion" class="form-label">Calificación operación</label>
+        <select id="calificacionOperacion" name="calificacionOperacion" class="form-select form-select-lg">
+          <option value="S1" selected>S1 - No exenta, sin inversión suj. pasivo</option>
+          <option value="S2">S2 - No exenta, con inversión suj. pasivo</option>
+          <option value="N1">N1 - No sujeta, art. 7/14/otros</option>
+          <option value="N2">N2 - No sujeta, por reglas de localización</option>
+        </select>
+      </div>
+
+      <div class="col-6">
+        <div class="form-check mt-4">
+          <input class="form-check-input" type="checkbox" id="exento" name="exento" onchange="onToggleExento(event)">
+          <label class="form-check-label" for="exento">
+            Producto exento
+          </label>
+        </div>
       </div>
 
       <div class="col-12" id="recargoContainer">
@@ -234,8 +258,14 @@
     var container = document.getElementById('operacionExentaContainer');
     var select = document.getElementById('operacionExenta');
     var valorPrevio = select.value;
+    var isExento = document.getElementById('exento').checked;
+    var tipoImpuesto = document.getElementById('tipoImpuesto').value;
+    var tarifaVal = tipoImpuesto === 'Otros'
+      ? Number(document.getElementById('tarifaImpuestoLibre').value)
+      : Number(document.getElementById('tarifaImpuesto').value);
+    var showExenta = (isExento || tarifaVal === 0) && config && config.exentoOps && config.exentoOps.length > 0;
 
-    if (config && config.exentoOps && config.exentoOps.length > 0) {
+    if (showExenta) {
       select.innerHTML = '';
       select.add(new Option('Selecciona una opción', ''));
       config.exentoOps.forEach(function(op) {
@@ -248,11 +278,72 @@
         }
       }
       container.style.display = '';
+    } else if (config && config.exentoOps && config.exentoOps.length > 0) {
+      select.innerHTML = '';
+      select.add(new Option('Selecciona una opción', ''));
+      config.exentoOps.forEach(function(op) {
+        var label = OPERACION_EXENTA_LABELS_CLIENT[op] || op;
+        select.add(new Option(label, label));
+      });
+      container.style.display = 'none';
     } else {
       select.innerHTML = '<option value="">Selecciona una opción</option>';
       select.value = '';
       container.style.display = 'none';
     }
+  }
+
+  function onTipoImpuestoChange() {
+    var tipo = document.getElementById('tipoImpuesto').value;
+    var selectTarifa = document.getElementById('tarifaImpuesto');
+    var inputTarifa = document.getElementById('tarifaImpuestoLibre');
+
+    if (tipo === 'Otros') {
+      selectTarifa.style.display = 'none';
+      selectTarifa.removeAttribute('required');
+      inputTarifa.style.display = '';
+      inputTarifa.setAttribute('required', '');
+    } else {
+      selectTarifa.style.display = '';
+      selectTarifa.setAttribute('required', '');
+      inputTarifa.style.display = 'none';
+      inputTarifa.removeAttribute('required');
+      inputTarifa.value = '';
+    }
+    onTarifaChange();
+  }
+
+  function onToggleExento(event) {
+    var isExento = event.target.checked;
+    var tarifaSelect = document.getElementById('tarifaImpuesto');
+    var tarifaLibre = document.getElementById('tarifaImpuestoLibre');
+    var calificacionContainer = document.getElementById('calificacionContainer');
+    var recargoContainer = document.getElementById('recargoContainer');
+    var tarifaContainer = tarifaSelect.closest('.col-6');
+
+    if (isExento) {
+      // Hide tarifa (both select + libre), hide calificación, hide + uncheck recargo
+      tarifaSelect.value = '0';
+      tarifaLibre.value = '0';
+      tarifaContainer.style.display = 'none';
+      tarifaSelect.removeAttribute('required');
+      tarifaLibre.removeAttribute('required');
+      calificacionContainer.style.display = 'none';
+      recargoContainer.style.display = 'none';
+      document.getElementById('aplicarRecargo').checked = false;
+    } else {
+      // Restore tarifa, calificación, recargo
+      tarifaContainer.style.display = '';
+      var tipo = document.getElementById('tipoImpuesto').value;
+      if (tipo === 'Otros') {
+        tarifaLibre.setAttribute('required', '');
+      } else {
+        tarifaSelect.setAttribute('required', '');
+      }
+      calificacionContainer.style.display = '';
+      recargoContainer.style.display = '';
+    }
+    actualizarOperacionExenta();
   }
 
   function verificarDatosObligatoriosProducto() {
@@ -263,11 +354,13 @@
       'tipoProducto',
       'tipoUso',
       'valorUnitario',
-      'tipoImpuesto',
-      'tarifaImpuesto'
+      'tipoImpuesto'
     ];
 
     var isValid = true;
+    var tipoImpuesto = document.getElementById('tipoImpuesto').value;
+    var isOtros = tipoImpuesto === 'Otros';
+    var isExento = document.getElementById('exento').checked;
 
     camposObligatorios.forEach(function(id) {
       var campo = document.getElementById(id);
@@ -278,6 +371,26 @@
         isValid = false;
       }
     });
+
+    // Validate tarifa: dropdown for standard types, free input for "Otros"
+    if (isOtros) {
+      var tarifaLibre = document.getElementById('tarifaImpuestoLibre').value;
+      var tarifaNum = Number(tarifaLibre);
+      if (tarifaLibre === '' || isNaN(tarifaNum) || tarifaNum < 0 || tarifaNum > 100) {
+        marcarCampo('tarifaImpuestoLibre', true);
+        isValid = false;
+      } else {
+        marcarCampo('tarifaImpuestoLibre', false);
+      }
+    } else if (!isExento) {
+      var tarifaVal = document.getElementById('tarifaImpuesto').value.trim();
+      if (!tarifaVal) {
+        marcarCampo('tarifaImpuesto', true);
+        isValid = false;
+      } else {
+        marcarCampo('tarifaImpuesto', false);
+      }
+    }
 
     var aplicarRetencion = document.getElementById('aplicarRetencion').checked;
     var retencionSel = document.getElementById('retenciones').value;
@@ -290,14 +403,38 @@
 
     var code = getSelectedRegimenCode();
     var config = REGIMEN_CONFIG_CLIENT[code];
-    if (config) {
+    if (config && !isOtros) {
       var tarifaVal = Number(document.getElementById('tarifaImpuesto').value);
-      if (config.ivaRates.indexOf(tarifaVal) === -1) {
+      if (config.ivaRates.indexOf(tarifaVal) === -1 && !isExento) {
         marcarCampo('tarifaImpuesto', true);
         isValid = false;
         mostrarAlerta('La tarifa de IVA seleccionada no es válida para el régimen ' + code + '.');
       }
-      if (tarifaVal === 0 && config.exentoOps && config.exentoOps.length > 0) {
+    }
+
+    // Mutual exclusivity: exento → require operación exenta; not exento → require calificación
+    if (isExento) {
+      if (config && config.exentoOps && config.exentoOps.length > 0) {
+        var opExenta = document.getElementById('operacionExenta').value;
+        if (!opExenta) {
+          marcarCampo('operacionExenta', true);
+          isValid = false;
+        } else {
+          marcarCampo('operacionExenta', false);
+        }
+      }
+    } else {
+      // Not exento: require calificación
+      var califVal = document.getElementById('calificacionOperacion').value;
+      if (!califVal) {
+        marcarCampo('calificacionOperacion', true);
+        isValid = false;
+      } else {
+        marcarCampo('calificacionOperacion', false);
+      }
+      // If tarifa = 0, also require operación exenta
+      var effectiveTarifa = isOtros ? Number(document.getElementById('tarifaImpuestoLibre').value) : Number(document.getElementById('tarifaImpuesto').value);
+      if (effectiveTarifa === 0 && config && config.exentoOps && config.exentoOps.length > 0) {
         var opExenta = document.getElementById('operacionExenta').value;
         if (!opExenta) {
           marcarCampo('operacionExenta', true);
@@ -330,6 +467,12 @@
     } else {
       formData.set('retenciones', '');
     }
+    // New fields: calificacion, exento, and free-form tarifa for "Otros"
+    formData.set('calificacionOperacion', document.getElementById('calificacionOperacion').value);
+    formData.set('exento', document.getElementById('exento').checked);
+    if (document.getElementById('tipoImpuesto').value === 'Otros') {
+      formData.set('tarifaImpuesto', document.getElementById('tarifaImpuestoLibre').value);
+    }
 
     var data = {};
     formData.forEach(function(value, key) {
@@ -348,11 +491,20 @@
       .forEach(function(id) { marcarCampo(id, false); });
     document.getElementById('aplicarRecargo').checked = false;
     document.getElementById('aplicarRetencion').checked = false;
+    document.getElementById('exento').checked = false;
     document.getElementById('recargoContainer').style.display = '';
+    document.getElementById('calificacionContainer').style.display = '';
+    document.getElementById('calificacionOperacion').value = 'S1';
     document.getElementById('operacionExentaContainer').style.display = 'none';
     document.getElementById('operacionExenta').innerHTML = '<option value="">Selecciona una opción</option>';
     var tarifaSelect = document.getElementById('tarifaImpuesto');
     tarifaSelect.innerHTML = '<option value="">Selecciona régimen primero</option>';
+    tarifaSelect.style.display = '';
+    tarifaSelect.disabled = false;
+    document.getElementById('tarifaImpuestoLibre').style.display = 'none';
+    document.getElementById('tarifaImpuestoLibre').value = '';
+    document.getElementById('tarifaImpuestoLibre').disabled = false;
+    document.getElementById('tipoImpuesto').value = 'IVA';
     renderRetencion(false);
     document.getElementById('nombre').focus();
   }

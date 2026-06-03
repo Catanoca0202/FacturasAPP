@@ -33,6 +33,10 @@ function obtenerInformacionProducto(producto) {
     let tarifaRetencion = hojaProductos.getRange(fila, PRODUCT_COLUMNS.TARIFA_RETENCION).getDisplayValue();
     let estado = hojaProductos.getRange(fila, PRODUCT_COLUMNS.ESTADO).getValue();
 
+    // Read Calificación Operación and Exento (checkbox boolean)
+    let calificacionOperacion = hojaProductos.getRange(fila, PRODUCT_COLUMNS.CALIFICACION_OPERACION).getValue() || '';
+    let exento = hojaProductos.getRange(fila, PRODUCT_COLUMNS.EXENTO).getValue() === true;
+
     let informacionProducto = {
       "codigo Producto": codigoProducto,
       "regimen": regimen,
@@ -43,7 +47,9 @@ function obtenerInformacionProducto(producto) {
       "impuestos": tipoImpuesto,
       "Recargo de equivalencia": checkRecargo === true || checkRecargo === "TRUE" ? tarifaRecargo : "",
       "retencion": checkRetencion === true || checkRetencion === "TRUE" ? tarifaRetencion : "",
-      "Estado": estado
+      "Estado": estado,
+      "calificacionOperacion": String(calificacionOperacion),
+      "exento": exento
     };
 
     return informacionProducto;

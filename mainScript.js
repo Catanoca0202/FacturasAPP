@@ -12,22 +12,24 @@
 // }
 
 const PRODUCT_COLUMNS = {
-  ESTADO: 1,               // A
-  CODIGO_REFERENCIA: 2,    // B
-  NOMBRE: 3,               // C
-  REGIMEN: 4,              // D
-  OPERACION_EXENTA: 5,     // E (nuevo)
-  TIPO_PRODUCTO: 6,        // F
-  TIPO_USO: 7,             // G
-  VALOR_UNITARIO: 8,       // H
-  TIPO_IMPUESTO: 9,        // I
-  TARIFA_IMPUESTO: 10,     // J
-  PRECIO_CON_IMPUESTO: 11, // K
-  CHECK_RECARGO: 12,       // L
-  TARIFA_RECARGO: 13,      // M
-  CHECK_RETENCION: 14,     // N
-  TARIFA_RETENCION: 15,    // O
-  IDENTIFICADOR_UNICO: 16  // P
+  ESTADO: 1,                  // A
+  CODIGO_REFERENCIA: 2,       // B
+  NOMBRE: 3,                  // C
+  REGIMEN: 4,                 // D
+  TIPO_PRODUCTO: 5,           // E
+  TIPO_USO: 6,                // F
+  VALOR_UNITARIO: 7,          // G
+  TIPO_IMPUESTO: 8,           // H
+  TARIFA_IMPUESTO: 9,         // I
+  PRECIO_CON_IMPUESTO: 10,    // J
+  CALIFICACION_OPERACION: 11, // K
+  EXENTO: 12,                 // L (checkbox)
+  OPERACION_EXENTA: 13,       // M
+  CHECK_RECARGO: 14,          // N
+  TARIFA_RECARGO: 15,         // O
+  CHECK_RETENCION: 16,        // P
+  TARIFA_RETENCION: 17,       // Q
+  IDENTIFICADOR_UNICO: 18     // R — always last
 };
 
 const REGIMEN_CONFIG = {
@@ -55,6 +57,13 @@ const OPERACION_EXENTA_LABELS = {
   'E5': 'E5 - Operaciones asimiladas a exportaciones',
   'E6': 'E6 - Exenta por otros'
 };
+
+const CALIFICACION_OPERACION_OPTIONS = [
+  'S1 - No exenta, sin inversión suj. pasivo',
+  'S2 - No exenta, con inversión suj. pasivo',
+  'N1 - No sujeta, art. 7/14/otros',
+  'N2 - No sujeta, por reglas de localización'
+];
 
 // Lista de regímenes para data-validation en la hoja Productos
 const REGIMEN_LISTA_VALORES = [
@@ -794,9 +803,9 @@ function agregarDataValidations() {
   // Rango de valores para los dropdowns
   const rangoValoresClienteInvalido = hojaValoresCInvalidos.getRange("V2:V1000");
   const rangoValoresClienteDatos = hojaValoresC.getRange("B2:B1000");
-  const rangoValoresProductosDatos = hojaValoresP.getRange("P2:P996");
+  const rangoValoresProductosDatos = hojaValoresP.getRange("R2:R996");
   const rangoValoresClienteFactura = hojaValoresC.getRange("$B$2:$B$1000");
-  const rangoValoresProductosFactura = hojaValoresP.getRange("$P$2:$P$996");
+  const rangoValoresProductosFactura = hojaValoresP.getRange("$R$2:$R$996");
 
   // Crear y aplicar validaciones
   const reglas = [
@@ -906,7 +915,11 @@ function processForm(data) {
     if (tipoUso.toUpperCase() === 'VEN') tipoUso = 'Venta';
     else if (tipoUso.toUpperCase() === 'COM') tipoUso = 'Compra';
     const valorUnitario = parseFloat(data.valorUnitario);
+    // Form sends display label directly ("IVA", "IPSI", "IGIC", "Otros")
     const tipoImpuesto = data.tipoImpuesto || 'IVA';
+    const isOtrosTipo = tipoImpuesto.toUpperCase() === 'OTROS';
+    const calificacionOperacion = data.calificacionOperacion || 'S1';
+    const exento = String(data.exento || '').toLowerCase() === 'true';
     const tarifaImpuestoRaw = data.tarifaImpuesto || data.iva || '';
     let regimenCode;
     try { regimenCode = getRegimenCode(regimen); } catch (_) { regimenCode = null; }
@@ -914,10 +927,22 @@ function processForm(data) {
     const ALLOWED_IVA = regimenCfg ? regimenCfg.ivaRates : [0, 4, 10, 21];
     let tarifaImpuestoNum = tarifaImpuestoRaw === '' ? null : parsePercentToNumberES(tarifaImpuestoRaw);
     if (tarifaImpuestoNum !== null) {
-      tarifaImpuestoNum = Math.round(Number(tarifaImpuestoNum));
-      if (!ALLOWED_IVA.includes(tarifaImpuestoNum)) {
-        tarifaImpuestoNum = null;
+      if (isOtrosTipo) {
+        // "Otros" accepts any rate 0-100
+        tarifaImpuestoNum = Number(tarifaImpuestoNum);
+        if (isNaN(tarifaImpuestoNum) || tarifaImpuestoNum < 0 || tarifaImpuestoNum > 100) {
+          tarifaImpuestoNum = null;
+        }
+      } else {
+        tarifaImpuestoNum = Math.round(Number(tarifaImpuestoNum));
+        if (!ALLOWED_IVA.includes(tarifaImpuestoNum)) {
+          tarifaImpuestoNum = null;
+        }
       }
+    }
+    // When exento is checked, force tarifa to 0
+    if (exento && tarifaImpuestoNum === null) {
+      tarifaImpuestoNum = 0;
     }
     const tarifaImpuestoStr = tarifaImpuestoNum !== null ? `${tarifaImpuestoNum}%` : '';
 
@@ -980,8 +1005,6 @@ function processForm(data) {
     celdaRegimen.setValue(regimen);
     celdaRegimen.setHorizontalAlignment('center');
 
-    // Operación exenta: solo escribir si IVA = Exento
-    const esExentoForm = tarifaImpuestoNum === 0;
     const celdaOpExenta = sheet.getRange(newRow, PRODUCT_COLUMNS.OPERACION_EXENTA);
     if (regimenCfg && regimenCfg.exentoOps && regimenCfg.exentoOps.length > 0) {
       const listaLabels = regimenCfg.exentoOps.map(function(op) { return OPERACION_EXENTA_LABELS[op] || op; });
@@ -1017,7 +1040,13 @@ function processForm(data) {
     }
 
     sheet.getRange(newRow, PRODUCT_COLUMNS.TIPO_IMPUESTO).setValue(tipoImpuesto);
-    if (tarifaImpuestoStr !== '') {
+    if (isOtrosTipo && tarifaImpuestoNum !== null) {
+      // Free-form tarifa for "Otros" — no dropdown validation
+      const tarifaImpuestoRange = sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_IMPUESTO);
+      tarifaImpuestoRange.clearDataValidations();
+      tarifaImpuestoRange.setNumberFormat('0%');
+      tarifaImpuestoRange.setValue(Number(tarifaImpuestoNum) / 100);
+    } else if (tarifaImpuestoStr !== '') {
       const tarifaImpuestoRange = sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_IMPUESTO);
       const listaIvaForm = ALLOWED_IVA.map(function(r) { return r + '%'; });
       const reglaIva = SpreadsheetApp.newDataValidation()
@@ -1029,7 +1058,7 @@ function processForm(data) {
       tarifaImpuestoRange.setValue(Number(tarifaImpuestoNum) / 100);
     }
 
-    const precioConImpuestoFormula = `=IF(AND(H${newRow}<>"";J${newRow}<>"");H${newRow}*(1+J${newRow});"")`;
+    const precioConImpuestoFormula = `=IF(AND(G${newRow}<>"";I${newRow}<>"");G${newRow}*(1+I${newRow});"")`;
     sheet.getRange(newRow, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO).setFormula(precioConImpuestoFormula);
     sheet.getRange(newRow, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO).setNumberFormat('€#,##0.00');
 
@@ -1065,16 +1094,46 @@ function processForm(data) {
       sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_RETENCION).clearContent();
     }
 
-    const camposRequeridos = [codigoReferencia, nombre, regimen, tipoProducto, tipoUso, tipoImpuesto, tarifaImpuestoStr];
+    // Calificación Operación — only set when not exento
+    const calificacionLabel = CALIFICACION_OPERACION_OPTIONS.find(l => l.startsWith(calificacionOperacion + ' - ')) || calificacionOperacion;
+    const celdaCalificacion = sheet.getRange(newRow, PRODUCT_COLUMNS.CALIFICACION_OPERACION);
+    const reglaCalificacion = SpreadsheetApp.newDataValidation()
+      .requireValueInList(CALIFICACION_OPERACION_OPTIONS, true)
+      .setAllowInvalid(false)
+      .build();
+    celdaCalificacion.setDataValidation(reglaCalificacion);
+    if (!exento) {
+      celdaCalificacion.setValue(calificacionLabel);
+    } else {
+      celdaCalificacion.clearContent();
+    }
+
+    // Exento checkbox (TRUE/FALSE)
+    const celdaExento = sheet.getRange(newRow, PRODUCT_COLUMNS.EXENTO);
+    const reglaExento = SpreadsheetApp.newDataValidation().requireCheckbox().build();
+    celdaExento.setDataValidation(reglaExento);
+    celdaExento.setValue(exento === true);
+
+    const camposRequeridos = [codigoReferencia, nombre, regimen, tipoProducto, tipoUso, tipoImpuesto];
+    // When exento, tarifa is not required; otherwise it is
+    if (!exento) camposRequeridos.push(tarifaImpuestoStr);
     let estado = camposRequeridos.some(valor => valor === '' || valor === null || String(valor).toLowerCase() === 'seleccione') || isNaN(valorUnitario)
       ? 'No Valido'
       : 'Valido';
 
-    // Operación exenta obligatoria cuando IVA = Exento
-    if (estado === 'Valido' && esExentoForm) {
-      const opExentaVal = String(sheet.getRange(newRow, PRODUCT_COLUMNS.OPERACION_EXENTA).getValue() || '').trim();
-      if (!opExentaVal) {
-        estado = 'No Valido';
+    // Mutual exclusivity: exento → require operación exenta; not exento → require calificación
+    if (estado === 'Valido') {
+      if (exento) {
+        const opExentaVal = String(sheet.getRange(newRow, PRODUCT_COLUMNS.OPERACION_EXENTA).getValue() || '').trim();
+        if (!opExentaVal) estado = 'No Valido';
+      } else {
+        const califVal = String(sheet.getRange(newRow, PRODUCT_COLUMNS.CALIFICACION_OPERACION).getValue() || '').trim();
+        if (!califVal) estado = 'No Valido';
+        // Also require operación exenta when tarifa = 0 (IVA exento but not exento checkbox)
+        if (tarifaImpuestoNum === 0) {
+          const opExentaVal = String(sheet.getRange(newRow, PRODUCT_COLUMNS.OPERACION_EXENTA).getValue() || '').trim();
+          if (!opExentaVal) estado = 'No Valido';
+        }
       }
     }
 
@@ -1273,6 +1332,42 @@ function manejarCheckboxRetencion(hoja, fila) {
   } else {
     rangoTarifa.clearDataValidations();
     rangoTarifa.clearContent();
+  }
+}
+
+function manejarCheckboxExento(hoja, fila) {
+  const isExento = hoja.getRange(fila, PRODUCT_COLUMNS.EXENTO).getValue() === true;
+  const celdaCalificacion = hoja.getRange(fila, PRODUCT_COLUMNS.CALIFICACION_OPERACION);
+  const celdaOpExenta = hoja.getRange(fila, PRODUCT_COLUMNS.OPERACION_EXENTA);
+
+  if (isExento) {
+    // Clear calificación, show operación exenta dropdown
+    celdaCalificacion.clearDataValidations();
+    celdaCalificacion.clearContent();
+    // Disable recargo when exento
+    hoja.getRange(fila, PRODUCT_COLUMNS.CHECK_RECARGO).setValue(false);
+    hoja.getRange(fila, PRODUCT_COLUMNS.TARIFA_RECARGO).clearDataValidations();
+    hoja.getRange(fila, PRODUCT_COLUMNS.TARIFA_RECARGO).clearContent();
+    // Set tarifa to 0%
+    const tarifaRange = hoja.getRange(fila, PRODUCT_COLUMNS.TARIFA_IMPUESTO);
+    tarifaRange.setNumberFormat('0%');
+    tarifaRange.setValue(0);
+    // Apply operación exenta dropdown based on régimen
+    aplicarValidacionOperacionExenta(hoja, fila);
+  } else {
+    // Restore calificación dropdown, clear operación exenta
+    const reglaCalificacion = SpreadsheetApp.newDataValidation()
+      .requireValueInList(CALIFICACION_OPERACION_OPTIONS, true)
+      .setAllowInvalid(false)
+      .build();
+    celdaCalificacion.setDataValidation(reglaCalificacion);
+    celdaCalificacion.clearContent();
+    // Clear operación exenta
+    celdaOpExenta.clearContent();
+    // Restore tarifa
+    const tarifaRange = hoja.getRange(fila, PRODUCT_COLUMNS.TARIFA_IMPUESTO);
+    tarifaRange.clearContent();
+    aplicarValidacionIvaSegunRegimen(hoja, fila);
   }
 }
 
@@ -1782,9 +1877,16 @@ function onEdit(e) {
         agregarCodigoIdentificador(e);
       }
 
-      // Checkbox de Retención (L)
+      // Checkbox de Retención
       if (colEditada === PRODUCT_COLUMNS.CHECK_RETENCION){
         manejarCheckboxRetencion(hojaActual, rowEditada);
+        verificarDatosObligatoriosProductos(e);
+        agregarCodigoIdentificador(e);
+      }
+
+      // Checkbox de Exento — mutual exclusivity with Calificación/Operación Exenta
+      if (colEditada === PRODUCT_COLUMNS.EXENTO){
+        manejarCheckboxExento(hojaActual, rowEditada);
         verificarDatosObligatoriosProductos(e);
         agregarCodigoIdentificador(e);
       }
