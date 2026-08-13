@@ -1,0 +1,218 @@
+FACTURASAPP EXCEL ADD-IN — FEATURES TO IMPLEMENT
+==================================================
+
+Two features need to be added to the Excel add-in:
+  A) Preferred payment method per client
+  B) Fetch and apply default consecutive after sign-in
+
+
+==========================================================
+A) PREFERRED PAYMENT METHOD PER CLIENT
+==========================================================
+
+WHAT IT DOES:
+- A new optional field "Forma de pago" is added to the client (contact) entity.
+- When creating or editing a client, the user can select a preferred payment method from a dropdown.
+- When the user selects a client in the invoice sheet, the system checks if that client has a preferred payment method.
+- If yes, the invoice's "Forma de pago" field (cell E4 in Google Sheets) is auto-filled with that value.
+- If the client has no preference (empty or "No definido"), the invoice field is left untouched for manual selection.
+- The user can always override the auto-filled value manually.
+
+PAYMENT METHOD OPTIONS (same list used for invoices):
+  - No definido
+  - Efectivo
+  - Transferencia bancaria
+  - Domiciliacion bancaria
+  - PayPal
+  - Factoring
+  - Confirming
+  - Talonario
+  - Tarjeta de credito
+  - Tarjeta de debito
+  - Pagare
+  - Cheque
+  - Recibo bancario
+  - Contado
+  - Bizum
+  - Letra de cambio
+  - Compensacion
+
+WHERE IT LIVES IN THE SHEET:
+- Clientes sheet, column P (16th column), header: "Forma de pago"
+- Column order: ... O(Poblacion) | P(Forma de pago) | Q(Direccion) | R(Codigo postal) | S(Telefono) | T(Sitio web) | U(Email)
+
+CLIENT CREATION FORM:
+- Add an optional <select> dropdown labeled "Forma de pago preferida (opcional)"
+- Default option: "Sin preferencia" (value = empty string)
+- Other options: the 17 payment methods listed above
+- When saving, include this value in the client data written to the sheet at column P
+
+AUTO-FILL LOGIC (on client selection in invoice):
+- When a client is selected in the invoice (B2 cell / client dropdown):
+  1. Look up the client row in the Clientes sheet (match column B = client reference)
+  2. Read column P (Forma de pago) from that row
+  3. If the value is not empty AND not "No definido":
+     -> Set the invoice's payment method field (E4) to that value
+  4. If empty or "No definido":
+     -> Do nothing, leave the field as-is
+
+PAYMENT METHOD CODES (for the API / idPayment field):
+  No definido        -> ND
+  Efectivo           -> EF
+  Transferencia bancaria -> TF
+  Domiciliacion bancaria -> DB
+  PayPal             -> PP
+  Factoring          -> FR
+  Confirming         -> CF
+  Talonario          -> TL
+  Tarjeta de credito -> TC
+  Tarjeta de debito  -> TD
+  Pagare             -> PA
+  Cheque             -> CH
+  Recibo bancario    -> RB
+  Contado            -> CD
+  Bizum              -> BZ
+  Letra de cambio    -> LC
+  Compensacion       -> CP
+
+
+==========================================================
+B) FETCH AND APPLY DEFAULT CONSECUTIVE AFTER SIGN-IN
+==========================================================
+
+OVERVIEW:
+After the user signs in (links their FacturasApp account), the system should:
+  1. Authenticate with the API to get an API Key
+  2. Use that API Key to fetch the user's consecutives
+  3. Find the default consecutive and apply it (prefix + current number)
+  4. Use this to generate invoice numbers automatically
+
+---
+
+STEP 1: AUTHENTICATION (Get API Key)
+---
+
+ENDPOINT:
+  Production: POST https://www.facturasapp.com/ApiGateway/AppSecurity/ApiKey
+  Testing:    POST https://facturasapp-qa.cenet.ws/ApiGateway/AppSecurity/ApiKey
+
+REQUEST:
+  Method: POST
+  Content-Type: application/json
+  Body:
+    {
+      "User": "<email>",
+      "Password": "<password>"
+    }
+
+RESPONSE (success, HTTP 200):
+  JSON array with the API Key as the first element:
+    ["<api_key_string>"]
+
+RESPONSE (failure):
+  Non-200 status code, or JSON with error message.
+
+WHAT TO DO WITH IT:
+  - Store the API Key securely (in Google Sheets it's stored in a hidden cell; in Excel use a similar approach or add-in storage)
+  - Update UI to show "Vinculado" (linked) status
+  - Immediately proceed to Step 2
+
+---
+
+STEP 2: FETCH CONSECUTIVES
+---
+
+ENDPOINT:
+  Production: GET https://www.facturasapp.com/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/GetConsecutives
+  Testing:    GET https://facturasapp-qa.cenet.ws/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/GetConsecutives
+
+REQUEST:
+  Method: GET
+  Headers:
+    X-API-KEY: <api_key_from_step_1>
+
+RESPONSE (success, HTTP 200):
+  {
+    "facturasDeAlta": [
+      {
+        "prefijo": "Bill_",
+        "consecutivoActual": 15,
+        "isDefault": true
+      },
+      {
+        "prefijo": "FAC",
+        "consecutivoActual": 100,
+        "isDefault": false
+      }
+    ]
+  }
+
+---
+
+STEP 3: APPLY DEFAULT CONSECUTIVE
+---
+
+LOGIC:
+  1. From the response, find the entry where isDefault === true
+  2. If none found, use the first entry in the array
+  3. Extract:
+     - prefijo: the letter prefix (e.g. "Bill_", "FAC")
+     - consecutivoActual: the current number (e.g. 15)
+     - digit count: derived from the number of digits in consecutivoActual
+       (e.g. if consecutivoActual is 15, and it's displayed as "0015", digits = 4)
+  4. Store these values:
+     - Prefix (e.g. "Bill_")
+     - Digit count (e.g. 4)
+     - Current number (e.g. "0015")
+  5. Write to the "Datos de emisor" sheet:
+     - Row 24, Column A: prefix
+     - Row 24, Column C: current number (zero-padded)
+
+---
+
+STEP 4: GENERATE INVOICE NUMBER
+---
+
+LOGIC:
+  1. Read stored prefix and digit count
+  2. Optionally re-fetch from API to get latest consecutivoActual
+  3. Check invoice history to find the highest used number with this prefix
+  4. New number = max(consecutivoActual, highest_in_history) + 1
+  5. Format: prefix + zero-padded number
+     Example: "Bill_" + "0016" = "Bill_0016"
+  6. Write to invoice sheet cell G2
+
+VALIDATION:
+  Invoice numbers must match pattern: ^<prefix>\d{<digitCount>}$
+  Example: if prefix="Bill_" and digits=4, valid = "Bill_0016", invalid = "Bill_16" or "FAC0016"
+
+
+==========================================================
+API REFERENCE SUMMARY
+==========================================================
+
+BASE URLS:
+  Production: https://www.facturasapp.com
+  Testing:    https://facturasapp-qa.cenet.ws
+
+ENDPOINTS:
+  1. POST {BASE}/ApiGateway/AppSecurity/ApiKey
+     -> Authenticate, get API Key
+     -> Body: { "User": "...", "Password": "..." }
+
+  2. GET {BASE}/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/GetConsecutives
+     -> Fetch consecutives
+     -> Header: X-API-KEY: <key>
+
+  3. POST {BASE}/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/AddInvoice
+     -> Submit invoice
+     -> Header: X-API-KEY: <key>
+     -> Body: full invoice JSON (see factura.json for structure)
+
+  4. POST {BASE}/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/PDFInvoice?invoiceNumber=<NUMBER>
+     -> Get invoice PDF
+     -> Header: X-API-KEY: <key>
+
+AUTHENTICATION:
+  All endpoints except ApiKey require the X-API-KEY header.
+  The key is obtained once via the ApiKey endpoint and reused for all subsequent requests.

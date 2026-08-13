@@ -32,22 +32,107 @@ const PRODUCT_COLUMNS = {
   IDENTIFICADOR_UNICO: 18     // R — always last
 };
 
-const REGIMEN_CONFIG = {
-  '01': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E4','E5','E6'] },
-  '02': { ivaRates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-  '03': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-  '04': { ivaRates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-  '05': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-  '07': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E6'] },
-  '09': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-  '10': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'], requiresNifIva: true },
-  '11': { ivaRates: [21], allowRecargo: false, exentoOps: [] },
-  '15': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-  '17': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-  '18': { ivaRates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-  '19': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-  '20': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] }
+// Per-tax-type configuration: each tax type has its own valid régimen codes,
+// tarifa mode (dropdown vs freeform), and recargo map.
+// rates: array = predefined dropdown options; null = freeform 0-100% input
+// allowRecargo: whether recargo de equivalencia can be applied (also requires Producto + Venta)
+// autoExento: when true, selecting this régimen auto-checks the exento checkbox
+const TAX_TYPE_CONFIG = {
+  IVA: {
+    regimenes: {
+      '01': { rates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1','E4','E5','E6'] },
+      '02': { rates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'], autoExento: true },
+      '04': { rates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+      '07': { rates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1','E6'] },
+      '08': { rates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+      '10': { rates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+      '11': { rates: [21], allowRecargo: false, exentoOps: [] },
+      '15': { rates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+      '17': { rates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+      '18': { rates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+      '19': { rates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+      '20': { rates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] }
+    },
+    tarifaMode: 'dropdown',
+    recargoMap: { 21: [5.2, 1.75], 10: [1.4], 4: [0.5], 0: [0] }
+  },
+  IGIC: {
+    regimenes: {
+      '01': { rates: null, allowRecargo: true, exentoOps: ['E1','E4','E5','E6','E7','E8'] },
+      '02': { rates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'], autoExento: true },
+      '04': { rates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] },
+      '07': { rates: null, allowRecargo: true, exentoOps: ['E1','E6'] },
+      '08': { rates: null, allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] },
+      '10': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] },
+      '11': { rates: null, allowRecargo: false, exentoOps: [] },
+      '14': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] },
+      '15': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] },
+      '17': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] },
+      '18': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] },
+      '19': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] },
+      '20': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] },
+      '21': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] }  // TODO: confirm label with business
+    },
+    tarifaMode: 'freeform',
+    recargoMap: null
+  },
+  IPSI: {
+    regimenes: {
+      '01': { rates: null, allowRecargo: true, exentoOps: ['E1','E4','E5','E6'] },
+      '08': { rates: null, allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+      '11': { rates: null, allowRecargo: false, exentoOps: [] },
+      '18': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+      '19': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+      '20': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] }
+    },
+    tarifaMode: 'freeform',
+    recargoMap: null
+  },
+  Otros: {
+    regimenes: {
+      '01': { rates: null, allowRecargo: true, exentoOps: ['E1','E4','E5','E6'] },
+      '02': { rates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'], autoExento: true },
+      '04': { rates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+      '07': { rates: null, allowRecargo: true, exentoOps: ['E1','E6'] },
+      '08': { rates: null, allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+      '10': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+      '11': { rates: null, allowRecargo: false, exentoOps: [] },
+      '14': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+      '15': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+      '17': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+      '18': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+      '19': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+      '20': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+      '21': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] }  // TODO: confirm label with business
+    },
+    tarifaMode: 'freeform',
+    recargoMap: null
+  }
 };
+
+// Backward compatibility — existing code that references REGIMEN_CONFIG gets IVA regimenes
+const REGIMEN_CONFIG = TAX_TYPE_CONFIG.IVA.regimenes;
+
+// Helper: get régimen config for a specific tax type
+function getTaxRegimenConfig(regimenCode, tipoImpuesto) {
+  var taxType = TAX_TYPE_CONFIG[tipoImpuesto] || TAX_TYPE_CONFIG.IVA;
+  return taxType.regimenes[regimenCode] || null;
+}
+
+// Helper: get the tarifa mode for a tax type ('dropdown' or 'freeform')
+function getTarifaMode(tipoImpuesto) {
+  var taxType = TAX_TYPE_CONFIG[tipoImpuesto] || TAX_TYPE_CONFIG.IVA;
+  return taxType.tarifaMode || 'dropdown';
+}
+
+// Helper: check if recargo de equivalencia is allowed given all conditions
+function isRecargoAllowed(tipoImpuesto, regimenCode, tipoProducto, tipoUso) {
+  var config = getTaxRegimenConfig(regimenCode, tipoImpuesto);
+  if (!config || !config.allowRecargo) return false;
+  if (String(tipoProducto).trim().toLowerCase() === 'servicio') return false;
+  if (String(tipoUso).trim().toLowerCase() !== 'venta') return false;
+  return true;
+}
 
 const OPERACION_EXENTA_LABELS = {
   'E1': 'E1 - Operaciones interiores exentas (servicios)',
@@ -55,7 +140,9 @@ const OPERACION_EXENTA_LABELS = {
   'E3': 'E3 - Entregas intracomunitarias de bienes',
   'E4': 'E4 - Prestaciones de servicios relacionados con',
   'E5': 'E5 - Operaciones asimiladas a exportaciones',
-  'E6': 'E6 - Exenta por otros'
+  'E6': 'E6 - Exenta por otros',
+  'E7': 'E7 - Exenta por aplicación del artículo 25 de la Ley 19/1994',
+  'E8': 'E8 - Operaciones exentas sin derecho a deducción'
 };
 
 const CALIFICACION_OPERACION_OPTIONS = [
@@ -73,15 +160,30 @@ const REGIMEN_LISTA_VALORES = [
   "Régimen especial del oro de inversión",
   "Régimen especial de las agencias de viajes",
   "Régimen especial del criterio de caja",
+  "Operaciones sujetas al IPSI / IGIC (Impuesto sobre la Producción, los Servicios y la Importación / Impuesto General Indirecto Canario)",
   "Facturación de las prestaciones de servicios de agencias de viaje que actúan como mediadoras en nombre y por cuenta ajena (D.A.4ª RD1619/2012)",
   "Cobros por cuenta de terceros de honorarios profesionales o de derechos derivados de la propiedad industrial, de autor u otros por cuenta de sus socios, asociados o colegiados efectuados por sociedades, asociaciones, colegios profesionales u otras entidades que realicen estas funciones de cobro",
   "Operaciones de arrendamiento de local de negocio",
+  "Factura con IVA pendiente de devengo en certificaciones de obra cuyo destinatario sea una Administración Pública",
   "Factura con IVA pendiente de devengo en operaciones de tracto sucesivo",
   "Operación acogida a alguno de los regímenes previstos en el Capítulo XI del Título IX (OSS e IOSS)",
   "Recargo de equivalencia",
   "Operaciones de actividades incluidas en el Régimen Especial de Agricultura, Ganadería y Pesca (REAGYP)",
-  "Régimen simplificado"
+  "Régimen simplificado",
+  "Régimen especial (pendiente confirmación con negocio)"  // TODO: code 21 — replace with official label once confirmed
 ];
+
+// Returns the subset of REGIMEN_LISTA_VALORES valid for a given tax type
+function getRegimenListaValores(tipoImpuesto) {
+  var taxType = TAX_TYPE_CONFIG[tipoImpuesto] || TAX_TYPE_CONFIG.IVA;
+  var validCodes = Object.keys(taxType.regimenes);
+  return REGIMEN_LISTA_VALORES.filter(function(label) {
+    try {
+      var code = getRegimenCode(label);
+      return validCodes.indexOf(code) !== -1;
+    } catch(_) { return false; }
+  });
+}
 
 function aplicarValidacionIvaSegunRegimen(hoja, fila) {
   const regimenTexto = String(hoja.getRange(fila, PRODUCT_COLUMNS.REGIMEN).getValue() || '').trim();
@@ -90,26 +192,36 @@ function aplicarValidacionIvaSegunRegimen(hoja, fila) {
   let code;
   try { code = getRegimenCode(regimenTexto); } catch (e) { return; }
 
-  const config = REGIMEN_CONFIG[code];
+  const tipoImpuesto = String(hoja.getRange(fila, PRODUCT_COLUMNS.TIPO_IMPUESTO).getValue() || 'IVA').trim();
+  const config = getTaxRegimenConfig(code, tipoImpuesto);
   if (!config) return;
 
-  const listaIva = config.ivaRates.map(function(r) { return r + '%'; });
-  const reglaIva = SpreadsheetApp.newDataValidation()
-    .requireValueInList(listaIva, true)
-    .setAllowInvalid(false)
-    .build();
   const celdaIva = hoja.getRange(fila, PRODUCT_COLUMNS.TARIFA_IMPUESTO);
-  celdaIva.setDataValidation(reglaIva);
+  const mode = getTarifaMode(tipoImpuesto);
 
-  const ivaActual = parsePercentToNumberES(celdaIva.getDisplayValue());
-  if (ivaActual !== null && config.ivaRates.indexOf(ivaActual) === -1) {
-    celdaIva.clearContent();
-    hoja.getRange(fila, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO).clearContent();
+  if (mode === 'freeform' || config.rates === null) {
+    // Freeform: clear dropdown validation, allow any 0-100% numeric value
+    celdaIva.clearDataValidations();
+    celdaIva.setNumberFormat('0%');
+  } else {
+    // Dropdown: set validation to allowed rates
+    const listaIva = config.rates.map(function(r) { return r + '%'; });
+    const reglaIva = SpreadsheetApp.newDataValidation()
+      .requireValueInList(listaIva, true)
+      .setAllowInvalid(false)
+      .build();
+    celdaIva.setDataValidation(reglaIva);
+
+    const ivaActual = parsePercentToNumberES(celdaIva.getDisplayValue());
+    if (ivaActual !== null && config.rates.indexOf(ivaActual) === -1) {
+      celdaIva.clearContent();
+      hoja.getRange(fila, PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO).clearContent();
+    }
   }
 
-  if (config.ivaRates.length === 1) {
+  if (config.rates && config.rates.length === 1) {
     celdaIva.setNumberFormat('0%');
-    celdaIva.setValue(config.ivaRates[0] / 100);
+    celdaIva.setValue(config.rates[0] / 100);
   }
 
 }
@@ -121,7 +233,8 @@ function aplicarValidacionOperacionExenta(hoja, fila) {
   let code;
   try { code = getRegimenCode(regimenTexto); } catch (e) { return; }
 
-  const config = REGIMEN_CONFIG[code];
+  const tipoImpuesto = String(hoja.getRange(fila, PRODUCT_COLUMNS.TIPO_IMPUESTO).getValue() || 'IVA').trim();
+  const config = getTaxRegimenConfig(code, tipoImpuesto);
   if (!config) return;
 
   const celdaExenta = hoja.getRange(fila, PRODUCT_COLUMNS.OPERACION_EXENTA);
@@ -542,10 +655,10 @@ function showInstalarHojas() {
 }
 
 function showVincularCuenta() {
-  var html = HtmlService.createHtmlOutputFromFile('menuVincular')
-    .setTitle('Vincular cuenta');
-  SpreadsheetApp.getUi()
-    .showSidebar(html);
+  var template = HtmlService.createTemplateFromFile('main');
+  template.initialView = 'vincular';
+  var html = template.evaluate().setTitle('Vincular cuenta');
+  SpreadsheetApp.getUi().showSidebar(html);
 }
 
 function showEliminarInfo(){
@@ -860,7 +973,7 @@ function agregarDataValidations() {
     Logger.log("No se pudo aplicar validación de régimen en Productos: " + err);
   }
 
-  // Validación por defecto para País en hoja Clientes (columna N)
+  // Validación por defecto para País en hoja Clientes (columna M)
   try {
     const hojaClientes = ss.getSheetByName("Clientes");
     if (hojaClientes) {
@@ -872,6 +985,19 @@ function agregarDataValidations() {
           .build();
         hojaClientes.getRange("M2:M1000").setDataValidation(reglaPais);
       }
+
+      // Validación para Forma de pago preferida en hoja Clientes (columna P)
+      const formasPago = [
+        'No definido', 'Efectivo', 'Transferencia bancaria', 'Domiciliación bancaria',
+        'PayPal', 'Factoring', 'Confirming', 'Talonario', 'Tarjeta de credito',
+        'Tarjeta de debito', 'Pagare', 'Cheque', 'Recibo bancario', 'Contado',
+        'Bizum', 'Letra de cambio', 'Compensacion'
+      ];
+      const reglaFormaPago = SpreadsheetApp.newDataValidation()
+        .requireValueInList(formasPago, true)
+        .setAllowInvalid(false)
+        .build();
+      hojaClientes.getRange("P2:P1000").setDataValidation(reglaFormaPago);
     }
   } catch (err) {
     Logger.log("No se pudo aplicar validación de países en Clientes: " + err);
@@ -914,40 +1040,50 @@ function processForm(data) {
     tipoUso = String(tipoUso).trim();
     if (tipoUso.toUpperCase() === 'VEN') tipoUso = 'Venta';
     else if (tipoUso.toUpperCase() === 'COM') tipoUso = 'Compra';
-    const valorUnitario = parseFloat(data.valorUnitario);
+    let valorUnitario = parseFloat(data.valorUnitario);
     // Form sends display label directly ("IVA", "IPSI", "IGIC", "Otros")
     const tipoImpuesto = data.tipoImpuesto || 'IVA';
-    const isOtrosTipo = tipoImpuesto.toUpperCase() === 'OTROS';
+    const ivaIncluido = String(data.ivaIncluido || '').toLowerCase() === 'true';
     const calificacionOperacion = data.calificacionOperacion || 'S1';
     const exento = String(data.exento || '').toLowerCase() === 'true';
     const tarifaImpuestoRaw = data.tarifaImpuesto || data.iva || '';
     let regimenCode;
     try { regimenCode = getRegimenCode(regimen); } catch (_) { regimenCode = null; }
-    const regimenCfg = regimenCode ? REGIMEN_CONFIG[regimenCode] : null;
-    const ALLOWED_IVA = regimenCfg ? regimenCfg.ivaRates : [0, 4, 10, 21];
+    const regimenCfg = regimenCode ? getTaxRegimenConfig(regimenCode, tipoImpuesto) : null;
+    const isFreeform = getTarifaMode(tipoImpuesto) === 'freeform' || (regimenCfg && regimenCfg.rates === null);
+    const ALLOWED_RATES = regimenCfg && regimenCfg.rates ? regimenCfg.rates : [0, 4, 10, 21];
     let tarifaImpuestoNum = tarifaImpuestoRaw === '' ? null : parsePercentToNumberES(tarifaImpuestoRaw);
     if (tarifaImpuestoNum !== null) {
-      if (isOtrosTipo) {
-        // "Otros" accepts any rate 0-100
+      if (isFreeform) {
+        // Freeform: accepts any rate 0-100
         tarifaImpuestoNum = Number(tarifaImpuestoNum);
         if (isNaN(tarifaImpuestoNum) || tarifaImpuestoNum < 0 || tarifaImpuestoNum > 100) {
           tarifaImpuestoNum = null;
         }
       } else {
         tarifaImpuestoNum = Math.round(Number(tarifaImpuestoNum));
-        if (!ALLOWED_IVA.includes(tarifaImpuestoNum)) {
+        if (!ALLOWED_RATES.includes(tarifaImpuestoNum)) {
           tarifaImpuestoNum = null;
         }
       }
     }
-    // When exento is checked, force tarifa to 0
-    if (exento && tarifaImpuestoNum === null) {
+    // Auto-exento for régimen 02 (Exportación) — force exento even if form didn't check it
+    const autoExento = regimenCfg && regimenCfg.autoExento;
+    const effectiveExento = exento || autoExento;
+    // When exento is checked (or auto-exento), force tarifa to 0
+    if (effectiveExento && tarifaImpuestoNum === null) {
       tarifaImpuestoNum = 0;
     }
     const tarifaImpuestoStr = tarifaImpuestoNum !== null ? `${tarifaImpuestoNum}%` : '';
 
+    // IVA incluido: convert from IVA-included price to base price (form-only, not stored)
+    if (ivaIncluido && tipoImpuesto === 'IVA' && tarifaImpuestoNum !== null && tarifaImpuestoNum > 0 && !isNaN(valorUnitario)) {
+      valorUnitario = valorUnitario / (1 + tarifaImpuestoNum / 100);
+      valorUnitario = Math.round(valorUnitario * 100) / 100;
+    }
+
     let aplicarRecargoFormulario = String(data.aplicarRecargo || '').toLowerCase() === 'true';
-    const recargoSeleccionado = data.recargo && String(data.recargo).toLowerCase() !== 'seleccione' ? parsePercentToNumberES(data.recargo) : null;
+    const recargoSeleccionado = data.tarifaRecargo && String(data.tarifaRecargo).trim() !== '' ? parsePercentToNumberES(data.tarifaRecargo) : (data.recargo && String(data.recargo).toLowerCase() !== 'seleccione' ? parsePercentToNumberES(data.recargo) : null);
     const retencionSeleccionada = data.retenciones && String(data.retenciones).toLowerCase() !== 'seleccione' ? parsePercentToNumberES(data.retenciones) : null;
 
     let tipoRetencion = data.tipoRetencion || '';
@@ -960,20 +1096,22 @@ function processForm(data) {
       tarifaRetencionStr = formatPercentES(retencionSeleccionada);
     }
 
-    // Bloquear recargo para Servicios (la retención sigue permitida)
-    if (String(tipoProducto).trim().toLowerCase() === 'servicio') {
+    // Check recargo eligibility using per-type rules
+    if (aplicarRecargo && !isRecargoAllowed(tipoImpuesto, regimenCode, tipoProducto, tipoUso)) {
       aplicarRecargo = false;
       aplicarRecargoFormulario = false;
     }
 
     if (aplicarRecargo) {
-      const permitidoNum = recargoPermitidoParaIva(tarifaImpuestoNum);
-      if (permitidoNum === null) {
-        SpreadsheetApp.getUi().alert('La tarifa de IVA seleccionada no permite recargo de equivalencia.');
-        aplicarRecargo = false;
-      } else {
-        // El valor de recargo se gestiona solo en columnas J/K, no en retención
+      if (tipoImpuesto === 'IVA') {
+        // IVA: validate against predefined recargo rate map
+        const permitidoNum = recargoPermitidoParaIva(tarifaImpuestoNum);
+        if (permitidoNum === null) {
+          SpreadsheetApp.getUi().alert('La tarifa de IVA seleccionada no permite recargo de equivalencia.');
+          aplicarRecargo = false;
+        }
       }
+      // Non-IVA: freeform recargo accepted as-is
     } else if (tarifaRetencionStr !== '') {
       const tarifaIrpfNum = parsePercentToNumberES(tarifaRetencionStr);
       if (tarifaIrpfNum !== null && !isNaN(tarifaIrpfNum)) {
@@ -997,8 +1135,9 @@ function processForm(data) {
     sheet.getRange(newRow, PRODUCT_COLUMNS.NOMBRE).setHorizontalAlignment('center');
 
     const celdaRegimen = sheet.getRange(newRow, PRODUCT_COLUMNS.REGIMEN);
+    const regimenListaParaTipo = getRegimenListaValores(tipoImpuesto);
     const reglaRegimen = SpreadsheetApp.newDataValidation()
-      .requireValueInList(REGIMEN_LISTA_VALORES, true)
+      .requireValueInList(regimenListaParaTipo, true)
       .setAllowInvalid(false)
       .build();
     celdaRegimen.setDataValidation(reglaRegimen);
@@ -1040,17 +1179,17 @@ function processForm(data) {
     }
 
     sheet.getRange(newRow, PRODUCT_COLUMNS.TIPO_IMPUESTO).setValue(tipoImpuesto);
-    if (isOtrosTipo && tarifaImpuestoNum !== null) {
-      // Free-form tarifa for "Otros" — no dropdown validation
+    if (isFreeform && tarifaImpuestoNum !== null) {
+      // Freeform tarifa (IGIC/IPSI/Otros) — no dropdown validation
       const tarifaImpuestoRange = sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_IMPUESTO);
       tarifaImpuestoRange.clearDataValidations();
       tarifaImpuestoRange.setNumberFormat('0%');
       tarifaImpuestoRange.setValue(Number(tarifaImpuestoNum) / 100);
     } else if (tarifaImpuestoStr !== '') {
       const tarifaImpuestoRange = sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_IMPUESTO);
-      const listaIvaForm = ALLOWED_IVA.map(function(r) { return r + '%'; });
+      const listaRatesForm = ALLOWED_RATES.map(function(r) { return r + '%'; });
       const reglaIva = SpreadsheetApp.newDataValidation()
-        .requireValueInList(listaIvaForm, true)
+        .requireValueInList(listaRatesForm, true)
         .setAllowInvalid(false)
         .build();
       tarifaImpuestoRange.setDataValidation(reglaIva);
@@ -1068,9 +1207,23 @@ function processForm(data) {
     celdaCheckRecargo.setDataValidation(reglaCheckRecargo);
     celdaCheckRecargo.setValue(aplicarRecargo === true);
     if (aplicarRecargo) {
-      const ivaDisplayTmp = sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_IMPUESTO).getDisplayValue();
-      const ivaNumTmp = parsePercentToNumberES(ivaDisplayTmp);
-      aplicarValidacionTarifaRetencion(sheet, newRow, true, ivaNumTmp);
+      if (tipoImpuesto === 'IVA') {
+        // IVA: predefined recargo rate validation
+        const ivaDisplayTmp = sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_IMPUESTO).getDisplayValue();
+        const ivaNumTmp = parsePercentToNumberES(ivaDisplayTmp);
+        aplicarValidacionTarifaRetencion(sheet, newRow, true, ivaNumTmp);
+      } else {
+        // Non-IVA: freeform recargo, no dropdown validation
+        const rangoRecFree = sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_RECARGO);
+        rangoRecFree.clearDataValidations();
+        rangoRecFree.setNumberFormat('0.00%');
+      }
+      // Set the tarifa recargo value from form selection
+      if (recargoSeleccionado !== null) {
+        const celdaTarifaRecargo = sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_RECARGO);
+        celdaTarifaRecargo.setNumberFormat('0.00%');
+        celdaTarifaRecargo.setValue(Number(recargoSeleccionado) / 100);
+      }
     } else {
       sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_RECARGO).clearDataValidations();
       sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_RECARGO).clearContent();
@@ -1102,7 +1255,7 @@ function processForm(data) {
       .setAllowInvalid(false)
       .build();
     celdaCalificacion.setDataValidation(reglaCalificacion);
-    if (!exento) {
+    if (!effectiveExento) {
       celdaCalificacion.setValue(calificacionLabel);
     } else {
       celdaCalificacion.clearContent();
@@ -1112,18 +1265,18 @@ function processForm(data) {
     const celdaExento = sheet.getRange(newRow, PRODUCT_COLUMNS.EXENTO);
     const reglaExento = SpreadsheetApp.newDataValidation().requireCheckbox().build();
     celdaExento.setDataValidation(reglaExento);
-    celdaExento.setValue(exento === true);
+    celdaExento.setValue(effectiveExento === true);
 
     const camposRequeridos = [codigoReferencia, nombre, regimen, tipoProducto, tipoUso, tipoImpuesto];
     // When exento, tarifa is not required; otherwise it is
-    if (!exento) camposRequeridos.push(tarifaImpuestoStr);
+    if (!effectiveExento) camposRequeridos.push(tarifaImpuestoStr);
     let estado = camposRequeridos.some(valor => valor === '' || valor === null || String(valor).toLowerCase() === 'seleccione') || isNaN(valorUnitario)
       ? 'No Valido'
       : 'Valido';
 
     // Mutual exclusivity: exento → require operación exenta; not exento → require calificación
     if (estado === 'Valido') {
-      if (exento) {
+      if (effectiveExento) {
         const opExentaVal = String(sheet.getRange(newRow, PRODUCT_COLUMNS.OPERACION_EXENTA).getValue() || '').trim();
         if (!opExentaVal) estado = 'No Valido';
       } else {
@@ -1238,13 +1391,14 @@ function formatPercentES(num) {
 // Mapa oficial 2025 de recargo permitido por IVA
 // Nota: mantenemos 4% -> 0,50% por compatibilidad con productos existentes
 const IVA_RECARGO_MAP_2025 = {
-  '21': 5.2,
-  '10': 1.4,
-  '5': 0.5,
-  '4': 0.5,
-  '0': 0
+  '21': [5.2, 1.75],
+  '10': [1.4],
+  '5': [0.5],
+  '4': [0.5],
+  '0': [0]
 };
 
+// Returns an array of allowed recargo rates for the given IVA, or null if not allowed
 function recargoPermitidoParaIva(ivaNum) {
   if (ivaNum === null) return null;
   const key = String(Math.round(ivaNum));
@@ -1261,21 +1415,30 @@ function aplicarValidacionTipoRetencion(hoja, fila, esRecargo) {
 
 function aplicarValidacionTarifaRetencion(hoja, fila, esRecargo, ivaNum) {
   if (esRecargo) {
-    // Validación para Tarifa de recargo (col K)
+    // Validación para Tarifa de recargo
     const rangoRecargo = hoja.getRange(fila, PRODUCT_COLUMNS.TARIFA_RECARGO);
-    const permitido = recargoPermitidoParaIva(ivaNum);
-    if (permitido === null) {
+    const permitidos = recargoPermitidoParaIva(ivaNum);
+    if (permitidos === null) {
       rangoRecargo.clearDataValidations();
       rangoRecargo.clearContent();
       return;
     }
-    const etiqueta = formatPercentES(permitido);
+    const etiquetas = permitidos.map(function(v) { return formatPercentES(v); });
     const reglaRecargo = SpreadsheetApp.newDataValidation()
-      .requireValueInList([etiqueta], true)
+      .requireValueInList(etiquetas, true)
       .setAllowInvalid(false)
       .build();
     rangoRecargo.setDataValidation(reglaRecargo);
-    rangoRecargo.setValue(etiqueta);
+    // Auto-set only when there's a single option
+    if (etiquetas.length === 1) {
+      rangoRecargo.setValue(etiquetas[0]);
+    } else {
+      // Multiple options — clear so user picks from dropdown
+      const currentVal = rangoRecargo.getDisplayValue().trim();
+      if (etiquetas.indexOf(currentVal) === -1) {
+        rangoRecargo.clearContent();
+      }
+    }
   } else {
     // Validación para Tarifa retención (col M) si está activa (controlado por el checkbox L)
     const activa = hoja.getRange(fila, PRODUCT_COLUMNS.CHECK_RETENCION).getValue() === true;
@@ -1295,10 +1458,18 @@ function aplicarValidacionTarifaRetencion(hoja, fila, esRecargo, ivaNum) {
 
 function manejarCheckboxRecargo(hoja, fila) {
   const esRecargo = hoja.getRange(fila, PRODUCT_COLUMNS.CHECK_RECARGO).getValue() === true;
-  // Bloquear recargo para Servicios
-  const tipoProductoValor = String(hoja.getRange(fila, PRODUCT_COLUMNS.TIPO_PRODUCTO).getDisplayValue() || '').trim().toLowerCase();
-  if (tipoProductoValor === 'servicio' && esRecargo) {
-    SpreadsheetApp.getUi().alert('El recargo de equivalencia no aplica a servicios.');
+  const tipoImpuesto = String(hoja.getRange(fila, PRODUCT_COLUMNS.TIPO_IMPUESTO).getValue() || 'IVA').trim();
+  const tipoProductoValor = String(hoja.getRange(fila, PRODUCT_COLUMNS.TIPO_PRODUCTO).getDisplayValue() || '').trim();
+  const tipoUsoValor = String(hoja.getRange(fila, PRODUCT_COLUMNS.TIPO_USO).getDisplayValue() || '').trim();
+  const regimenTexto = String(hoja.getRange(fila, PRODUCT_COLUMNS.REGIMEN).getValue() || '').trim();
+  let regimenCode = null;
+  try { regimenCode = getRegimenCode(regimenTexto); } catch(_) {}
+
+  if (esRecargo && !isRecargoAllowed(tipoImpuesto, regimenCode, tipoProductoValor, tipoUsoValor)) {
+    var reason = tipoProductoValor.toLowerCase() === 'servicio' ? 'El recargo de equivalencia no aplica a servicios.' :
+      tipoUsoValor.toLowerCase() !== 'venta' ? 'El recargo de equivalencia solo aplica a productos de venta.' :
+      'El recargo de equivalencia no aplica para este régimen.';
+    SpreadsheetApp.getUi().alert(reason);
     hoja.getRange(fila, PRODUCT_COLUMNS.CHECK_RECARGO).setValue(false);
     const rangoRec = hoja.getRange(fila, PRODUCT_COLUMNS.TARIFA_RECARGO);
     rangoRec.clearDataValidations();
@@ -1306,9 +1477,17 @@ function manejarCheckboxRecargo(hoja, fila) {
     return;
   }
   if (esRecargo) {
-    const ivaDisplay = hoja.getRange(fila, PRODUCT_COLUMNS.TARIFA_IMPUESTO).getDisplayValue();
-    const ivaNum = parsePercentToNumberES(ivaDisplay);
-    aplicarValidacionTarifaRetencion(hoja, fila, true, ivaNum);
+    if (tipoImpuesto === 'IVA') {
+      // IVA: predefined recargo rates based on tarifa
+      const ivaDisplay = hoja.getRange(fila, PRODUCT_COLUMNS.TARIFA_IMPUESTO).getDisplayValue();
+      const ivaNum = parsePercentToNumberES(ivaDisplay);
+      aplicarValidacionTarifaRetencion(hoja, fila, true, ivaNum);
+    } else {
+      // Non-IVA (IGIC/IPSI/Otros): freeform recargo input
+      const rangoRec = hoja.getRange(fila, PRODUCT_COLUMNS.TARIFA_RECARGO);
+      rangoRec.clearDataValidations();
+      rangoRec.setNumberFormat('0.00%');
+    }
   } else {
     const rangoRec = hoja.getRange(fila, PRODUCT_COLUMNS.TARIFA_RECARGO);
     rangoRec.clearDataValidations();
@@ -1340,6 +1519,19 @@ function manejarCheckboxExento(hoja, fila) {
   const celdaCalificacion = hoja.getRange(fila, PRODUCT_COLUMNS.CALIFICACION_OPERACION);
   const celdaOpExenta = hoja.getRange(fila, PRODUCT_COLUMNS.OPERACION_EXENTA);
 
+  // Check if régimen 02 (Exportación) requires exento to stay checked
+  const regimenTexto = String(hoja.getRange(fila, PRODUCT_COLUMNS.REGIMEN).getValue() || '').trim();
+  let regimenCode = null;
+  try { regimenCode = getRegimenCode(regimenTexto); } catch(_) {}
+  const tipoImpuesto = String(hoja.getRange(fila, PRODUCT_COLUMNS.TIPO_IMPUESTO).getValue() || 'IVA').trim();
+  const regimenCfg = regimenCode ? getTaxRegimenConfig(regimenCode, tipoImpuesto) : null;
+
+  if (!isExento && regimenCfg && regimenCfg.autoExento) {
+    SpreadsheetApp.getUi().alert('El régimen "Exportación" requiere que el producto sea exento.');
+    hoja.getRange(fila, PRODUCT_COLUMNS.EXENTO).setValue(true);
+    return;
+  }
+
   if (isExento) {
     // Clear calificación, show operación exenta dropdown
     celdaCalificacion.clearDataValidations();
@@ -1352,7 +1544,7 @@ function manejarCheckboxExento(hoja, fila) {
     const tarifaRange = hoja.getRange(fila, PRODUCT_COLUMNS.TARIFA_IMPUESTO);
     tarifaRange.setNumberFormat('0%');
     tarifaRange.setValue(0);
-    // Apply operación exenta dropdown based on régimen
+    // Apply operación exenta dropdown based on régimen and tax type
     aplicarValidacionOperacionExenta(hoja, fila);
   } else {
     // Restore calificación dropdown, clear operación exenta
@@ -1376,6 +1568,9 @@ function sincronizarRecargoSegunIva(hoja, fila) {
   if (!esRecargo) {
     return;
   }
+  // Only sync predefined recargo rates for IVA; non-IVA uses freeform input
+  const tipoImpuesto = String(hoja.getRange(fila, PRODUCT_COLUMNS.TIPO_IMPUESTO).getValue() || 'IVA').trim();
+  if (tipoImpuesto !== 'IVA') return;
   const ivaDisplay = hoja.getRange(fila, PRODUCT_COLUMNS.TARIFA_IMPUESTO).getDisplayValue();
   const ivaNum = parsePercentToNumberES(ivaDisplay);
   aplicarValidacionTarifaRetencion(hoja, fila, true, ivaNum);
@@ -1818,26 +2013,45 @@ function onEdit(e) {
       if (colEditada === PRODUCT_COLUMNS.REGIMEN){
         aplicarValidacionIvaSegunRegimen(hojaActual, rowEditada);
         aplicarValidacionOperacionExenta(hojaActual, rowEditada);
+        // Handle autoExento for régimen 02 (Exportación)
+        const regimenTextoEdit = String(hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.REGIMEN).getValue() || '').trim();
+        if (regimenTextoEdit) {
+          let codRegEdit;
+          try { codRegEdit = getRegimenCode(regimenTextoEdit); } catch(_) { codRegEdit = null; }
+          const tipoImpEdit = String(hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.TIPO_IMPUESTO).getValue() || 'IVA').trim();
+          const cfgRegEdit = codRegEdit ? getTaxRegimenConfig(codRegEdit, tipoImpEdit) : null;
+          if (cfgRegEdit && cfgRegEdit.autoExento) {
+            hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.EXENTO).setValue(true);
+            manejarCheckboxExento(hojaActual, rowEditada);
+          }
+          // If recargo is checked but no longer allowed for this régimen, uncheck it
+          if (hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.CHECK_RECARGO).getValue() === true) {
+            manejarCheckboxRecargo(hojaActual, rowEditada);
+          }
+        }
         verificarDatosObligatoriosProductos(e);
         agregarCodigoIdentificador(e);
       }
 
       if (colEditada === PRODUCT_COLUMNS.TARIFA_IMPUESTO){
         const regimenActual = String(hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.REGIMEN).getValue() || '').trim();
+        const tipoImpuestoActual = String(hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.TIPO_IMPUESTO).getValue() || 'IVA').trim();
         if (regimenActual) {
           let codReg;
           try { codReg = getRegimenCode(regimenActual); } catch (_) { codReg = null; }
-          const cfgReg = codReg ? REGIMEN_CONFIG[codReg] : null;
-          if (cfgReg) {
+          const cfgReg = codReg ? getTaxRegimenConfig(codReg, tipoImpuestoActual) : null;
+          if (cfgReg && cfgReg.rates !== null) {
+            // Dropdown mode: validate against allowed rates
             const ivaEditado = parsePercentToNumberES(celdaEditada.getDisplayValue());
-            if (ivaEditado !== null && cfgReg.ivaRates.indexOf(ivaEditado) === -1) {
+            if (ivaEditado !== null && cfgReg.rates.indexOf(ivaEditado) === -1) {
               SpreadsheetApp.getUi().alert(
-                'La tarifa de IVA ' + ivaEditado + '% no es válida para el régimen ' + codReg +
-                '. Valores permitidos: ' + cfgReg.ivaRates.join(', ') + '%.'
+                'La tarifa de ' + tipoImpuestoActual + ' ' + ivaEditado + '% no es válida para el régimen ' + codReg +
+                '. Valores permitidos: ' + cfgReg.rates.join(', ') + '%.'
               );
               celdaEditada.clearContent();
             }
           }
+          // Freeform mode: no rate validation needed (any 0-100% is valid)
         }
         sincronizarRecargoSegunIva(hojaActual, rowEditada);
         aplicarValidacionOperacionExenta(hojaActual, rowEditada);
@@ -1866,13 +2080,8 @@ function onEdit(e) {
       }
 
       if (colEditada === PRODUCT_COLUMNS.CHECK_RECARGO){
-        const tipoProductoValor = String(hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.TIPO_PRODUCTO).getDisplayValue() || '').trim().toLowerCase();
-        if (tipoProductoValor === 'servicio' && hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.CHECK_RECARGO).getValue() === true){
-          SpreadsheetApp.getUi().alert('El recargo de equivalencia no aplica a servicios.');
-          hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.CHECK_RECARGO).setValue(false);
-        } else {
-          manejarCheckboxRecargo(hojaActual, rowEditada);
-        }
+        // manejarCheckboxRecargo handles all eligibility checks (tax type, product type, use type, régimen)
+        manejarCheckboxRecargo(hojaActual, rowEditada);
         verificarDatosObligatoriosProductos(e);
         agregarCodigoIdentificador(e);
       }
@@ -1900,6 +2109,70 @@ function onEdit(e) {
         } else {
           // Asegura que exista la validación correcta
           aplicarValidacionTarifaRetencion(hojaActual, rowEditada, false);
+        }
+        verificarDatosObligatoriosProductos(e);
+        agregarCodigoIdentificador(e);
+      }
+
+      // Calificación Operación change: S2/N1/N2 force tarifa to 0%
+      if (colEditada === PRODUCT_COLUMNS.CALIFICACION_OPERACION){
+        const califVal = String(celdaEditada.getValue() || '').trim();
+        const califCode = califVal.indexOf(' - ') > 0 ? califVal.substring(0, califVal.indexOf(' - ')).trim() : califVal;
+        if (['S2', 'N1', 'N2'].includes(califCode)) {
+          const tarifaRange = hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_IMPUESTO);
+          tarifaRange.setNumberFormat('0%');
+          tarifaRange.setValue(0);
+          // Clear recargo when tarifa is forced to 0%
+          hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.CHECK_RECARGO).setValue(false);
+          hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RECARGO).clearDataValidations();
+          hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RECARGO).clearContent();
+        } else if (califCode === 'S1') {
+          // Restore tarifa based on tax type and régimen
+          aplicarValidacionIvaSegunRegimen(hojaActual, rowEditada);
+        }
+        aplicarValidacionOperacionExenta(hojaActual, rowEditada);
+        verificarDatosObligatoriosProductos(e);
+        agregarCodigoIdentificador(e);
+      }
+
+      // Tax type (TIPO_IMPUESTO) change: update régimen dropdown, re-validate tarifa and recargo
+      if (colEditada === PRODUCT_COLUMNS.TIPO_IMPUESTO){
+        const tipoImpuestoNuevo = String(celdaEditada.getValue() || '').trim();
+        // Update régimen dropdown to only show valid options for this tax type
+        const validRegimenes = getRegimenListaValores(tipoImpuestoNuevo);
+        const reglaRegimen = SpreadsheetApp.newDataValidation()
+          .requireValueInList(validRegimenes, true)
+          .setAllowInvalid(false)
+          .build();
+        hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.REGIMEN).setDataValidation(reglaRegimen);
+        // Check if current régimen is still valid for the new tax type
+        const regimenActualTxt = String(hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.REGIMEN).getValue() || '').trim();
+        if (regimenActualTxt) {
+          let codRegActual;
+          try { codRegActual = getRegimenCode(regimenActualTxt); } catch(_) { codRegActual = null; }
+          if (codRegActual) {
+            const cfgNuevo = getTaxRegimenConfig(codRegActual, tipoImpuestoNuevo);
+            if (!cfgNuevo) {
+              hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.REGIMEN).clearContent();
+              SpreadsheetApp.getUi().alert('El régimen seleccionado no es válido para ' + tipoImpuestoNuevo + '. Por favor selecciona otro.');
+            }
+          }
+        }
+        // Re-apply tarifa and exenta validation
+        aplicarValidacionIvaSegunRegimen(hojaActual, rowEditada);
+        aplicarValidacionOperacionExenta(hojaActual, rowEditada);
+        // Check recargo eligibility
+        if (hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.CHECK_RECARGO).getValue() === true) {
+          manejarCheckboxRecargo(hojaActual, rowEditada);
+        }
+        verificarDatosObligatoriosProductos(e);
+        agregarCodigoIdentificador(e);
+      }
+
+      // Tipo de uso change: re-check recargo eligibility
+      if (colEditada === PRODUCT_COLUMNS.TIPO_USO){
+        if (hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.CHECK_RECARGO).getValue() === true) {
+          manejarCheckboxRecargo(hojaActual, rowEditada);
         }
         verificarDatosObligatoriosProductos(e);
         agregarCodigoIdentificador(e);
@@ -2620,11 +2893,12 @@ Output: no tiene output pero regresa un mensaje en caso de que sea erroneo el ti
     let pais = sheet.getRange("M2:M1000");
     let provincia = sheet.getRange("N2:N1000");
     let poblacion = sheet.getRange("O2:O1000");
-    let direccion = sheet.getRange("P2:P1000");
-    let codigoPostal = sheet.getRange("Q2:Q1000");
-    let telefono = sheet.getRange("R2:R1000");
-    let sitioWeb = sheet.getRange("S2:S1000");
-    let email = sheet.getRange("T2:T1000");
+    let formaPago = sheet.getRange("P2:P1000");
+    let direccion = sheet.getRange("Q2:Q1000");
+    let codigoPostal = sheet.getRange("R2:R1000");
+    let telefono = sheet.getRange("S2:S1000");
+    let sitioWeb = sheet.getRange("T2:T1000");
+    let email = sheet.getRange("U2:U1000");
     let editedCell = e.range;
 
     esCeldaEnRango(numIdentificacion, editedCell, undefined, e);
@@ -2637,6 +2911,7 @@ Output: no tiene output pero regresa un mensaje en caso de que sea erroneo el ti
     esCeldaEnRango(pais, editedCell, "string", e)
     esCeldaEnRango(provincia, editedCell, "string", e)
     esCeldaEnRango(poblacion, editedCell, "string", e)
+    esCeldaEnRango(formaPago, editedCell, "string", e)
     esCeldaEnRango(direccion, editedCell, "string", e)
     esCeldaEnRango(codigoPostal, editedCell, undefined, e);
     esCeldaEnRango(telefono, editedCell, undefined, e);
@@ -2836,8 +3111,8 @@ function cambiarAmbienete(){
 }
 
 function showModoFacturacion() {
-  var html = HtmlService.createHtmlOutputFromFile('modoFacturacion')
-    .setTitle('Modo de facturación')
-    .setWidth(400);
+  var template = HtmlService.createTemplateFromFile('main');
+  template.initialView = 'ajustes';
+  var html = template.evaluate().setTitle('Modo de facturación');
   SpreadsheetApp.getUi().showSidebar(html);
 }

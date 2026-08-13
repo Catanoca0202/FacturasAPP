@@ -1,0 +1,439 @@
+================================================================================
+INVOICE CONSECUTIVE NUMBER MANAGEMENT — FUNCTIONAL SPECIFICATION
+For Excel Add-in (VSTO / C# / .NET 4.8 / WinForms)
+================================================================================
+
+This document describes how the FacturasApp extension manages invoice consecutive
+numbers. The Excel add-in must replicate this functionality. The description is
+functional — adapt storage and UI to VSTO equivalents (e.g., CustomXMLParts or
+Settings instead of Document Properties, WinForms instead of HTML dialogs).
+
+================================================================================
+SECTION 1: OVERVIEW
+================================================================================
+
+Every invoice has a unique consecutive number composed of:
+
+    [PREFIX][ZERO-PADDED NUMBER]
+
+Examples:
+    FACT0001, FACT0002, ..., FACT0099, FACT0100
+    A-001, A-002
+    INV00001
+
+The prefix is an arbitrary string (letters, numbers, symbols). The numeric part
+is zero-padded to a fixed width (minimum 4 digits). The system:
+
+1. Fetches the user's consecutive configuration from the FacturasApp API on login
+2. Stores the prefix and digit count locally for offline generation
+3. On each new invoice, generates the NEXT number by taking the MAX of:
+   - The API's current consecutive (real-time check)
+   - The local invoice history's highest matching number
+   Then adds 1
+4. Validates that manually-entered invoice numbers match the expected structure
+5. Sends the invoice (with its consecutive) to the API on save
+
+================================================================================
+SECTION 2: API ENDPOINTS
+================================================================================
+
+Base URLs:
+    Testing:    https://facturasapp-qa.cenet.ws/ApiGateway
+    Production: https://www.facturasapp.com/ApiGateway
+
+The environment (Testing vs Production) is a stored setting. Use it to build URLs.
+
+--- 2.1 Login / Get API Key ---
+
+    POST {baseUrl}/AppSecurity/ApiKey
+
+    Request body (JSON):
+    {
+        "User": "<email>",
+        "Password": "<password>"
+    }
+
+    Response (200 OK):
+    ["<api-key-string>"]
+
+    The response is a JSON array with a single string element — the API key.
+    Store this key persistently. All subsequent API calls use it.
+
+    Error handling:
+    - Non-200 status → login failed, show error message
+    - Response is not a valid JSON array with a string → login failed
+
+--- 2.2 Get Consecutives ---
+
+    GET {baseUrl}/ApiExternal/Invoice/api/InvoiceServices/GetConsecutives
+
+    Headers:
+    X-API-KEY: <api-key>
+
+    Response (200 OK):
+    {
+        "facturasDeAlta": [
+            {
+                "prefijo": "FACT",
+                "consecutivoActual": 5,
+                "isDefault": true
+            },
+            {
+                "prefijo": "REC",
+                "consecutivoActual": 12,
+                "isDefault": false
+            }
+        ]
+    }
+
+    The response contains ALL consecutive series the user has configured in
+    FacturasApp. Each entry has:
+    - prefijo: the prefix string
+    - consecutivoActual: the current (last used) consecutive number as integer
+    - isDefault: boolean indicating which series is the default
+
+    Use the entry where isDefault === true. If none is marked default, use the
+    first entry.
+
+--- 2.3 Add Invoice ---
+
+    POST {baseUrl}/ApiExternal/Invoice/api/InvoiceServices/AddInvoice
+
+    Headers:
+    X-API-KEY: <api-key>
+    Content-Type: application/json
+
+    Request body: full invoice JSON (not covered in this document)
+
+    Response (200 OK):
+    {
+        "id": "<invoice-id>",
+        "isError": false,
+        "messages": null
+    }
+
+    Error response (200 OK but with error):
+    {
+        "id": null,
+        "isError": true,
+        "messages": "Error description string"
+    }
+
+    Special case: if messages contains "suscripción" and "inactiva" (case-insensitive),
+    show a specific message about inactive subscription.
+
+--- 2.4 Get Invoice PDF ---
+
+    POST {baseUrl}/ApiExternal/Invoice/api/InvoiceServices/PDFInvoice
+
+    (Not directly related to consecutives, but uses the same authentication pattern)
+
+================================================================================
+SECTION 3: LOGIN FLOW
+================================================================================
+
+When the user enters their credentials and clicks "Link account":
+
+1. POST to AppSecurity/ApiKey with { User, Password }
+2. If successful (200 + valid API key array):
+   a. Store the API key persistently (in the add-in's local storage)
+   b. Update the UI to show "Linked" status (green indicator)
+   c. IMMEDIATELY fetch consecutives (step 3-4 below)
+3. Call GET GetConsecutives with the new API key
+4. From the response, find the default entry and store:
+   - Prefix (string)
+   - Digit count = max(4, length of consecutivoActual as string)
+   - The full API response (for potential future use / series switching)
+5. If login fails:
+   a. Clear the stored API key
+   b. Update UI to show "Unlinked" status (red indicator)
+   c. Show error message (try to parse API error message from response)
+
+IMPORTANT: The consecutive fetch happens automatically as part of login.
+The user does NOT need to manually configure consecutives after linking.
+
+================================================================================
+SECTION 4: LOCAL STORAGE
+================================================================================
+
+The following values must be stored persistently (survive closing and reopening
+the workbook). In Google Sheets this uses Document Properties. In the Excel
+add-in, use an equivalent mechanism (CustomXMLParts, Settings, etc.).
+
+Required stored properties:
+┌─────────────────────────────────┬────────────────────────────────────────┐
+│ Key                             │ Description                            │
+├─────────────────────────────────┼────────────────────────────────────────┤
+│ ApiKey                          │ The API key from login                 │
+│ Environment                     │ "Testing" or "Production"              │
+│ ConsecutivePrefix               │ Prefix string (e.g., "FACT")           │
+│ ConsecutiveDigits               │ Number of digits (e.g., 4)             │
+│ ConsecutiveCurrentNumber        │ Zero-padded current number (e.g. "0005")│
+│ ConsecutivesAPIResponse         │ Full JSON from GetConsecutives          │
+└─────────────────────────────────┴────────────────────────────────────────┘
+
+These are conceptual names — use whatever naming convention fits the C# codebase.
+
+================================================================================
+SECTION 5: GENERATING THE NEXT INVOICE NUMBER
+================================================================================
+
+This is the CORE logic. It runs every time a new invoice is being created
+(when the invoice form/sheet is cleared for a new entry).
+
+Algorithm:
+
+    function generateNextInvoiceNumber():
+        1. Read stored prefix and digits from local storage
+        2. If prefix is empty or digits < 1:
+             → Do NOT overwrite the invoice number field
+             → Log warning: "Consecutive not configured"
+             → Return (user must link their account first)
+
+        3. Read the stored current number string, extract numeric value
+           If invalid or < 1, set to 1
+
+        4. SYNC WITH API (real-time check):
+           a. Call GET GetConsecutives
+           b. Find the default entry
+           c. Read its consecutivoActual
+           d. If API call fails → continue with local data only (graceful degradation)
+
+        5. CHECK LOCAL HISTORY:
+           a. Read all previously saved invoice numbers from local history
+           b. For each number, check if it matches the current structure
+              (same prefix + expected digit count)
+           c. Extract the numeric part and find the maximum
+
+        6. COMPUTE NEXT NUMBER:
+           nextNumber = max(apiConsecutivoActual, localHistoryMax) + 1
+           If neither source had valid data, use the stored template number
+
+        7. FORMAT:
+           result = prefix + zeroPad(nextNumber, digits)
+           Example: "FACT" + zeroPad(6, 4) = "FACT0006"
+
+        8. Set the invoice number field to this value
+
+CRITICAL: The algorithm takes the MAX of API and local history, then adds 1.
+This prevents conflicts when the user has multiple devices (e.g., both Excel
+and Google Sheets add-ins, or multiple computers). If device A creates invoice
+FACT0005, the API's consecutivoActual becomes 5. When device B (which might
+still show FACT0004 locally) generates the next number, it checks the API,
+sees 5, and generates FACT0006.
+
+================================================================================
+SECTION 6: STRUCTURE VALIDATION
+================================================================================
+
+Before saving an invoice, validate that the invoice number matches the expected
+consecutive structure.
+
+Validation function:
+
+    function matchesConsecutiveStructure(invoiceNumber):
+        1. Read stored prefix and digits
+        2. If either is missing/invalid → return false (not configured)
+        3. Build regex: ^{escapedPrefix}\d{{digits}}$
+           Example for prefix="FACT", digits=4: ^FACT\d{4}$
+        4. Return regex.test(invoiceNumber)
+
+This validation:
+- Ensures the prefix matches exactly
+- Ensures the numeric part has exactly the expected number of digits
+- Prevents manually-entered invoice numbers that don't follow the pattern
+
+If validation fails before save, alert the user:
+"You must create a consecutive number before generating an invoice. Go to the
+issuer data section and create a new consecutive by clicking the create button."
+
+================================================================================
+SECTION 7: SAVING AN INVOICE (CONSECUTIVE FLOW)
+================================================================================
+
+The full save flow as it relates to consecutives:
+
+1. User clicks "Save Invoice"
+2. VALIDATE consecutive is configured:
+   - Check that prefix and number are stored locally
+   - If not → show alert asking user to configure consecutive → STOP
+3. SAVE to local history:
+   - Record the invoice number, client, NIF, date, status="Created" in a
+     local history table (in the workbook)
+4. SEND to API:
+   - POST to AddInvoice with the full invoice JSON
+   - The invoice JSON includes the consecutive number
+   - The API updates its consecutivoActual on successful creation
+5. CLEAR the invoice form for the next entry
+6. GENERATE the next consecutive number (Section 5 algorithm)
+   - This is called after clearing, so the form is ready for the next invoice
+
+The order matters:
+    validate → save history → send to API → clear form → generate next number
+
+================================================================================
+SECTION 8: EXTRACTING THE NUMERIC PART
+================================================================================
+
+Helper function to extract the trailing numeric portion from an invoice number:
+
+    function extractNumericPart(str):
+        Match the last sequence of digits: /\d+$/
+        Return parseInt(match) or 0 if no match
+
+Examples:
+    "FACT0006" → 6
+    "A-123"    → 123
+    "INV00001" → 1
+    "ABC"      → 0
+
+================================================================================
+SECTION 9: EDGE CASES AND ERROR HANDLING
+================================================================================
+
+1. API unavailable during number generation:
+   - Fall back to local history max + 1
+   - Log the API error but don't block the user
+   - The next time the API is available, the sync will catch up
+
+2. No local history and no API data:
+   - Use the stored template number (from initial consecutive fetch)
+   - This is typically 1 for a brand-new account
+
+3. Digit count expansion:
+   - The digit count is calculated as max(4, length of consecutivoActual)
+   - So if the API returns consecutivoActual=12345 (5 digits), digits becomes 5
+   - This means FACT0001...FACT9999 → FACT10000 (auto-expands)
+
+4. Multiple consecutive series:
+   - The API can return multiple entries in facturasDeAlta
+   - Currently, only the default (isDefault=true) or first entry is used
+   - Future: the user might be able to switch between series
+
+5. Manual invoice number editing:
+   - Users CAN manually type an invoice number
+   - The structure validation only runs on save
+   - If they type a non-matching number, save is blocked
+
+6. Empty invoice number field:
+   - If generateNextInvoiceNumber finds no valid config, it does NOT clear
+     the field or write "0" — it leaves whatever is there unchanged
+   - This prevents a bug where an empty config could overwrite a valid number
+
+================================================================================
+SECTION 10: IMPLEMENTATION CHECKLIST FOR EXCEL ADD-IN
+================================================================================
+
+□ Login form (WinForms dialog):
+  - Email + Password fields
+  - "Link Account" button → POST ApiKey → store key → fetch consecutives
+  - "Unlink" button → clear stored key, reset UI
+  - Visual indicator: green "Linked" / red "Unlinked"
+
+□ Persistent storage:
+  - Store ApiKey, Environment, ConsecutivePrefix, ConsecutiveDigits,
+    ConsecutiveCurrentNumber, full ConsecutivesAPIResponse
+  - Must survive workbook close/reopen
+  - Consider CustomXMLParts (workbook-bound) or VSTO Settings
+
+□ Invoice number generation:
+  - Called when creating a new invoice (after clearing the form)
+  - Implements the full algorithm from Section 5
+  - Writes to the invoice number cell/field
+
+□ Local invoice history:
+  - A hidden sheet or data structure storing all saved invoice numbers
+  - Used for the local max calculation in Section 5
+  - Columns: invoice number, client, NIF, date, status
+
+□ Structure validation:
+  - Called before save
+  - Blocks save if invoice number doesn't match prefix + digits pattern
+  - Shows appropriate error message
+
+□ API integration:
+  - GET GetConsecutives (on login + on each new invoice generation)
+  - POST AddInvoice (on save)
+  - All calls include X-API-KEY header
+  - Handle non-200 responses, parse error messages
+
+□ Environment toggle:
+  - Testing vs Production base URL selection
+  - Stored as a persistent setting
+
+================================================================================
+SECTION 11: DATA FLOW DIAGRAM
+================================================================================
+
+    ┌─────────────┐
+    │  User Login  │
+    └──────┬──────┘
+           │
+           ▼
+    POST /AppSecurity/ApiKey
+    { User, Password }
+           │
+           ▼
+    ┌──────────────────┐     Store API Key
+    │  API Key received │────────────────────┐
+    └──────┬───────────┘                     │
+           │                                 ▼
+           ▼                          ┌─────────────┐
+    GET /InvoiceServices/             │ Local Store  │
+        GetConsecutives               │  - ApiKey    │
+           │                          │  - Prefix    │
+           ▼                          │  - Digits    │
+    ┌──────────────────┐              │  - Number    │
+    │ { facturasDeAlta: │             └──────┬──────┘
+    │   [{ prefijo,     │                    │
+    │      consecutivo, │                    │
+    │      isDefault }] │                    │
+    │ }                 │                    │
+    └──────┬───────────┘                    │
+           │  Extract default               │
+           │  Store prefix + digits         │
+           ▼                                │
+    ┌──────────────────┐                    │
+    │ Ready to create  │◄───────────────────┘
+    │ invoices         │
+    └──────┬───────────┘
+           │
+           │  User creates new invoice
+           ▼
+    ┌──────────────────────────────────────────────┐
+    │ generateNextInvoiceNumber()                   │
+    │                                               │
+    │  1. Read prefix + digits from local store     │
+    │  2. GET GetConsecutives → apiMax               │
+    │  3. Scan local history → localMax              │
+    │  4. next = max(apiMax, localMax) + 1           │
+    │  5. result = prefix + zeroPad(next, digits)    │
+    │  6. Set invoice number field                   │
+    └──────┬───────────────────────────────────────┘
+           │
+           │  User fills invoice details
+           │  User clicks "Save"
+           ▼
+    ┌──────────────────┐
+    │ Validate structure│──── FAIL → alert user, stop
+    └──────┬───────────┘
+           │ PASS
+           ▼
+    ┌──────────────────┐
+    │ Save to local    │
+    │ history          │
+    └──────┬───────────┘
+           │
+           ▼
+    POST /InvoiceServices/AddInvoice
+    { ...invoice JSON with consecutive... }
+           │
+           ▼
+    ┌──────────────────┐
+    │ Clear form       │
+    │ Generate next #  │ ← calls generateNextInvoiceNumber() again
+    └──────────────────┘
+
+================================================================================
+END OF SPECIFICATION
+================================================================================

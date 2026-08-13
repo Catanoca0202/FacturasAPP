@@ -711,7 +711,17 @@ function enviarFactura(){
       let responseData = JSON.parse(responseText);
       if (responseData.isError) {
         Logger.log("Error de FacturasApp: " + responseData.messages);
-        SpreadsheetApp.getUi().alert("Error de FacturasApp: " + responseData.messages);
+        if (String(responseData.messages || '').toLowerCase().includes('suscripción') &&
+            String(responseData.messages || '').toLowerCase().includes('inactiva')) {
+          SpreadsheetApp.getUi().alert(
+            "⚠️ Suscripción inactiva\n\n" +
+            "Tu suscripción de FacturasApp no está activa. " +
+            "Por favor, activa tu suscripción antes de enviar facturas.\n\n" +
+            "Puedes activarla desde tu cuenta en facturasapp.com"
+          );
+        } else {
+          SpreadsheetApp.getUi().alert("Error de FacturasApp: " + responseData.messages);
+        }
       } else {
         SpreadsheetApp.getUi().alert("Factura enviada correctamente a FacturasApp. ID: " + responseData.id);
         if (responseData.id) {
@@ -791,7 +801,17 @@ function enviarFacturaHistorial(numeroFactura){
     if (respuesta.getResponseCode() === 200) {
       let responseData = JSON.parse(responseText);
       if (responseData.isError) {
-        SpreadsheetApp.getUi().alert("Error de FacturasApp: " + responseData.messages);
+        if (String(responseData.messages || '').toLowerCase().includes('suscripción') &&
+            String(responseData.messages || '').toLowerCase().includes('inactiva')) {
+          SpreadsheetApp.getUi().alert(
+            "⚠️ Suscripción inactiva\n\n" +
+            "Tu suscripción de FacturasApp no está activa. " +
+            "Por favor, activa tu suscripción antes de enviar facturas.\n\n" +
+            "Puedes activarla desde tu cuenta en facturasapp.com"
+          );
+        } else {
+          SpreadsheetApp.getUi().alert("Error de FacturasApp: " + responseData.messages);
+        }
       } else {
         SpreadsheetApp.getUi().alert("Factura " + numeroFactura + " enviada correctamente a FacturasApp. ID: " + responseData.id);
         
@@ -854,8 +874,14 @@ function obtenerAPIkey(usuario, contra) {
 
   try {
     let respuesta = UrlFetchApp.fetch(url, opciones);
+    let statusCode = respuesta.getResponseCode();
     let contenidoRespuesta = respuesta.getContentText();
-    
+
+    // Check HTTP status code before processing
+    if (statusCode !== 200) {
+      throw new Error("Error de la API: " + contenidoRespuesta);
+    }
+
     // Intentamos parsear la respuesta como JSON
     let respuestaJson;
     try {
@@ -863,7 +889,7 @@ function obtenerAPIkey(usuario, contra) {
     } catch (e) {
       throw new Error("Respuesta inesperada de la API. No es JSON válido.");
     }
-    
+
     // Verificar si la respuesta contiene un API Key en el formato esperado
     if (Array.isArray(respuestaJson) && respuestaJson.length > 0 && typeof respuestaJson[0] === 'string') {
       let apiKey = respuestaJson[0]; // Extrae el API Key
@@ -872,6 +898,17 @@ function obtenerAPIkey(usuario, contra) {
       hojaDatosEmisor.getRange("B16").setBackground('#ccffc7')  // Almacena el API Key en la celda
       hojaDatosEmisor.getRange("B16").setValue("Vinculado")
       hojaDatos.getRange("I21").setValue(apiKey)
+
+      // Fetch and apply consecutives from API after successful login
+      try {
+        const consecutivesData = fetchConsecutivesFromAPI_();
+        if (consecutivesData) {
+          applyDefaultConsecutivo_(consecutivesData);
+          Logger.log('Consecutives fetched and applied after login');
+        }
+      } catch (consErr) {
+        Logger.log('Error fetching consecutives after login: ' + consErr.message);
+      }
     } else {
       hojaDatosEmisor.getRange("B16").setBackground('#FFC7C7')
       hojaDatosEmisor.getRange("B16").setValue("Desvinculado")
@@ -895,6 +932,81 @@ function obtenerAPIkey(usuario, contra) {
 }
 
 
+
+// Fetches all consecutives from the FacturasApp API
+function fetchConsecutivesFromAPI_() {
+  const scriptProps = PropertiesService.getDocumentProperties();
+  const ambiente = scriptProps.getProperty('Ambiente');
+  const ss = SpreadsheetApp.getActive();
+  const hojaDatos = ss.getSheetByName('Datos');
+  const apiKey = hojaDatos.getRange('I21').getValue();
+
+  if (!apiKey || apiKey === '0' || apiKey === 0) return null;
+
+  let url;
+  if (ambiente === 'Pruebas') {
+    url = 'https://facturasapp-qa.cenet.ws/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/GetConsecutives';
+  } else {
+    url = 'https://www.facturasapp.com/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/GetConsecutives';
+  }
+
+  const resp = UrlFetchApp.fetch(url, {
+    method: 'get',
+    headers: { 'X-API-KEY': String(apiKey) },
+    muteHttpExceptions: true
+  });
+
+  if (resp.getResponseCode() !== 200) {
+    Logger.log('GetConsecutives failed: ' + resp.getResponseCode() + ' ' + resp.getContentText());
+    return null;
+  }
+
+  return JSON.parse(resp.getContentText());
+}
+
+// Applies the default facturasDeAlta consecutivo from the API response
+function applyDefaultConsecutivo_(data) {
+  if (!data || !data.facturasDeAlta || data.facturasDeAlta.length === 0) {
+    Logger.log('No facturasDeAlta found in GetConsecutives response');
+    return;
+  }
+
+  // Find the default entry, fall back to first
+  let defaultEntry = data.facturasDeAlta.find(function(e) { return e.isDefault === true; });
+  if (!defaultEntry) defaultEntry = data.facturasDeAlta[0];
+
+  const prefijo = String(defaultEntry.prefijo || '');
+  const consecutivoActual = Number(defaultEntry.consecutivoActual || 0);
+  const digitos = Math.max(4, String(consecutivoActual).length);
+  const numeroStr = String(consecutivoActual).padStart(digitos, '0');
+
+  Logger.log('[applyDefaultConsecutivo_] prefijo=%s consecutivoActual=%s digitos=%s',
+    prefijo, String(consecutivoActual), String(digitos));
+
+  // Store full response for future use
+  const scriptProps = PropertiesService.getDocumentProperties();
+  scriptProps.setProperty('ConsecutivosAPI', JSON.stringify(data));
+
+  // Set existing properties so generarNumeroFactura() keeps working
+  scriptProps.setProperties({
+    'ConsecutivoPlantillaPrefijo': prefijo,
+    'ConsecutivoPlantillaDigitos': String(digitos),
+    'LetraConescutivo': prefijo,
+    'NumeroConescutivo': numeroStr
+  });
+
+  // Update "Datos de emisor" row 24 to show the active consecutivo
+  try {
+    const ss = SpreadsheetApp.getActive();
+    const hojaDatosEmisor = ss.getSheetByName('Datos de emisor');
+    if (hojaDatosEmisor) {
+      hojaDatosEmisor.getRange(24, 1).setValue(prefijo);
+      hojaDatosEmisor.getRange(24, 3).setValue(numeroStr);
+    }
+  } catch (e) {
+    Logger.log('Error updating Datos de emisor row 24: ' + e.message);
+  }
+}
 
 function obtenerPDFFacturaBase64(numeroFactura) {
   let spreadsheet = SpreadsheetApp.getActive();
@@ -1362,6 +1474,10 @@ function limpiarHojaFactura() {
   // Copiar la hoja "Copia facturas" como nueva hoja llamada "Factura"
   const nuevaHojaFactura = copiaFactura.copyTo(spreadsheet);
   nuevaHojaFactura.setName('Factura');
+  // Keep the template sheet hidden so users don't see both tabs
+  if (!copiaFactura.isSheetHidden()) {
+    copiaFactura.hideSheet();
+  }
   const hojaFacturaPost = spreadsheet.getSheetByName('Factura');
   spreadsheet.setActiveSheet(hojaFacturaPost)
   Logger.log("La hoja 'Factura' ha sido reemplazada correctamente.");
@@ -1401,7 +1517,7 @@ function verificarYCopiarContacto(e) {
     String(hojaFacturas.getRange("B2").getValue() || ''),
     String(hojaFacturas.getRange("C2").getValue() || '')
   );
-  let ultimaColumnaPermitida = 20; // Columna del estado en la hoja de contactos
+  let ultimaColumnaPermitida = 21; // Columna del estado en la hoja de contactos
   let datosARetornar = ["B", "O","M","L","N","Q"]; // Columnas que quiero de la hoja de contactos
 
 
@@ -1417,6 +1533,22 @@ function verificarYCopiarContacto(e) {
       Logger.log("[verificarYCopiarContacto] B3 set to código cliente=%s",
         String(listaConInformacion["Código cliente"] || '')
       );
+
+      // Auto-fill preferred payment method from client (column P = 16)
+      let lastRowClientes = hojaContactos.getLastRow();
+      if (lastRowClientes >= 2) {
+        let referencias = hojaContactos.getRange(2, 2, lastRowClientes - 1, 1).getValues();
+        for (let i = 0; i < referencias.length; i++) {
+          if (String(referencias[i][0]).trim() === String(nombreContacto).trim()) {
+            let formaPago = String(hojaContactos.getRange(i + 2, 16).getValue() || '').trim();
+            if (formaPago && formaPago !== 'No definido') {
+              hojaFacturas.getRange("E4").setValue(formaPago);
+              Logger.log("[verificarYCopiarContacto] E4 set to forma de pago=%s", formaPago);
+            }
+            break;
+          }
+        }
+      }
     }
   }
 
@@ -1505,6 +1637,20 @@ function generarNumeroFactura(){
   if (!isFinite(numeroPlantilla) || numeroPlantilla < 1) numeroPlantilla = 1;
   Logger.log("[generarNumeroFactura] numeroPlantilla=%s (desde NumeroConescutivo=%s)", String(numeroPlantilla), String(numeroOld || ''));
 
+  // Sync with API to get the latest consecutivoActual (prevents conflicts with other devices)
+  let apiConsecutivoActual = -1;
+  try {
+    const apiData = fetchConsecutivesFromAPI_();
+    if (apiData && apiData.facturasDeAlta && apiData.facturasDeAlta.length > 0) {
+      let defaultEntry = apiData.facturasDeAlta.find(function(e) { return e.isDefault === true; });
+      if (!defaultEntry) defaultEntry = apiData.facturasDeAlta[0];
+      apiConsecutivoActual = Number(defaultEntry.consecutivoActual || 0);
+      Logger.log("[generarNumeroFactura] API consecutivoActual=%s", String(apiConsecutivoActual));
+    }
+  } catch (apiErr) {
+    Logger.log("[generarNumeroFactura] API sync failed, using local history: " + apiErr.message);
+  }
+
   // Buscar el consecutivo máximo en historial que cumpla la estructura actual
   let numeroMayor = -1;
   if (sheetHistorial) {
@@ -1523,7 +1669,9 @@ function generarNumeroFactura(){
     }
   }
 
-  const siguienteNumero = (numeroMayor >= 0) ? (numeroMayor + 1) : numeroPlantilla;
+  // Use the highest of: API consecutivoActual, local history max, or template number
+  const effectiveMax = Math.max(numeroMayor, apiConsecutivoActual);
+  const siguienteNumero = (effectiveMax >= 0) ? (effectiveMax + 1) : numeroPlantilla;
   const nuevoConsecutivo = String(prefijo) + String(siguienteNumero).padStart(digitos, '0');
   Logger.log("[generarNumeroFactura] numeroMayor=%s siguienteNumero=%s nuevoConsecutivo=%s", String(numeroMayor), String(siguienteNumero), String(nuevoConsecutivo));
   sheet.getRange("G2").setValue(nuevoConsecutivo);
@@ -1879,54 +2027,13 @@ function guardarYGenerarInvoice(){
   let totalExemptBase = 0;       // Base exenta (productos con IVA 0%)
   let firstIdExento = null;      // Primer código de operación exenta encontrado
 
-  // Pre-fetch product regimens, exenta, type, taxCode, calificacion, exento from Productos sheet
-  let productRegimenMap = {};
-  let productExentaMap = {};
-  let productTypeIdMap = {};
-  let productTaxCodeMap = {};
-  let productCalificacionMap = {};
-  let productExentoMap = {};
-  try {
-    let prodUltFila = hojaProductos.getLastRow();
-    if (prodUltFila > 1) {
-      let prodIds = hojaProductos.getRange(2, PRODUCT_COLUMNS.IDENTIFICADOR_UNICO, prodUltFila - 1, 1).getValues();
-      let prodRegimens = hojaProductos.getRange(2, PRODUCT_COLUMNS.REGIMEN, prodUltFila - 1, 1).getValues();
-      let prodExentas = hojaProductos.getRange(2, PRODUCT_COLUMNS.OPERACION_EXENTA, prodUltFila - 1, 1).getValues();
-      let prodTipos = hojaProductos.getRange(2, PRODUCT_COLUMNS.TIPO_PRODUCTO, prodUltFila - 1, 1).getValues();
-      // Read TIPO_IMPUESTO (display label), CALIFICACION_OPERACION, EXENTO (checkbox)
-      let prodTipoImpuestos = hojaProductos.getRange(2, PRODUCT_COLUMNS.TIPO_IMPUESTO, prodUltFila - 1, 1).getValues();
-      let prodCalificaciones = hojaProductos.getRange(2, PRODUCT_COLUMNS.CALIFICACION_OPERACION, prodUltFila - 1, 1).getValues();
-      let prodExentos = hojaProductos.getRange(2, PRODUCT_COLUMNS.EXENTO, prodUltFila - 1, 1).getValues();
-      for (let p = 0; p < prodIds.length; p++) {
-        let idKey = String(prodIds[p][0]).trim();
-        if (idKey) {
-          try {
-            productRegimenMap[idKey] = getRegimenCode(String(prodRegimens[p][0]));
-          } catch (e) {
-            productRegimenMap[idKey] = "01";
-          }
-          productExentaMap[idKey] = extraerCodigoExento(prodExentas[p][0]);
-          // Map "Producto" -> 1 (venta de bienes), "Servicio" -> 2
-          let tipoProductoStr = String(prodTipos[p][0] || '').trim().toLowerCase();
-          if (tipoProductoStr === 'producto') {
-            productTypeIdMap[idKey] = 1;
-          } else if (tipoProductoStr === 'servicio') {
-            productTypeIdMap[idKey] = 2;
-          } else {
-            productTypeIdMap[idKey] = 0;
-          }
-          // Derive tax code from TIPO_IMPUESTO display label (e.g. "IVA" → "01")
-          productTaxCodeMap[idKey] = getTaxCodeFromName_(prodTipoImpuestos[p][0]);
-          // Calificación stores display labels like "S1 - No exenta..."; extract code prefix
-          productCalificacionMap[idKey] = extractCodePrefix_(prodCalificaciones[p][0]) || 'S1';
-          // EXENTO is a checkbox (boolean TRUE/FALSE)
-          productExentoMap[idKey] = prodExentos[p][0] === true;
-        }
-      }
-    }
-  } catch (e) {
-    Logger.log("Error pre-fetching product data: " + e);
+  // Batch-fetch product metadata from Productos sheet via cross-reference
+  let invoiceProductIds = [];
+  for (let p = 15; p < 15 + cantidadProductos; p++) {
+    let desc = String(prefactura_sheet.getRange("B" + p).getValue() || "").trim();
+    if (desc) invoiceProductIds.push(desc);
   }
+  let productInfoMap = obtenerInformacionProductosBatch(invoiceProductIds);
   
   // IRPF general (totales): viene de la hoja Factura
   // - F17: selector (7% / 15% / 19% / "Valor libre")
@@ -2009,16 +2116,27 @@ function guardarYGenerarInvoice(){
       cantidad = 1;
     }
     
-    // Obtener regimen del producto desde el mapa pre-fetched
-    let regimenProducto = productRegimenMap[descripcion.trim()] || "01";
-    // Tipo de producto: 1 = Producto (venta de bienes), 2 = Servicio, 0 = no definido
-    let productTypeIdProducto = productTypeIdMap[descripcion.trim()];
-    if (productTypeIdProducto === undefined) productTypeIdProducto = 0;
+    // Cross-reference product metadata from Productos sheet
+    let mapKey = descripcionRaw.trim();
+    let prodInfo = productInfoMap[mapKey] || null;
 
-    // New product fields from columns Q/R/S
-    let taxCodeProducto = productTaxCodeMap[descripcion.trim()] || '01';
-    let calificacionProducto = productCalificacionMap[descripcion.trim()] || 'S1';
-    let isExentoProducto = productExentoMap[descripcion.trim()] || false;
+    let regimenProducto, productTypeIdProducto, taxCodeProducto,
+        calificacionProducto, isExentoProducto, operacionExentaProducto;
+
+    if (prodInfo) {
+      try { regimenProducto = getRegimenCode(String(prodInfo["regimen"])); }
+      catch (e) { regimenProducto = "01"; }
+      let tipoStr = String(prodInfo["tipoProducto"] || '').toLowerCase();
+      productTypeIdProducto = tipoStr === 'producto' ? 1 : tipoStr === 'servicio' ? 2 : 0;
+      taxCodeProducto = getTaxCodeFromName_(prodInfo["impuestos"]);
+      calificacionProducto = extractCodePrefix_(prodInfo["calificacionOperacion"]) || 'S1';
+      isExentoProducto = prodInfo["exento"] === true;
+      operacionExentaProducto = extraerCodigoExento(prodInfo["operacionExenta"]);
+    } else {
+      Logger.log("WARNING: Product not found in Productos sheet: " + mapKey);
+      regimenProducto = "01"; productTypeIdProducto = 0; taxCodeProducto = '01';
+      calificacionProducto = 'S1'; isExentoProducto = false; operacionExentaProducto = "E1";
+    }
     let taxNameProducto = getTaxNameForCode_(taxCodeProducto);
     // Override regime to "18" when product has recargo de equivalencia
     if (recargoEquivalenciaRate > 0) {
@@ -2058,7 +2176,7 @@ function guardarYGenerarInvoice(){
       taxGroups[groupKey].valueTax = round2(taxGroups[groupKey].valueTax + taxAmount);
     } else {
       // IVA 0%: mutual exclusivity — exento uses idExento, non-exento uses qualificationOperation
-      let idExentoProducto = isExentoProducto ? (productExentaMap[descripcion.trim()] || "E1") : null;
+      let idExentoProducto = isExentoProducto ? (operacionExentaProducto || "E1") : null;
       let taxExento = {
         taxName: taxNameProducto,
         rate: 0,
@@ -2160,7 +2278,7 @@ function guardarYGenerarInvoice(){
       reference: String(referencia).substring(0, 50),
       description: String(descripcion).substring(0, 100),
       regime: regimenProducto,
-      productTypeId: productTypeIdProducto,
+      productType: productTypeIdProducto,
       unitPrice: Number(precioUnitario),
       quantity: quantityInt,
       // IMPORTANTE: Enviar subTotal BRUTO (antes de descuento) para que el servicio

@@ -1,0 +1,509 @@
+EXCEL ADD-IN — TAX BUSINESS RULES IMPLEMENTATION
+===================================================
+
+CONTEXT:
+This is a Microsoft Excel add-in built with VSTO (Visual Studio Tools for Office),
+C#, .NET Framework 4.8, and WinForms. It targets Spanish invoicing.
+The product creation form needs per-tax-type business rules for 4 tax types:
+IVA, IGIC, IPSI, and Otros. Each tax type has its own valid régimen codes,
+tarifa behavior, recargo eligibility, and exento operations.
+
+The add-in already has a working product form. You need to refactor the tax
+logic so it's driven by a per-type configuration object instead of treating
+all tax types identically.
+
+===================================================
+1. TAX TYPE CONFIGURATION (core data structure)
+===================================================
+
+Create a TAX_TYPE_CONFIG object (or equivalent C# dictionary/class hierarchy).
+Each tax type maps régimen codes to rules.
+
+Key fields per régimen entry:
+  - rates: array of predefined rates (e.g. [21,10,4,0]) for dropdown mode,
+           or null for freeform (0-100%) manual input
+  - allowRecargo: boolean — whether recargo de equivalencia can apply
+                  (also requires tipoProducto=Producto AND tipoUso=Venta)
+  - exentoOps: array of valid operación exenta codes (e.g. ['E1','E4','E5','E6'])
+  - autoExento: boolean — if true, selecting this régimen auto-checks exento
+
+Per-type tarifaMode:
+  - 'dropdown': predefined rate dropdown (IVA only)
+  - 'freeform': manual 0-100% numeric input (IGIC, IPSI, Otros)
+
+---
+
+IVA (tarifaMode: 'dropdown'):
+  Régimen codes: 01, 02, 04, 07, 08, 10, 11, 15, 17, 18, 19, 20
+  Predefined recargo rate map: { 21: [5.2, 1.75], 10: [1.4], 4: [0.5], 0: [0] }
+
+  '01': rates=[21,10,4,0], allowRecargo=true,  exentoOps=[E1,E4,E5,E6]
+  '02': rates=[0],          allowRecargo=false, exentoOps=[E1,E2,E3,E4,E5,E6], autoExento=true
+  '04': rates=[0],          allowRecargo=false, exentoOps=[E1,E2,E3,E4,E5,E6]
+  '07': rates=[21,10,4,0], allowRecargo=true,  exentoOps=[E1,E6]
+  '08': rates=[21,10,4,0], allowRecargo=false, exentoOps=[E1,E2,E3,E4,E5,E6]
+  '10': rates=[21,10,4,0], allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6]
+  '11': rates=[21],         allowRecargo=false, exentoOps=[]
+  '15': rates=[21,10,4,0], allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6]
+  '17': rates=[21,10,4,0], allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6]
+  '18': rates=[21,10,4,0], allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6]
+  '19': rates=[21,10,4,0], allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6]
+  '20': rates=[21,10,4,0], allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6]
+
+---
+
+IGIC (tarifaMode: 'freeform'):
+  Régimen codes: 01, 02, 04, 07, 08, 10, 11, 14, 15, 17, 18, 19, 20, 21
+  No predefined recargo map — recargo is freeform manual input
+
+  '01': rates=null, allowRecargo=true,  exentoOps=[E1,E4,E5,E6,E7,E8]
+  '02': rates=[0],  allowRecargo=false, exentoOps=[E1,E2,E3,E4,E5,E6,E7,E8], autoExento=true
+  '04': rates=[0],  allowRecargo=false, exentoOps=[E1,E2,E3,E4,E5,E6,E7,E8]
+  '07': rates=null, allowRecargo=true,  exentoOps=[E1,E6]
+  '08': rates=null, allowRecargo=false, exentoOps=[E1,E2,E3,E4,E5,E6,E7,E8]
+  '10': rates=null, allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6,E7,E8]
+  '11': rates=null, allowRecargo=false, exentoOps=[]
+  '14': rates=null, allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6,E7,E8]
+  '15': rates=null, allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6,E7,E8]
+  '17': rates=null, allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6,E7,E8]
+  '18': rates=null, allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6,E7,E8]
+  '19': rates=null, allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6,E7,E8]
+  '20': rates=null, allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6,E7,E8]
+  '21': rates=null, allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6,E7,E8]
+
+  NOTE: IGIC has E7 and E8 in exentoOps. EXCEPT régimen 07 which only has E1, E6.
+  NOTE: Régimen 11 has NO exento operations (empty array).
+  NOTE: Code 21 uses placeholder label (pending business confirmation).
+
+---
+
+IPSI (tarifaMode: 'freeform'):
+  Régimen codes: 01, 08, 11, 18, 19, 20  (ONLY 6 codes — much smaller catalog)
+  No predefined recargo map — freeform manual input
+  IPSI does NOT have régimen 02 (Exportación) — no autoExento behavior
+
+  '01': rates=null, allowRecargo=true,  exentoOps=[E1,E4,E5,E6]
+  '08': rates=null, allowRecargo=false, exentoOps=[E1,E2,E3,E4,E5,E6]
+  '11': rates=null, allowRecargo=false, exentoOps=[]
+  '18': rates=null, allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6]
+  '19': rates=null, allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6]
+  '20': rates=null, allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6]
+
+---
+
+Otros (tarifaMode: 'freeform'):
+  Régimen codes: 01, 02, 04, 07, 08, 10, 11, 14, 15, 17, 18, 19, 20, 21
+  No predefined recargo map — freeform manual input
+
+  '01': rates=null, allowRecargo=true,  exentoOps=[E1,E4,E5,E6]
+  '02': rates=[0],  allowRecargo=false, exentoOps=[E1,E2,E3,E4,E5,E6], autoExento=true
+  '04': rates=[0],  allowRecargo=false, exentoOps=[E1,E2,E3,E4,E5,E6]
+  '07': rates=null, allowRecargo=true,  exentoOps=[E1,E6]
+  '08': rates=null, allowRecargo=false, exentoOps=[E1,E2,E3,E4,E5,E6]
+  '10': rates=null, allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6]
+  '11': rates=null, allowRecargo=false, exentoOps=[]
+  '14': rates=null, allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6]
+  '15': rates=null, allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6]
+  '17': rates=null, allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6]
+  '18': rates=null, allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6]
+  '19': rates=null, allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6]
+  '20': rates=null, allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6]
+  '21': rates=null, allowRecargo=true,  exentoOps=[E1,E2,E3,E4,E5,E6]
+
+  NOTE: Code 21 uses placeholder label (pending business confirmation).
+
+
+===================================================
+2. RÉGIMEN CODE LABELS (for dropdowns)
+===================================================
+
+These are the full-text labels for each régimen code. The dropdown should
+show "<code> - <short label>" and store the full value text.
+
+  01 → "Operación de régimen general"
+  02 → "Exportación"
+  04 → "Régimen especial del oro de inversión"
+  07 → "Régimen especial del criterio de caja"
+  08 → "Operaciones sujetas al IPSI / IGIC (Impuesto sobre la Producción, los Servicios y la Importación / Impuesto General Indirecto Canario)"
+  10 → "Cobros por cuenta de terceros de honorarios profesionales o de derechos derivados de la propiedad industrial, de autor u otros por cuenta de sus socios, asociados o colegiados efectuados por sociedades, asociaciones, colegios profesionales u otras entidades que realicen estas funciones de cobro"
+  11 → "Operaciones de arrendamiento de local de negocio"
+  14 → "Factura con IVA pendiente de devengo en certificaciones de obra cuyo destinatario sea una Administración Pública"
+  15 → "Factura con IVA pendiente de devengo en operaciones de tracto sucesivo"
+  17 → "Operación acogida a alguno de los regímenes previstos en el Capítulo XI del Título IX (OSS e IOSS)"
+  18 → "Recargo de equivalencia"
+  19 → "Operaciones de actividades incluidas en el Régimen Especial de Agricultura, Ganadería y Pesca (REAGYP)"
+  20 → "Régimen simplificado"
+  21 → "Régimen especial (pendiente confirmación con negocio)"
+       // TODO: replace with official label once confirmed with business
+
+When the user selects a tax type, FILTER the régimen dropdown to show only
+the codes that exist in that tax type's config. For example, IPSI only shows
+01, 08, 11, 18, 19, 20.
+
+
+===================================================
+3. OPERACIÓN EXENTA LABELS
+===================================================
+
+  E1 → "E1 - Operaciones interiores exentas (servicios)"
+  E2 → "E2 - Exportaciones de bienes fuera de la UE"
+  E3 → "E3 - Entregas intracomunitarias de bienes"
+  E4 → "E4 - Prestaciones de servicios relacionados con"
+  E5 → "E5 - Operaciones asimiladas a exportaciones"
+  E6 → "E6 - Exenta por otros"
+  E7 → "E7 - Exenta por aplicación del artículo 25 de la Ley 19/1994"
+  E8 → "E8 - Operaciones exentas sin derecho a deducción"
+
+E7 and E8 are ONLY available for IGIC tax type.
+
+
+===================================================
+4. CALIFICACIÓN OPERACIÓN
+===================================================
+
+Options (always the same, not tax-type dependent):
+  S1 - No exenta, sin inversión suj. pasivo
+  S2 - No exenta, con inversión suj. pasivo
+  N1 - No sujeta, art. 7/14/otros
+  N2 - No sujeta, por reglas de localización
+
+Behavior:
+  - S1: Normal operation. Tarifa uses standard behavior (dropdown or freeform).
+  - S2, N1, N2: Force tarifa impuesto to 0%. Disable recargo.
+  - When calificación changes from S2/N1/N2 back to S1: restore tarifa behavior.
+  - Calificación is MUTUALLY EXCLUSIVE with exento:
+    * If exento is checked → hide calificación, show operación exenta dropdown
+    * If exento is unchecked → show calificación, hide operación exenta
+
+
+===================================================
+5. TARIFA IMPUESTO (Tax Rate)
+===================================================
+
+Two modes based on tax type:
+
+A) DROPDOWN MODE (IVA only):
+   - Show a ComboBox dropdown with the rates from the régimen config
+   - Example for IVA régimen 01: options are 21%, 10%, 4%, 0%
+   - If rates has only one value (e.g. [0] for régimen 02/04): auto-select it
+   - The rates come from config.rates array
+
+B) FREEFORM MODE (IGIC, IPSI, Otros):
+   - Show a NumericUpDown control (min=0, max=100, decimalPlaces=2)
+   - User can type any percentage between 0 and 100
+   - No dropdown validation — accept any value in range
+   - If config.rates is [0] (e.g. régimen 02/04): force value to 0
+
+When switching between modes (tax type change), toggle visibility:
+   - Hide the dropdown, show the numeric input (or vice versa)
+   - Reset the tarifa value when switching
+
+
+===================================================
+6. RECARGO DE EQUIVALENCIA
+===================================================
+
+Recargo is a surcharge that can be applied to products. Eligibility requires
+ALL of these conditions:
+
+  1. The régimen's allowRecargo === true
+  2. Tipo de producto === "Producto" (NOT "Servicio")
+  3. Tipo de uso === "Venta" (NOT "Compra")
+
+If any condition fails, the recargo checkbox must be HIDDEN (not just disabled).
+When any condition becomes false while recargo is already checked:
+  - Uncheck the recargo checkbox
+  - Clear the tarifa recargo value
+  - Hide the tarifa recargo control
+
+IMPORTANT: The recargo checkbox and tarifa must be hidden by default and only
+shown when tipoProducto="Producto" AND tipoUso="Venta". Add onchange handlers
+to both the tipoProducto and tipoUso controls to dynamically show/hide recargo.
+
+RECARGO TARIFA BEHAVIOR depends on tax type:
+
+A) IVA — PREDEFINED RATES (dropdown):
+   Based on the selected IVA tarifa, show a ComboBox of allowed recargo rates:
+     IVA 21% → recargo options: 5.20%, 1.75%
+     IVA 10% → recargo option: 1.40%
+     IVA 4%  → recargo option: 0.50%
+     IVA 0%  → recargo option: 0.00%
+   If there's only one option, auto-select it.
+   If there are multiple options (e.g. 21% → 5.20% or 1.75%), show a dropdown.
+
+B) IGIC / IPSI / Otros — FREEFORM MANUAL INPUT:
+   Show a NumericUpDown control where the user types the recargo percentage.
+   No predefined rates. Accept any value 0-100%.
+
+When the IVA tarifa changes, recargo options must update (re-sync).
+When switching tax type while recargo is checked, re-validate eligibility.
+
+
+===================================================
+7. EXENTO (Tax Exempt)
+===================================================
+
+Exento is a checkbox. When checked:
+  - Force tarifa impuesto to 0%
+  - Hide tarifa field
+  - Hide calificación field
+  - Disable recargo (uncheck if checked)
+  - Show operación exenta dropdown (filtered by régimen + tax type exentoOps)
+  - Hide + uncheck IVA incluido checkbox
+
+When unchecked:
+  - Restore tarifa field and calificación field
+  - Re-apply tarifa validation based on current régimen/tax type
+  - Show IVA incluido checkbox (only if tax type is IVA)
+
+AUTOEXENTO:
+  If a régimen has autoExento=true (régimen 02 = Exportación):
+  - Auto-check the exento checkbox when this régimen is selected
+  - Block unchecking — if user tries to uncheck, show alert:
+    "El régimen Exportación requiere que el producto sea exento."
+    and re-check it
+  - Hide IVA incluido checkbox (exento and IVA incluido are mutually exclusive)
+
+OPERACIÓN EXENTA DROPDOWN:
+  - Only shown when exento is checked (or tarifa is 0%)
+  - Options are filtered by the current régimen's exentoOps array
+  - Use the labels from section 3 above
+
+
+===================================================
+8. IVA INCLUIDO (Tax-Inclusive Pricing)
+===================================================
+
+IVA incluido is a form-only UX checkbox. It is NOT stored in the sheet.
+It only affects how the form converts the user-entered price to the stored
+base price (valor unitario).
+
+VISIBILITY RULES:
+  - Only visible when tipoImpuesto === "IVA"
+  - Hidden when any non-IVA tax type is selected
+  - Hidden when exento is checked (mutually exclusive)
+  - Hidden when autoExento régimen (02) is active
+
+MUTUAL EXCLUSIVITY with exento:
+  - When IVA incluido is checked → hide exento checkbox, uncheck exento
+  - When IVA incluido is unchecked → show exento checkbox
+  - When exento is checked → hide IVA incluido checkbox, uncheck IVA incluido
+  - When exento is unchecked → show IVA incluido checkbox (if IVA)
+
+BEHAVIOR when IVA incluido is checked:
+  - The user enters the total price (IVA included) in the "Valor unitario" field
+  - On form submission, the backend converts to base price:
+      basePrice = valorUnitario / (1 + tarifaImpuesto / 100)
+      basePrice = Math.Round(basePrice, 2)
+  - The base price is what gets stored in column G (Valor unitario)
+  - This conversion only happens when:
+      ivaIncluido=true AND tipoImpuesto="IVA" AND tarifa > 0
+
+  Example: user enters 121.00 with IVA 21% and IVA incluido checked
+           → stored base price = 121.00 / 1.21 = 100.00
+
+IMPORTANT: IVA incluido does NOT change any other field behavior.
+  Tarifa, recargo, calificación, etc. all work normally.
+  The only effect is the price conversion on submission.
+
+
+===================================================
+9. TAX TYPE CHANGE HANDLER
+===================================================
+
+When the user changes the tax type dropdown:
+
+  1. FILTER the régimen dropdown to show only valid codes for the new type
+  2. If the currently selected régimen is NOT valid for the new type:
+     - Clear the régimen selection
+     - Show a message: "El régimen seleccionado no es válido para [type]"
+  3. SWITCH tarifa mode:
+     - IVA → show dropdown, hide freeform input
+     - IGIC/IPSI/Otros → hide dropdown, show freeform input
+  4. IVA INCLUIDO visibility:
+     - IVA → show ivaIncluido checkbox
+     - Non-IVA → hide ivaIncluido checkbox, uncheck it, restore exento visibility
+  5. RE-VALIDATE recargo eligibility (may need to uncheck if no longer allowed)
+  6. RE-APPLY operación exenta validation
+
+
+===================================================
+10. RÉGIMEN CHANGE HANDLER
+===================================================
+
+When the user changes the régimen dropdown:
+
+  1. Look up the new régimen config for the current tax type
+  2. UPDATE tarifa options:
+     - Dropdown mode: populate with config.rates
+     - Freeform mode: keep numeric input (no change)
+     - If rates=[0]: auto-set 0%
+  3. CHECK autoExento:
+     - If régimen 02 (Exportación) selected → auto-check exento, hide IVA incluido
+  4. RE-VALIDATE recargo:
+     - If recargo is checked but new régimen has allowRecargo=false → uncheck
+  5. UPDATE operación exenta dropdown based on new exentoOps
+
+
+===================================================
+11. PRODUCT FORM FIELDS
+===================================================
+
+The product form has these fields (in order):
+
+  - Tipo de producto: ComboBox ["Producto", "Servicio"]
+  - Tipo de uso: ComboBox ["Venta", "Compra"]
+  - Código referencia: TextBox (required)
+  - Nombre: TextBox (required)
+  - Valor unitario: NumericUpDown (required)
+  - Tipo de impuesto: ComboBox ["IVA", "IPSI", "IGIC", "Otros"]
+  - Régimen: ComboBox (filtered by tax type — see section 2)
+  - Exento: CheckBox
+  - IVA incluido: CheckBox (only visible for IVA, mutually exclusive with exento)
+  - Tarifa impuesto: ComboBox (IVA) or NumericUpDown (others) — see section 5
+  - Calificación operación: ComboBox — see section 4
+  - Recargo de equivalencia: CheckBox + tarifa — see section 6
+    (ONLY visible when tipoProducto="Producto" AND tipoUso="Venta")
+  - Operación exenta: ComboBox (shown when exento) — see section 7
+  - Retención: CheckBox + tarifa ComboBox [7%, 15%, 19%]
+
+
+===================================================
+12. PRODUCT DATA COLUMNS (sheet storage)
+===================================================
+
+When writing a product to the sheet, use these columns:
+
+  A: Estado ("Valido" or "No Valido")
+  B: Código referencia
+  C: Nombre
+  D: Régimen (full text value)
+  E: Tipo producto ("Producto" or "Servicio")
+  F: Tipo uso ("Venta" or "Compra")
+  G: Valor unitario (number, €#,##0.00) — stores BASE price, not IVA-included
+  H: Tipo impuesto ("IVA", "IGIC", "IPSI", "Otros")
+  I: Tarifa impuesto (percentage, 0% format)
+  J: Precio con impuesto (formula: G * (1 + I))
+  K: Calificación operación (text, e.g. "S1 - No exenta, sin inversión suj. pasivo")
+  L: Exento (checkbox: TRUE/FALSE)
+  M: Operación exenta (text label, e.g. "E1 - Operaciones interiores exentas")
+  N: Recargo (checkbox: TRUE/FALSE)
+  O: Tarifa recargo (percentage)
+  P: Retención (checkbox: TRUE/FALSE)
+  Q: Tarifa retención (percentage)
+  R: Identificador único (auto-generated)
+
+NOTE: IVA incluido is NOT stored in the sheet. It only affects the form-to-sheet
+conversion of the valor unitario (column G).
+
+
+===================================================
+13. VALIDATION RULES
+===================================================
+
+A product is "Valido" when ALL required fields are filled:
+  - Código referencia, Nombre, Régimen, Tipo producto, Tipo uso,
+    Valor unitario, Tipo impuesto
+  - Tarifa impuesto (required unless exento is checked)
+  - If exento: operación exenta is required
+  - If not exento: calificación is required
+  - If recargo checked: tarifa recargo is required
+  - If retención checked: tarifa retención is required
+
+Tarifa validation:
+  - IVA dropdown mode: must be one of the rates in config.rates
+  - Freeform mode: must be a number between 0 and 100
+
+Mutual exclusivity:
+  - Exento and Calificación are mutually exclusive
+  - When exento is checked: calificación is cleared/hidden
+  - When exento is unchecked: operación exenta is cleared/hidden
+  - Exento and IVA incluido are mutually exclusive (IVA only)
+
+
+===================================================
+14. CLIENT-LEVEL RECARGO (Aplica recargo equivalencia)
+===================================================
+
+The client/contact creation form has an "Aplica recargo equivalencia" checkbox.
+This is a CLIENT-level flag, separate from the per-product recargo logic.
+
+VISIBILITY RULE:
+  - Only visible when tipoPersona === "Autónomo" AND tipoContacto === "Cliente"
+  - Hidden for Empresa, Persona Física, or Proveedor contacts
+  - When hidden, auto-uncheck the checkbox
+
+BEHAVIOR:
+  - When tipoPersona or tipoContacto changes, re-evaluate visibility
+  - If user changes from Autónomo to Empresa with checkbox checked:
+    auto-uncheck and hide (full reset)
+
+STORAGE:
+  - Field name: aplicaRecargo (boolean TRUE/FALSE)
+  - Stored in the Clientes sheet as the last column after email
+  - Serialized as a boolean in the form data
+
+This flag indicates that the client is eligible for recargo de equivalencia
+on their invoices. The per-product recargo checkbox (in the product form)
+controls whether recargo is actually applied to each individual product.
+
+
+===================================================
+15. IMPORTANT DIFFERENCES BY TAX TYPE (SUMMARY)
+===================================================
+
+| Feature               | IVA              | IGIC             | IPSI           | Otros            |
+|-----------------------|------------------|------------------|----------------|------------------|
+| Valid régimen codes   | 12 codes         | 14 codes (+21)   | 6 codes only   | 14 codes (+21)   |
+| Has régimen 02?      | Yes (autoExento) | Yes (autoExento) | NO             | Yes (autoExento) |
+| Has régimen 21?      | No               | Yes (placeholder) | No            | Yes (placeholder) |
+| Tarifa mode           | Dropdown         | Freeform         | Freeform       | Freeform         |
+| Recargo allowed?      | Yes (predefined) | Yes (freeform)   | Yes (freeform) | Yes (freeform)   |
+| Recargo tarifa mode   | Predefined rates | Manual input     | Manual input   | Manual input     |
+| E7/E8 exento ops?     | No               | Yes              | No             | No               |
+| IVA incluido?         | Yes              | No               | No             | No               |
+| Régimen 08 rates      | [21,10,4,0]      | null (freeform)  | null (freeform)| null (freeform)  |
+
+
+===================================================
+16. IMPLEMENTATION NOTES
+===================================================
+
+- Tech stack: VSTO add-in, C# (.NET Framework 4.8), WinForms controls.
+  Use ComboBox for dropdowns, NumericUpDown for freeform numeric inputs,
+  CheckBox for boolean fields, TextBox for text inputs.
+
+- The configuration object (TAX_TYPE_CONFIG) should be the SINGLE SOURCE OF TRUTH
+  for all business rules. All validation, UI filtering, and behavior should read
+  from this config — never hardcode tax-type-specific logic scattered through the code.
+
+- When the tax type changes, ALL dependent fields must update:
+  régimen dropdown, tarifa mode, recargo eligibility, exento ops, IVA incluido visibility.
+
+- The régimen dropdown should be dynamically populated based on tax type.
+  Don't hardcode all options — generate them from the config.
+
+- For IVA recargo: the recargo tarifa is a ComboBox derived from IVA_RECARGO_MAP.
+  For non-IVA recargo: the recargo tarifa is a NumericUpDown (0-100%).
+
+- The "Producto exento" checkbox drives a cascade:
+  exento=true → tarifa=0%, hide calificación, show operación exenta, disable recargo,
+                hide IVA incluido
+  exento=false → restore tarifa, show calificación, hide operación exenta,
+                 show IVA incluido (if IVA)
+
+- AutoExento (régimen 02) should be enforced — user cannot uncheck exento while
+  régimen 02 is selected. Also hides IVA incluido.
+
+- IVA incluido is form-only: on submission, convert valorUnitario from IVA-included
+  to base price via: base = valorUnitario / (1 + tarifa/100). Round to 2 decimals.
+  Only applies when ivaIncluido=true, tipoImpuesto="IVA", and tarifa > 0.
+
+- S2/N1/N2 calificación forces tarifa to 0% and disables recargo.
+  S1 restores normal tarifa behavior.
+
+- Régimen 21 uses a placeholder label "Régimen especial (pendiente confirmación
+  con negocio)". Mark with a TODO comment for future replacement with the official
+  label once business confirms it.
+
+- All UI strings are in Spanish (this app targets Spanish-speaking users).

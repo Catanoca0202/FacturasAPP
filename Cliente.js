@@ -3,11 +3,17 @@
 // var factura_sheet= spreadsheet.getSheetByName("Factura")
 
 function showNuevaClienteDesdeFactura() {
-  renderSidebarFromFile('menuAgregarClienteDesdeF', 'Nuevo Cliente');
+  var template = HtmlService.createTemplateFromFile('main');
+  template.initialView = 'clienteCrear';
+  var html = template.evaluate().setTitle('Nuevo Cliente');
+  SpreadsheetApp.getUi().showSidebar(html);
 }
 
 function showNuevaProductoDesdeFactura(){
-  renderSidebarFromFile('agregarProductoDesdeF', 'Nuevo Producto');
+  var template = HtmlService.createTemplateFromFile('main');
+  template.initialView = 'productoCrear';
+  var html = template.evaluate().setTitle('Nuevo Producto');
+  SpreadsheetApp.getUi().showSidebar(html);
 }
 
 function showNuevaClienteV2() {
@@ -55,6 +61,7 @@ function inactivarCliente(cliente){
   let email=datos_sheet.getRange("X2").getValue();
   let estado=datos_sheet.getRange("Y2").getValue();
   let nombreOriginal=datos_sheet.getRange("AC2").getValue();
+  let formaPago = hojaClietnes.getRange(rowDelCliente, 16).getValue();
 
 
   // Proceso para agregar a la hoja de clientes inactivos
@@ -73,12 +80,13 @@ function inactivarCliente(cliente){
   hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 13).setValue(pais);
   hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 14).setValue(provicnica);
   hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 15).setValue(poblacion);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 16).setValue(direccion);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 17).setValue(codigoPostal);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 18).setValue(telefono);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 19).setValue(sitioWeb);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 20).setValue(email);
-  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 21).setValue(cliente);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 16).setValue(formaPago);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 17).setValue(direccion);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 18).setValue(codigoPostal);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 19).setValue(telefono);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 20).setValue(sitioWeb);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 21).setValue(email);
+  hojaClientesInactivos.getRange(rowMaximaClientesInactivos, 22).setValue(cliente);
 
   //eliminar cliente de la hoja clientes
 
@@ -101,6 +109,8 @@ function activarCliente(cliente) {
   // Obtener los valores necesarios desde la hoja 'Datos'
   let estado = datos_sheet.getRange('H6').getValue();
   let tipoPersona = datos_sheet.getRange('K6').getValue(); // Determina si es 'Autonomo' o 'Empresa'
+  // Read formaPago directly from ClientesInvalidos col 16 before deleting the row
+  let formaPago = hojaClientesInactivos.getRange(rowDelCliente, 16).getValue() || '';
   let values = [
     estado,
     cliente, // nombreOriginal
@@ -117,12 +127,12 @@ function activarCliente(cliente) {
     datos_sheet.getRange('U6').getValue(), // pais
     datos_sheet.getRange('V6').getValue(), // provincia
     datos_sheet.getRange('W6').getValue(), // poblacion
+    formaPago,                             // formaPago
     datos_sheet.getRange('X6').getValue(), // direccion
     datos_sheet.getRange('Y6').getValue(), // codigoPostal
     datos_sheet.getRange('Z6').getValue(), // telefono
     datos_sheet.getRange('AA6').getValue(), // sitioWeb
     datos_sheet.getRange('AB6').getValue(), // email
-    
   ];
 
   // Agregar cliente a la hoja 'Clientes'
@@ -142,11 +152,11 @@ function verificarDatosObligatoriosManual(sheet, row, tipoPersona) {
     tipoPersona === "Autónomo" ||
     tipoPersona === "Persona Física";
 
-  const columnasObligatorias = esAutonomo ? 
-    [2, 3, 4, 5, 6, 7, 9, 11, 13, 14, 15, 17, 20] : // Para autónomos
-    [2, 3, 4, 5, 6, 7, 8, 13, 14, 15, 17, 20]; // Para empresas
+  const columnasObligatorias = esAutonomo ?
+    [2, 3, 4, 5, 6, 7, 9, 11, 13, 14, 15, 18, 21] : // Para autónomos
+    [2, 3, 4, 5, 6, 7, 8, 13, 14, 15, 18, 21]; // Para empresas
 
-  const todasLasColumnas = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+  const todasLasColumnas = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
   const estadosDefault = ["", "Tipo Documento", "Tipo de persona"];
   let estaCompleto = true;
   let estaVacioOPredeterminado = true;
@@ -416,11 +426,13 @@ function saveClientData(formData) {
     formData.pais,
     formData.provincia,
     formData.poblacion,
+    formData.formaPago || '',
     formData.direccion,
     formData.codigoPostal,
     formData.telefono,
     formData.sitioWeb,
     formData.email,
+    formData.aplicaRecargo === true || String(formData.aplicaRecargo).toLowerCase() === 'true',
   ];
   let nombre="";
   // Tratar "Persona Física" como autónomo para construir el identificador único
@@ -519,9 +531,11 @@ function verificarDatosObligatoriosProductos(e){
 
   if (esRecargo) {
     const ivaNum = parsePercentToNumberES(sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_IMPUESTO).getDisplayValue());
-    const esperado = recargoPermitidoParaIva(ivaNum);
+    const permitidos = recargoPermitidoParaIva(ivaNum);
     const tarifaNum = parsePercentToNumberES(sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RECARGO).getDisplayValue());
-    if (esperado === null || tarifaNum === null || Math.abs(tarifaNum - esperado) > 0.0001) {
+    const esValido = permitidos !== null && tarifaNum !== null &&
+      permitidos.some(function(p) { return Math.abs(tarifaNum - p) < 0.0001; });
+    if (!esValido) {
       estaCompleto = false;
       sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RECARGO).setBackground('#FFC7C7');
     }
@@ -590,9 +604,9 @@ function verificarDatosObligatorios(e, tipoPersona) {
   let range = e.range;
   let rowEditada = range.getRow();
   let colEditada = range.getColumn();
-  let ultimaColumnaPermitida = 20;
+  let ultimaColumnaPermitida = 21;
   let columnasObligatorias = [];
-  let todasLasColumnas = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+  let todasLasColumnas = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
 
   if (tipoPersona === "") {
     Logger.log("Vacio hizo edicion no en tipoPersona, cogemos el viejo");
@@ -604,11 +618,11 @@ function verificarDatosObligatorios(e, tipoPersona) {
     tipoPersona === "Persona Física";
 
   if (esAutonomo) {
-    // primerNombre(9), primerApellido(11), pais(13), provincia(14), poblacion(15), codigoPostal(17), email(20)
-    columnasObligatorias = [3, 4, 5, 6, 7, 9, 11, 13, 14, 15, 17, 20];
+    // primerNombre(9), primerApellido(11), pais(13), provincia(14), poblacion(15), codigoPostal(18), email(21)
+    columnasObligatorias = [3, 4, 5, 6, 7, 9, 11, 13, 14, 15, 18, 21];
   } else if (tipoPersona === "Empresa") {
-    // nombreComercial(8), pais(13), provincia(14), poblacion(15), codigoPostal(17), email(20)
-    columnasObligatorias = [3, 4, 5, 6, 7, 8, 13, 14, 15, 17, 20];
+    // nombreComercial(8), pais(13), provincia(14), poblacion(15), codigoPostal(18), email(21)
+    columnasObligatorias = [3, 4, 5, 6, 7, 8, 13, 14, 15, 18, 21];
   } else {
     Logger.log("Vacio tipo de persona");
   }
@@ -721,7 +735,8 @@ function getRegimenCode(Regimen) {
     "Operación acogida a alguno de los regímenes previstos en el Capítulo XI del Título IX (OSS e IOSS)": "17",
     "Recargo de equivalencia": "18",
     "Operaciones de actividades incluidas en el Régimen Especial de Agricultura, Ganadería y Pesca (REAGYP)": "19",
-    "Régimen simplificado": "20"
+    "Régimen simplificado": "20",
+    "Régimen especial (pendiente confirmación con negocio)": "21"  // TODO: replace with official label once confirmed
   };
 
   const code = regimenMap[Regimen];

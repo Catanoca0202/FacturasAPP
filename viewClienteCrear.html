@@ -8,7 +8,7 @@
     <form class="row g-3" id="clientForm">
       <div class="col-md-12">
         <label for="tipoContacto" class="form-label">Tipo de contacto</label>
-        <select id="tipoContacto" class="form-select form-select-lg">
+        <select id="tipoContacto" class="form-select form-select-lg" onchange="updateRecargoClienteVisibility()">
           <option selected>Cliente</option>
           <option>Proveedor</option>
         </select>
@@ -16,7 +16,7 @@
 
       <div class="col-md-12">
         <label for="tipoPersona" class="form-label">Tipo de persona</label>
-        <select id="tipoPersona" class="form-select form-select-lg">
+        <select id="tipoPersona" class="form-select form-select-lg" onchange="updateRecargoClienteVisibility()">
           <option selected>Autónomo</option>
           <option>Empresa</option>
           <option>Persona Física</option>
@@ -48,6 +48,15 @@
       <div class="col-md-6">
         <label for="nombreComercial" class="form-label">Nombre empresa</label>
         <input type="text" class="form-control form-control-lg" id="nombreComercial" placeholder="Nombre empresa">
+      </div>
+
+      <div class="col-md-12" id="recargoClienteContainer" style="display:none">
+        <div class="form-check mt-1">
+          <input class="form-check-input" type="checkbox" id="aplicaRecargo">
+          <label class="form-check-label" for="aplicaRecargo">
+            Aplica recargo equivalencia
+          </label>
+        </div>
       </div>
 
       <div class="col-md-6">
@@ -115,6 +124,30 @@
       <div class="col-md-12">
         <label for="email" class="form-label">Email</label>
         <input type="email" class="form-control form-control-lg" id="email" placeholder="Email">
+      </div>
+
+      <div class="col-md-12">
+        <label for="formaPago" class="form-label">Forma de pago preferida <small class="text-muted">(opcional)</small></label>
+        <select id="formaPago" class="form-select form-select-lg">
+          <option value="" selected>Sin preferencia</option>
+          <option>No definido</option>
+          <option>Efectivo</option>
+          <option>Transferencia bancaria</option>
+          <option>Domiciliación bancaria</option>
+          <option>PayPal</option>
+          <option>Factoring</option>
+          <option>Confirming</option>
+          <option>Talonario</option>
+          <option>Tarjeta de credito</option>
+          <option>Tarjeta de debito</option>
+          <option>Pagare</option>
+          <option>Cheque</option>
+          <option>Recibo bancario</option>
+          <option>Contado</option>
+          <option>Bizum</option>
+          <option>Letra de cambio</option>
+          <option>Compensacion</option>
+        </select>
       </div>
     </form>
   </div>
@@ -252,6 +285,19 @@
     return isValid;
   }
 
+  function updateRecargoClienteVisibility() {
+    var tipoPersona = document.getElementById('tipoPersona').value;
+    var tipoContacto = document.getElementById('tipoContacto').value;
+    var container = document.getElementById('recargoClienteContainer');
+    var checkbox = document.getElementById('aplicaRecargo');
+    if (tipoPersona === 'Autónomo' && tipoContacto === 'Cliente') {
+      container.style.display = '';
+    } else {
+      container.style.display = 'none';
+      checkbox.checked = false;
+    }
+  }
+
   function saveData() {
     if (verificarDatosObligatorios()) {
       const formData = {
@@ -273,6 +319,8 @@
         telefono: document.getElementById('telefono').value,
         sitioWeb: document.getElementById('sitioWeb').value,
         email: document.getElementById('email').value,
+        formaPago: document.getElementById('formaPago').value,
+        aplicaRecargo: document.getElementById('aplicaRecargo').checked,
       };
 
       google.script.run.withSuccessHandler(function(response) {
@@ -308,12 +356,14 @@
     if (resultBox) {
       resultBox.innerHTML = '';
     }
+    updateRecargoClienteVisibility();
   }
 
   document.addEventListener('DOMContentLoaded', function() {
     cargarPaises();
     document.getElementById('pais').addEventListener('change', onPaisChange);
     document.getElementById('provincia').addEventListener('change', onProvinciaChange);
+    updateRecargoClienteVisibility();
   });
 </script>
 

@@ -458,7 +458,7 @@
      <footer class="mt-auto">
        <div class="row p-4 gx-0">
            <div class="col-12">
-              <p class="text-center" style="font-size: 14px;">© 2025 FacturasApp V 1.21.2 QA </p>
+              <p class="text-center" style="font-size: 14px;">© 2025 FacturasApp V1.23.3 QA </p>
            </div>
        </div>
      </footer>
@@ -516,6 +516,16 @@
              console.log('Verificación de instalación:', error);
            })
            .verificarEstadoInstalacion();
+       }
+     })();
+   </script>
+
+   <script>
+     // Navigate to a specific view if set by the server-side template
+     (function() {
+       var initial = '<? try { output.append(initialView); } catch(e) {} ?>';
+       if (initial && initial !== '') {
+         showView(initial);
        }
      })();
    </script>

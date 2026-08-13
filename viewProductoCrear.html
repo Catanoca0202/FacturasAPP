@@ -6,35 +6,9 @@
 
   <div class="col-12 px-0">
     <form class="row g-3" onsubmit="handleSubmitProducto(event)" id="productForm">
-      <div class="col-12">
-        <label for="nombre" class="form-label">Nombre</label>
-        <input type="text" class="form-control form-control-lg" id="nombre" name="nombre" required>
-      </div>
-
-      <div class="col-12">
-        <label for="regimen" class="form-label">Régimen</label>
-        <select id="regimen" name="regimen" class="form-select form-select-lg" required onchange="onRegimenChange()">
-          <option value="">Selecciona una opción</option>
-          <option value="Operación de régimen general">01 - Operación de régimen general</option>
-          <option value="Exportación">02 - Exportación</option>
-          <option value="Operaciones a las que se aplique el régimen especial de bienes usados, objetos de arte, antigüedades y objetos de colección">03 - Régimen especial bienes usados</option>
-          <option value="Régimen especial del oro de inversión">04 - Régimen especial oro de inversión</option>
-          <option value="Régimen especial de las agencias de viajes">05 - Régimen especial agencias de viajes</option>
-          <option value="Régimen especial del criterio de caja">07 - Régimen especial criterio de caja</option>
-          <option value="Facturación de las prestaciones de servicios de agencias de viaje que actúan como mediadoras en nombre y por cuenta ajena (D.A.4ª RD1619/2012)">09 - Agencias de viaje mediadoras</option>
-          <option value="Cobros por cuenta de terceros de honorarios profesionales o de derechos derivados de la propiedad industrial, de autor u otros por cuenta de sus socios, asociados o colegiados efectuados por sociedades, asociaciones, colegios profesionales u otras entidades que realicen estas funciones de cobro">10 - Cobros por cuenta de terceros</option>
-          <option value="Operaciones de arrendamiento de local de negocio">11 - Arrendamiento de local de negocio</option>
-          <option value="Factura con IVA pendiente de devengo en operaciones de tracto sucesivo">15 - IVA pendiente de devengo tracto sucesivo</option>
-          <option value="Operación acogida a alguno de los regímenes previstos en el Capítulo XI del Título IX (OSS e IOSS)">17 - OSS e IOSS</option>
-          <option value="Recargo de equivalencia">18 - Recargo de equivalencia</option>
-          <option value="Operaciones de actividades incluidas en el Régimen Especial de Agricultura, Ganadería y Pesca (REAGYP)">19 - REAGYP</option>
-          <option value="Régimen simplificado">20 - Régimen simplificado</option>
-        </select>
-      </div>
-
       <div class="col-6">
         <label for="tipoProducto" class="form-label">Tipo producto</label>
-        <select id="tipoProducto" name="tipoProducto" class="form-select form-select-lg" required>
+        <select id="tipoProducto" name="tipoProducto" class="form-select form-select-lg" required onchange="updateRecargoVisibility()">
           <option value="">Selecciona una opción</option>
           <option value="Producto">Producto</option>
           <option value="Servicio">Servicio</option>
@@ -43,11 +17,21 @@
 
       <div class="col-6">
         <label for="tipoUso" class="form-label">Tipo de uso</label>
-        <select id="tipoUso" name="tipoUso" class="form-select form-select-lg" required>
+        <select id="tipoUso" name="tipoUso" class="form-select form-select-lg" required onchange="updateRecargoVisibility()">
           <option value="">Selecciona una opción</option>
           <option value="Venta">Venta</option>
           <option value="Compra">Compra</option>
         </select>
+      </div>
+
+      <div class="col-12">
+        <label for="codigoReferencia" class="form-label">Código referencia</label>
+        <input type="text" class="form-control form-control-lg" id="codigoReferencia" name="codigoReferencia" required>
+      </div>
+
+      <div class="col-12">
+        <label for="nombre" class="form-label">Nombre</label>
+        <input type="text" class="form-control form-control-lg" id="nombre" name="nombre" required>
       </div>
 
       <div class="col-6">
@@ -56,8 +40,12 @@
       </div>
 
       <div class="col-6">
-        <label for="codigoReferencia" class="form-label">Código referencia</label>
-        <input type="text" class="form-control form-control-lg" id="codigoReferencia" name="codigoReferencia" required>
+        <div class="form-check mt-4" id="recargoContainer">
+          <input class="form-check-input" type="checkbox" id="aplicarRecargo" name="aplicarRecargo" onchange="onToggleRecargo(event)">
+          <label class="form-check-label" for="aplicarRecargo">
+            Aplica recargo equivalencia
+          </label>
+        </div>
       </div>
 
       <div class="col-6">
@@ -71,19 +59,48 @@
       </div>
 
       <div class="col-6">
+        <label for="regimen" class="form-label">Régimen</label>
+        <select id="regimen" name="regimen" class="form-select form-select-lg" required onchange="onRegimenChange()">
+          <option value="">Selecciona una opción</option>
+          <option value="Operación de régimen general">01 - Operación de régimen general</option>
+          <option value="Exportación">02 - Exportación</option>
+          <option value="Régimen especial del oro de inversión">04 - Régimen especial oro de inversión</option>
+          <option value="Régimen especial del criterio de caja">07 - Régimen especial criterio de caja</option>
+          <option value="Operaciones sujetas al IPSI / IGIC (Impuesto sobre la Producción, los Servicios y la Importación / Impuesto General Indirecto Canario)">08 - Operaciones sujetas al IPSI / IGIC</option>
+          <option value="Cobros por cuenta de terceros de honorarios profesionales o de derechos derivados de la propiedad industrial, de autor u otros por cuenta de sus socios, asociados o colegiados efectuados por sociedades, asociaciones, colegios profesionales u otras entidades que realicen estas funciones de cobro">10 - Cobros por cuenta de terceros</option>
+          <option value="Operaciones de arrendamiento de local de negocio">11 - Arrendamiento de local de negocio</option>
+          <option value="Factura con IVA pendiente de devengo en certificaciones de obra cuyo destinatario sea una Administración Pública">14 - IVA pendiente devengo certificaciones obra</option>
+          <option value="Factura con IVA pendiente de devengo en operaciones de tracto sucesivo">15 - IVA pendiente de devengo tracto sucesivo</option>
+          <option value="Operación acogida a alguno de los regímenes previstos en el Capítulo XI del Título IX (OSS e IOSS)">17 - OSS e IOSS</option>
+          <option value="Recargo de equivalencia">18 - Recargo de equivalencia</option>
+          <option value="Operaciones de actividades incluidas en el Régimen Especial de Agricultura, Ganadería y Pesca (REAGYP)">19 - REAGYP</option>
+          <option value="Régimen simplificado">20 - Régimen simplificado</option>
+          <option value="Régimen especial (pendiente confirmación con negocio)">21 - Régimen especial (pendiente confirmación)</option>
+        </select>
+      </div>
+
+      <div class="col-6">
+        <div class="form-check mt-4" id="exentoContainer">
+          <input class="form-check-input" type="checkbox" id="exento" name="exento" onchange="onToggleExento(event)">
+          <label class="form-check-label" for="exento">
+            Producto exento
+          </label>
+        </div>
+        <div class="form-check mt-1" id="ivaIncluidoContainer">
+          <input class="form-check-input" type="checkbox" id="ivaIncluido" name="ivaIncluido" onchange="onToggleIvaIncluido(event)">
+          <label class="form-check-label" for="ivaIncluido">
+            IVA incluido
+          </label>
+        </div>
+      </div>
+
+      <div class="col-6">
         <label for="tarifaImpuesto" class="form-label">Tarifa impuesto</label>
         <select id="tarifaImpuesto" name="tarifaImpuesto" class="form-select form-select-lg" required onchange="onTarifaChange()">
           <option value="">Selecciona régimen primero</option>
         </select>
         <input type="number" class="form-control form-control-lg" id="tarifaImpuestoLibre"
           min="0" max="100" step="0.01" placeholder="0-100%" style="display:none" onchange="onTarifaChange()">
-      </div>
-
-      <div class="col-12" id="operacionExentaContainer" style="display:none">
-        <label for="operacionExenta" class="form-label">Operación exenta</label>
-        <select id="operacionExenta" name="operacionExenta" class="form-select form-select-lg">
-          <option value="">Selecciona una opción</option>
-        </select>
       </div>
 
       <div class="col-6" id="calificacionContainer">
@@ -96,22 +113,18 @@
         </select>
       </div>
 
-      <div class="col-6">
-        <div class="form-check mt-4">
-          <input class="form-check-input" type="checkbox" id="exento" name="exento" onchange="onToggleExento(event)">
-          <label class="form-check-label" for="exento">
-            Producto exento
-          </label>
-        </div>
+      <div class="col-6" id="tarifaRecargoContainer" style="display:none">
+        <label for="tarifaRecargo" class="form-label">Tarifa recargo equivalencia</label>
+        <select id="tarifaRecargo" name="tarifaRecargo" class="form-select form-select-lg">
+          <option value="">Selecciona una opción</option>
+        </select>
       </div>
 
-      <div class="col-12" id="recargoContainer">
-        <div class="form-check mt-2">
-          <input class="form-check-input" type="checkbox" id="aplicarRecargo" name="aplicarRecargo" onchange="onToggleRecargo(event)">
-          <label class="form-check-label" for="aplicarRecargo">
-            Aplicar recargo de equivalencia automático
-          </label>
-        </div>
+      <div class="col-12" id="operacionExentaContainer" style="display:none">
+        <label for="operacionExenta" class="form-label">Operación exenta</label>
+        <select id="operacionExenta" name="operacionExenta" class="form-select form-select-lg">
+          <option value="">Selecciona una opción</option>
+        </select>
       </div>
 
       <div class="col-6">
@@ -144,45 +157,125 @@
 </div>
 
 <script>
-  var REGIMEN_CONFIG_CLIENT = {
-    '01': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E4','E5','E6'] },
-    '02': { ivaRates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-    '03': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-    '04': { ivaRates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-    '05': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-    '07': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E6'] },
-    '09': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-    '10': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'], requiresNifIva: true },
-    '11': { ivaRates: [21], allowRecargo: false, exentoOps: [] },
-    '15': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-    '17': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-    '18': { ivaRates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-    '19': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-    '20': { ivaRates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] }
+  // Per-tax-type configuration — mirrors TAX_TYPE_CONFIG in mainScript.js
+  var TAX_TYPE_CONFIG_CLIENT = {
+    IVA: {
+      regimenes: {
+        '01': { rates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1','E4','E5','E6'] },
+        '02': { rates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'], autoExento: true },
+        '04': { rates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+        '07': { rates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1','E6'] },
+        '08': { rates: [21, 10, 4, 0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+        '10': { rates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+        '11': { rates: [21], allowRecargo: false, exentoOps: [] },
+        '15': { rates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+        '17': { rates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+        '18': { rates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+        '19': { rates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+        '20': { rates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] }
+      },
+      tarifaMode: 'dropdown'
+    },
+    IGIC: {
+      regimenes: {
+        '01': { rates: null, allowRecargo: true, exentoOps: ['E1','E4','E5','E6','E7','E8'] },
+        '02': { rates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'], autoExento: true },
+        '04': { rates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] },
+        '07': { rates: null, allowRecargo: true, exentoOps: ['E1','E6'] },
+        '08': { rates: null, allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] },
+        '10': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] },
+        '11': { rates: null, allowRecargo: false, exentoOps: [] },
+        '14': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] },
+        '15': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] },
+        '17': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] },
+        '18': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] },
+        '19': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] },
+        '20': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] },
+        '21': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6','E7','E8'] }
+      },
+      tarifaMode: 'freeform'
+    },
+    IPSI: {
+      regimenes: {
+        '01': { rates: null, allowRecargo: true, exentoOps: ['E1','E4','E5','E6'] },
+        '08': { rates: null, allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+        '11': { rates: null, allowRecargo: false, exentoOps: [] },
+        '18': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+        '19': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+        '20': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] }
+      },
+      tarifaMode: 'freeform'
+    },
+    Otros: {
+      regimenes: {
+        '01': { rates: null, allowRecargo: true, exentoOps: ['E1','E4','E5','E6'] },
+        '02': { rates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'], autoExento: true },
+        '04': { rates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+        '07': { rates: null, allowRecargo: true, exentoOps: ['E1','E6'] },
+        '08': { rates: null, allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+        '10': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+        '11': { rates: null, allowRecargo: false, exentoOps: [] },
+        '14': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+        '15': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+        '17': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+        '18': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+        '19': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+        '20': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
+        '21': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] }
+      },
+      tarifaMode: 'freeform'
+    }
   };
+
+  // All régimen options with their codes, for filtering by tax type
+  var ALL_REGIMEN_OPTIONS = [
+    { code: '01', value: 'Operación de régimen general', label: '01 - Operación de régimen general' },
+    { code: '02', value: 'Exportación', label: '02 - Exportación' },
+    { code: '04', value: 'Régimen especial del oro de inversión', label: '04 - Régimen especial oro de inversión' },
+    { code: '07', value: 'Régimen especial del criterio de caja', label: '07 - Régimen especial criterio de caja' },
+    { code: '08', value: 'Operaciones sujetas al IPSI / IGIC (Impuesto sobre la Producción, los Servicios y la Importación / Impuesto General Indirecto Canario)', label: '08 - Operaciones sujetas al IPSI / IGIC' },
+    { code: '10', value: 'Cobros por cuenta de terceros de honorarios profesionales o de derechos derivados de la propiedad industrial, de autor u otros por cuenta de sus socios, asociados o colegiados efectuados por sociedades, asociaciones, colegios profesionales u otras entidades que realicen estas funciones de cobro', label: '10 - Cobros por cuenta de terceros' },
+    { code: '11', value: 'Operaciones de arrendamiento de local de negocio', label: '11 - Arrendamiento de local de negocio' },
+    { code: '14', value: 'Factura con IVA pendiente de devengo en certificaciones de obra cuyo destinatario sea una Administración Pública', label: '14 - IVA pendiente devengo certificaciones obra' },
+    { code: '15', value: 'Factura con IVA pendiente de devengo en operaciones de tracto sucesivo', label: '15 - IVA pendiente de devengo tracto sucesivo' },
+    { code: '17', value: 'Operación acogida a alguno de los regímenes previstos en el Capítulo XI del Título IX (OSS e IOSS)', label: '17 - OSS e IOSS' },
+    { code: '18', value: 'Recargo de equivalencia', label: '18 - Recargo de equivalencia' },
+    { code: '19', value: 'Operaciones de actividades incluidas en el Régimen Especial de Agricultura, Ganadería y Pesca (REAGYP)', label: '19 - REAGYP' },
+    { code: '20', value: 'Régimen simplificado', label: '20 - Régimen simplificado' },
+    { code: '21', value: 'Régimen especial (pendiente confirmación con negocio)', label: '21 - Régimen especial (pendiente confirmación)' }  // TODO: replace with official label
+  ];
+
+  function getClientTaxConfig(tipoImpuesto) {
+    return TAX_TYPE_CONFIG_CLIENT[tipoImpuesto] || TAX_TYPE_CONFIG_CLIENT.IVA;
+  }
+
+  function getClientRegimenConfig(code, tipoImpuesto) {
+    var taxType = getClientTaxConfig(tipoImpuesto);
+    return taxType.regimenes[code] || null;
+  }
 
   var REGIMEN_VALUE_TO_CODE = {
     'Operación de régimen general': '01',
     'Exportación': '02',
-    'Operaciones a las que se aplique el régimen especial de bienes usados, objetos de arte, antigüedades y objetos de colección': '03',
     'Régimen especial del oro de inversión': '04',
-    'Régimen especial de las agencias de viajes': '05',
     'Régimen especial del criterio de caja': '07',
-    'Facturación de las prestaciones de servicios de agencias de viaje que actúan como mediadoras en nombre y por cuenta ajena (D.A.4ª RD1619/2012)': '09',
+    'Operaciones sujetas al IPSI / IGIC (Impuesto sobre la Producción, los Servicios y la Importación / Impuesto General Indirecto Canario)': '08',
     'Cobros por cuenta de terceros de honorarios profesionales o de derechos derivados de la propiedad industrial, de autor u otros por cuenta de sus socios, asociados o colegiados efectuados por sociedades, asociaciones, colegios profesionales u otras entidades que realicen estas funciones de cobro': '10',
     'Operaciones de arrendamiento de local de negocio': '11',
+    'Factura con IVA pendiente de devengo en certificaciones de obra cuyo destinatario sea una Administración Pública': '14',
     'Factura con IVA pendiente de devengo en operaciones de tracto sucesivo': '15',
     'Operación acogida a alguno de los regímenes previstos en el Capítulo XI del Título IX (OSS e IOSS)': '17',
     'Recargo de equivalencia': '18',
     'Operaciones de actividades incluidas en el Régimen Especial de Agricultura, Ganadería y Pesca (REAGYP)': '19',
-    'Régimen simplificado': '20'
+    'Régimen simplificado': '20',
+    'Régimen especial (pendiente confirmación con negocio)': '21'  // TODO: replace with official label
   };
 
   var IVA_RECARGO_2025 = {
-    '21': '5,20%',
-    '10': '1,40%',
-    '4': '0,50%',
-    '0': '0,00%'
+    '21': ['5,20%', '1,75%'],
+    '10': ['1,40%'],
+    '4': ['0,50%'],
+    '0': ['0,00%']
   };
 
   var OPERACION_EXENTA_LABELS_CLIENT = {
@@ -191,7 +284,9 @@
     'E3': 'E3 - Entregas intracomunitarias de bienes',
     'E4': 'E4 - Prestaciones de servicios relacionados con',
     'E5': 'E5 - Operaciones asimiladas a exportaciones',
-    'E6': 'E6 - Exenta por otros'
+    'E6': 'E6 - Exenta por otros',
+    'E7': 'E7 - Exenta por aplicación del artículo 25 de la Ley 19/1994',
+    'E8': 'E8 - Operaciones exentas sin derecho a deducción'
   };
 
   var TARIFAS_RETENCION = [
@@ -218,30 +313,61 @@
 
   function onRegimenChange() {
     var code = getSelectedRegimenCode();
-    var config = REGIMEN_CONFIG_CLIENT[code];
+    var tipoImpuesto = document.getElementById('tipoImpuesto').value;
+    var config = getClientRegimenConfig(code, tipoImpuesto);
+    var taxConfig = getClientTaxConfig(tipoImpuesto);
     var tarifaSelect = document.getElementById('tarifaImpuesto');
-    var recargoCheck = document.getElementById('aplicarRecargo');
+    var tarifaLibre = document.getElementById('tarifaImpuestoLibre');
     var recargoContainer = document.getElementById('recargoContainer');
 
-    tarifaSelect.innerHTML = '';
-
     if (!config) {
+      tarifaSelect.innerHTML = '';
       tarifaSelect.add(new Option('Selecciona régimen primero', ''));
       recargoContainer.style.display = '';
+      actualizarOperacionExenta();
       return;
     }
 
-    var soloExento = config.ivaRates.length === 1 && config.ivaRates[0] === 0;
+    // Handle autoExento (régimen 02 = Exportación)
+    if (config.autoExento) {
+      var exentoCheck = document.getElementById('exento');
+      if (!exentoCheck.checked) {
+        exentoCheck.checked = true;
+        onToggleExento({ target: exentoCheck });
+      }
+      // Hide IVA incluido on autoExento
+      document.getElementById('ivaIncluidoContainer').style.display = 'none';
+      document.getElementById('ivaIncluido').checked = false;
+    }
 
-    if (soloExento) {
-      tarifaSelect.add(new Option('Exento (0%)', '0'));
-      tarifaSelect.value = '0';
+    if (taxConfig.tarifaMode === 'freeform' || config.rates === null) {
+      // Freeform: show numeric input, hide select dropdown
+      tarifaSelect.style.display = 'none';
+      tarifaSelect.removeAttribute('required');
+      tarifaLibre.style.display = '';
+      tarifaLibre.setAttribute('required', '');
+      if (config.rates && config.rates.length === 1 && config.rates[0] === 0) {
+        tarifaLibre.value = '0';
+      }
     } else {
-      tarifaSelect.add(new Option('Selecciona una opción', ''));
-      config.ivaRates.forEach(function(rate) {
-        var label = rate === 0 ? 'Exento (0%)' : rate + '%';
-        tarifaSelect.add(new Option(label, String(rate)));
-      });
+      // Dropdown mode
+      tarifaSelect.style.display = '';
+      tarifaSelect.setAttribute('required', '');
+      tarifaLibre.style.display = 'none';
+      tarifaLibre.removeAttribute('required');
+      tarifaSelect.innerHTML = '';
+
+      var soloExento = config.rates.length === 1 && config.rates[0] === 0;
+      if (soloExento) {
+        tarifaSelect.add(new Option('Exento (0%)', '0'));
+        tarifaSelect.value = '0';
+      } else {
+        tarifaSelect.add(new Option('Selecciona una opción', ''));
+        config.rates.forEach(function(rate) {
+          var label = rate === 0 ? 'Exento (0%)' : rate + '%';
+          tarifaSelect.add(new Option(label, String(rate)));
+        });
+      }
     }
 
     recargoContainer.style.display = '';
@@ -250,17 +376,21 @@
 
   function onTarifaChange() {
     actualizarOperacionExenta();
+    if (document.getElementById('aplicarRecargo').checked) {
+      updateTarifaRecargoOptions();
+    }
   }
 
   function actualizarOperacionExenta() {
     var code = getSelectedRegimenCode();
-    var config = REGIMEN_CONFIG_CLIENT[code];
+    var tipoImpuesto = document.getElementById('tipoImpuesto').value;
+    var config = getClientRegimenConfig(code, tipoImpuesto);
     var container = document.getElementById('operacionExentaContainer');
     var select = document.getElementById('operacionExenta');
     var valorPrevio = select.value;
     var isExento = document.getElementById('exento').checked;
-    var tipoImpuesto = document.getElementById('tipoImpuesto').value;
-    var tarifaVal = tipoImpuesto === 'Otros'
+    var taxConfig = getClientTaxConfig(tipoImpuesto);
+    var tarifaVal = (taxConfig.tarifaMode === 'freeform')
       ? Number(document.getElementById('tarifaImpuestoLibre').value)
       : Number(document.getElementById('tarifaImpuesto').value);
     var showExenta = (isExento || tarifaVal === 0) && config && config.exentoOps && config.exentoOps.length > 0;
@@ -297,8 +427,27 @@
     var tipo = document.getElementById('tipoImpuesto').value;
     var selectTarifa = document.getElementById('tarifaImpuesto');
     var inputTarifa = document.getElementById('tarifaImpuestoLibre');
+    var taxConfig = getClientTaxConfig(tipo);
 
-    if (tipo === 'Otros') {
+    // Filter régimen options based on tax type
+    var regimenSelect = document.getElementById('regimen');
+    var prevRegimen = regimenSelect.value;
+    regimenSelect.innerHTML = '<option value="">Selecciona una opción</option>';
+    ALL_REGIMEN_OPTIONS.forEach(function(opt) {
+      if (taxConfig.regimenes[opt.code]) {
+        regimenSelect.add(new Option(opt.label, opt.value));
+      }
+    });
+    // Restore previous selection if still valid
+    if (prevRegimen) {
+      var prevCode = REGIMEN_VALUE_TO_CODE[prevRegimen];
+      if (prevCode && taxConfig.regimenes[prevCode]) {
+        regimenSelect.value = prevRegimen;
+      }
+    }
+
+    // Set tarifa mode based on tax type
+    if (taxConfig.tarifaMode === 'freeform') {
       selectTarifa.style.display = 'none';
       selectTarifa.removeAttribute('required');
       inputTarifa.style.display = '';
@@ -310,6 +459,20 @@
       inputTarifa.removeAttribute('required');
       inputTarifa.value = '';
     }
+
+    // IVA incluido: only available for IVA tax type
+    var ivaIncluidoContainer = document.getElementById('ivaIncluidoContainer');
+    if (tipo === 'IVA') {
+      ivaIncluidoContainer.style.display = '';
+    } else {
+      ivaIncluidoContainer.style.display = 'none';
+      document.getElementById('ivaIncluido').checked = false;
+      // Restore exento visibility when switching away from IVA
+      document.getElementById('exentoContainer').style.display = '';
+    }
+
+    // Re-apply régimen-based rules
+    onRegimenChange();
     onTarifaChange();
   }
 
@@ -320,6 +483,7 @@
     var calificacionContainer = document.getElementById('calificacionContainer');
     var recargoContainer = document.getElementById('recargoContainer');
     var tarifaContainer = tarifaSelect.closest('.col-6');
+    var ivaIncluidoContainer = document.getElementById('ivaIncluidoContainer');
 
     if (isExento) {
       // Hide tarifa (both select + libre), hide calificación, hide + uncheck recargo
@@ -331,19 +495,47 @@
       calificacionContainer.style.display = 'none';
       recargoContainer.style.display = 'none';
       document.getElementById('aplicarRecargo').checked = false;
+      document.getElementById('tarifaRecargoContainer').style.display = 'none';
+      // Mutual exclusivity: hide + uncheck IVA incluido
+      ivaIncluidoContainer.style.display = 'none';
+      document.getElementById('ivaIncluido').checked = false;
     } else {
       // Restore tarifa, calificación, recargo
       tarifaContainer.style.display = '';
       var tipo = document.getElementById('tipoImpuesto').value;
-      if (tipo === 'Otros') {
+      var taxCfg = getClientTaxConfig(tipo);
+      if (taxCfg.tarifaMode === 'freeform') {
         tarifaLibre.setAttribute('required', '');
       } else {
         tarifaSelect.setAttribute('required', '');
       }
       calificacionContainer.style.display = '';
       recargoContainer.style.display = '';
+      // Show IVA incluido only for IVA
+      if (tipo === 'IVA') {
+        ivaIncluidoContainer.style.display = '';
+      }
     }
     actualizarOperacionExenta();
+  }
+
+  function onToggleIvaIncluido(event) {
+    var isChecked = event.target.checked;
+    var exentoContainer = document.getElementById('exentoContainer');
+    if (isChecked) {
+      // Mutual exclusivity: hide + uncheck exento
+      exentoContainer.style.display = 'none';
+      document.getElementById('exento').checked = false;
+      // Restore non-exento UI state if needed
+      var tarifaSelect = document.getElementById('tarifaImpuesto');
+      var tarifaContainer = tarifaSelect.closest('.col-6');
+      tarifaContainer.style.display = '';
+      document.getElementById('calificacionContainer').style.display = '';
+      document.getElementById('recargoContainer').style.display = '';
+      actualizarOperacionExenta();
+    } else {
+      exentoContainer.style.display = '';
+    }
   }
 
   function verificarDatosObligatoriosProducto() {
@@ -359,7 +551,7 @@
 
     var isValid = true;
     var tipoImpuesto = document.getElementById('tipoImpuesto').value;
-    var isOtros = tipoImpuesto === 'Otros';
+    var isFreeform = getClientTaxConfig(tipoImpuesto).tarifaMode === 'freeform';
     var isExento = document.getElementById('exento').checked;
 
     camposObligatorios.forEach(function(id) {
@@ -372,8 +564,8 @@
       }
     });
 
-    // Validate tarifa: dropdown for standard types, free input for "Otros"
-    if (isOtros) {
+    // Validate tarifa: dropdown for IVA, free input for freeform types
+    if (isFreeform) {
       var tarifaLibre = document.getElementById('tarifaImpuestoLibre').value;
       var tarifaNum = Number(tarifaLibre);
       if (tarifaLibre === '' || isNaN(tarifaNum) || tarifaNum < 0 || tarifaNum > 100) {
@@ -392,6 +584,15 @@
       }
     }
 
+    var aplicarRecargo = document.getElementById('aplicarRecargo').checked;
+    var recargoSel = document.getElementById('tarifaRecargo').value;
+    if (aplicarRecargo && !recargoSel) {
+      marcarCampo('tarifaRecargo', true);
+      isValid = false;
+    } else {
+      marcarCampo('tarifaRecargo', false);
+    }
+
     var aplicarRetencion = document.getElementById('aplicarRetencion').checked;
     var retencionSel = document.getElementById('retenciones').value;
     if (aplicarRetencion && !retencionSel) {
@@ -402,13 +603,15 @@
     }
 
     var code = getSelectedRegimenCode();
-    var config = REGIMEN_CONFIG_CLIENT[code];
-    if (config && !isOtros) {
+    var tipoImpuestoVal = document.getElementById('tipoImpuesto').value;
+    var config = getClientRegimenConfig(code, tipoImpuestoVal);
+    var taxCfg = getClientTaxConfig(tipoImpuestoVal);
+    if (config && config.rates !== null && taxCfg.tarifaMode === 'dropdown') {
       var tarifaVal = Number(document.getElementById('tarifaImpuesto').value);
-      if (config.ivaRates.indexOf(tarifaVal) === -1 && !isExento) {
+      if (config.rates.indexOf(tarifaVal) === -1 && !isExento) {
         marcarCampo('tarifaImpuesto', true);
         isValid = false;
-        mostrarAlerta('La tarifa de IVA seleccionada no es válida para el régimen ' + code + '.');
+        mostrarAlerta('La tarifa de ' + tipoImpuestoVal + ' seleccionada no es válida para el régimen ' + code + '.');
       }
     }
 
@@ -433,7 +636,8 @@
         marcarCampo('calificacionOperacion', false);
       }
       // If tarifa = 0, also require operación exenta
-      var effectiveTarifa = isOtros ? Number(document.getElementById('tarifaImpuestoLibre').value) : Number(document.getElementById('tarifaImpuesto').value);
+      var isFreeformMode = taxCfg && taxCfg.tarifaMode === 'freeform';
+      var effectiveTarifa = isFreeformMode ? Number(document.getElementById('tarifaImpuestoLibre').value) : Number(document.getElementById('tarifaImpuesto').value);
       if (effectiveTarifa === 0 && config && config.exentoOps && config.exentoOps.length > 0) {
         var opExenta = document.getElementById('operacionExenta').value;
         if (!opExenta) {
@@ -462,15 +666,18 @@
     var form = event.target;
     var formData = new FormData(form);
     formData.set('aplicarRecargo', document.getElementById('aplicarRecargo').checked);
+    formData.set('tarifaRecargo', document.getElementById('aplicarRecargo').checked ? document.getElementById('tarifaRecargo').value : '');
     if (document.getElementById('aplicarRetencion').checked) {
       formData.set('retenciones', document.getElementById('retenciones').value);
     } else {
       formData.set('retenciones', '');
     }
-    // New fields: calificacion, exento, and free-form tarifa for "Otros"
     formData.set('calificacionOperacion', document.getElementById('calificacionOperacion').value);
     formData.set('exento', document.getElementById('exento').checked);
-    if (document.getElementById('tipoImpuesto').value === 'Otros') {
+    formData.set('ivaIncluido', document.getElementById('ivaIncluido').checked);
+    // Freeform tax types: use the free input value
+    var taxCfgSubmit = getClientTaxConfig(document.getElementById('tipoImpuesto').value);
+    if (taxCfgSubmit.tarifaMode === 'freeform') {
       formData.set('tarifaImpuesto', document.getElementById('tarifaImpuestoLibre').value);
     }
 
@@ -490,8 +697,13 @@
     ['codigoReferencia','nombre','regimen','tipoProducto','tipoUso','valorUnitario','tipoImpuesto','tarifaImpuesto','operacionExenta','retenciones']
       .forEach(function(id) { marcarCampo(id, false); });
     document.getElementById('aplicarRecargo').checked = false;
+    document.getElementById('tarifaRecargoContainer').style.display = 'none';
+    document.getElementById('tarifaRecargo').innerHTML = '<option value="">Selecciona una opción</option>';
     document.getElementById('aplicarRetencion').checked = false;
     document.getElementById('exento').checked = false;
+    document.getElementById('ivaIncluido').checked = false;
+    document.getElementById('exentoContainer').style.display = '';
+    document.getElementById('ivaIncluidoContainer').style.display = '';
     document.getElementById('recargoContainer').style.display = '';
     document.getElementById('calificacionContainer').style.display = '';
     document.getElementById('calificacionOperacion').value = 'S1';
@@ -526,11 +738,91 @@
     }
   }
 
+  function updateRecargoVisibility() {
+    var tipoProducto = document.getElementById('tipoProducto').value;
+    var tipoUso = document.getElementById('tipoUso').value;
+    var recargoContainer = document.getElementById('recargoContainer');
+    var recargoCheckbox = document.getElementById('aplicarRecargo');
+    var tarifaRecargoContainer = document.getElementById('tarifaRecargoContainer');
+    var tarifaRecargo = document.getElementById('tarifaRecargo');
+    if (tipoProducto === 'Producto' && tipoUso === 'Venta') {
+      recargoContainer.style.display = '';
+    } else {
+      // Full reset: uncheck, clear tarifa value, hide both containers
+      recargoContainer.style.display = 'none';
+      recargoCheckbox.checked = false;
+      tarifaRecargoContainer.style.display = 'none';
+      tarifaRecargo.innerHTML = '<option value="">Selecciona una opción</option>';
+      tarifaRecargo.value = '';
+    }
+  }
+
   function onToggleRecargo(event) {
-    // recargo independiente
+    var checked = event.target.checked;
+    var container = document.getElementById('tarifaRecargoContainer');
+    var select = document.getElementById('tarifaRecargo');
+    if (checked) {
+      updateTarifaRecargoOptions();
+      container.style.display = '';
+    } else {
+      container.style.display = 'none';
+      select.value = '';
+    }
+  }
+
+  function updateTarifaRecargoOptions() {
+    var tipoImpuesto = document.getElementById('tipoImpuesto').value;
+    var taxCfgRecargo = getClientTaxConfig(tipoImpuesto);
+    var tarifaVal = (taxCfgRecargo.tarifaMode === 'freeform')
+      ? String(Math.round(Number(document.getElementById('tarifaImpuestoLibre').value)))
+      : document.getElementById('tarifaImpuesto').value;
+    var select = document.getElementById('tarifaRecargo');
+    var prevVal = select.value;
+    select.innerHTML = '';
+    var options = IVA_RECARGO_2025[tarifaVal];
+    if (options && options.length > 1) {
+      select.add(new Option('Selecciona una opción', ''));
+      options.forEach(function(op) { select.add(new Option(op, op)); });
+    } else if (options && options.length === 1) {
+      select.add(new Option(options[0], options[0]));
+      select.value = options[0];
+    } else {
+      select.add(new Option('Selecciona tarifa IVA primero', ''));
+    }
+    // Restore previous value if still valid
+    for (var i = 0; i < select.options.length; i++) {
+      if (select.options[i].value === prevVal) { select.value = prevVal; break; }
+    }
   }
 
   function onToggleRetencion(event) {
     renderRetencion(event.target.checked);
   }
+
+  function onCalificacionChange() {
+    var califVal = document.getElementById('calificacionOperacion').value;
+    if (['S2', 'N1', 'N2'].indexOf(califVal) !== -1) {
+      // Force tarifa to 0%
+      document.getElementById('tarifaImpuesto').value = '0';
+      document.getElementById('tarifaImpuestoLibre').value = '0';
+      // Disable recargo
+      document.getElementById('aplicarRecargo').checked = false;
+      document.getElementById('tarifaRecargoContainer').style.display = 'none';
+      document.getElementById('recargoContainer').style.display = 'none';
+    } else if (califVal === 'S1') {
+      // Restore recargo visibility
+      document.getElementById('recargoContainer').style.display = '';
+      // Re-apply tarifa based on régimen
+      onRegimenChange();
+    }
+    actualizarOperacionExenta();
+  }
+
+  // Initialize on load
+  (function() {
+    document.getElementById('calificacionOperacion').addEventListener('change', onCalificacionChange);
+    // Initialize régimen options for default tax type (IVA)
+    onTipoImpuestoChange();
+    updateRecargoVisibility();
+  })();
 </script>

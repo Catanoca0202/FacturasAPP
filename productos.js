@@ -32,6 +32,7 @@ function obtenerInformacionProducto(producto) {
     let checkRetencion = hojaProductos.getRange(fila, PRODUCT_COLUMNS.CHECK_RETENCION).getValue();
     let tarifaRetencion = hojaProductos.getRange(fila, PRODUCT_COLUMNS.TARIFA_RETENCION).getDisplayValue();
     let estado = hojaProductos.getRange(fila, PRODUCT_COLUMNS.ESTADO).getValue();
+    let tipoProducto = hojaProductos.getRange(fila, PRODUCT_COLUMNS.TIPO_PRODUCTO).getValue();
 
     // Read Calificación Operación and Exento (checkbox boolean)
     let calificacionOperacion = hojaProductos.getRange(fila, PRODUCT_COLUMNS.CALIFICACION_OPERACION).getValue() || '';
@@ -45,6 +46,7 @@ function obtenerInformacionProducto(producto) {
       "IVA": porcientoIva,
       "precio Con Iva": precioConIva,
       "impuestos": tipoImpuesto,
+      "tipoProducto": String(tipoProducto || '').trim(),
       "Recargo de equivalencia": checkRecargo === true || checkRecargo === "TRUE" ? tarifaRecargo : "",
       "retencion": checkRetencion === true || checkRetencion === "TRUE" ? tarifaRetencion : "",
       "Estado": estado,
@@ -90,7 +92,56 @@ function obtenerInformacionProducto(producto) {
     // Limitar resultados para respuestas más ligeras
     return resultados.slice(0, 50);
   }
-  
-   
 
-  
+  /**
+   * Batch-fetch product metadata for a list of Identificador Unico values.
+   * Returns a map: { identifierKey: { ...product info dict } }
+   * Uses 2 bulk sheet reads (getValues + getDisplayValues) for efficiency.
+   */
+  function obtenerInformacionProductosBatch(listaIds) {
+    let result = {};
+    if (!listaIds || listaIds.length === 0) return result;
+
+    let spreadsheet = SpreadsheetApp.getActive();
+    let hojaProductos = spreadsheet.getSheetByName('Productos');
+    let ultimaFila = hojaProductos.getLastRow();
+    if (ultimaFila <= 1) return result;
+
+    let numCols = PRODUCT_COLUMNS.IDENTIFICADOR_UNICO; // 18
+    let allData = hojaProductos.getRange(2, 1, ultimaFila - 1, numCols).getValues();
+    let allDisplay = hojaProductos.getRange(2, 1, ultimaFila - 1, numCols).getDisplayValues();
+
+    // Build a set of requested IDs for fast lookup
+    let searchSet = {};
+    for (let p = 0; p < listaIds.length; p++) {
+      searchSet[String(listaIds[p]).trim()] = true;
+    }
+
+    for (let i = 0; i < allData.length; i++) {
+      let idKey = String(allData[i][PRODUCT_COLUMNS.IDENTIFICADOR_UNICO - 1]).trim();
+      if (!idKey || !searchSet[idKey]) continue;
+
+      let row = allData[i];
+      let displayRow = allDisplay[i];
+      let checkRecargo = row[PRODUCT_COLUMNS.CHECK_RECARGO - 1];
+      let checkRetencion = row[PRODUCT_COLUMNS.CHECK_RETENCION - 1];
+
+      result[idKey] = {
+        "codigo Producto": row[PRODUCT_COLUMNS.CODIGO_REFERENCIA - 1],
+        "regimen": row[PRODUCT_COLUMNS.REGIMEN - 1],
+        "operacionExenta": row[PRODUCT_COLUMNS.OPERACION_EXENTA - 1] || "",
+        "valor Unitario": row[PRODUCT_COLUMNS.VALOR_UNITARIO - 1],
+        "IVA": displayRow[PRODUCT_COLUMNS.TARIFA_IMPUESTO - 1],
+        "precio Con Iva": row[PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO - 1],
+        "impuestos": row[PRODUCT_COLUMNS.TIPO_IMPUESTO - 1],
+        "tipoProducto": String(row[PRODUCT_COLUMNS.TIPO_PRODUCTO - 1] || '').trim(),
+        "Recargo de equivalencia": (checkRecargo === true || checkRecargo === "TRUE") ? displayRow[PRODUCT_COLUMNS.TARIFA_RECARGO - 1] : "",
+        "retencion": (checkRetencion === true || checkRetencion === "TRUE") ? displayRow[PRODUCT_COLUMNS.TARIFA_RETENCION - 1] : "",
+        "Estado": row[PRODUCT_COLUMNS.ESTADO - 1],
+        "calificacionOperacion": String(row[PRODUCT_COLUMNS.CALIFICACION_OPERACION - 1] || ''),
+        "exento": row[PRODUCT_COLUMNS.EXENTO - 1] === true
+      };
+    }
+    return result;
+  }
+
