@@ -1,0 +1,182 @@
+{
+  "_LEER_PRIMERO": "PLANTILLA, NO ENVIABLE TAL CUAL. Los valores <<...>> son IDs de catálogo que deben resolverse con las herramientas catalog_list_* usando el apiKey de la compañía. Corresponde al ESCENARIO A del ejemplo legacy (factura_ejemplo_A.json), traducido al contrato nuevo de invoice_create.",
+
+  "apiKey": "<<API Key de la compañía>>",
+
+  "invoice": {
+    "invoiceNumber": "<<nextInvoiceNumber de invoice_list_consecutives>>",
+    "aeatTypeId": "<<catalog_list_aeat_types → el Id de 'AI'>>",
+    "paymentTypeId": "<<catalog_list_payment_types → el Id de 'Transferencia bancaria' (TF)>>",
+    "sifTypeId": null,
+    "contactName": "Alejandro Cataño",
+    "operationDate": "2026-08-20",
+    "invoiceExpiration": "30",
+    "paymentNote": "Pago a 30 días a la cuenta ES12 3456 7890 1234 5678 9012",
+    "textObservations": "Servicios prestados durante agosto de 2026.",
+
+    "customers": [
+      {
+        "typeContactId": "<<catalog_list_contact_types → Cliente>>",
+        "typePersonId": "<<catalog_list_person_types → Empresa>>",
+        "identificationTypeId": "<<catalog_list_identification_types → NIF-IVA>>",
+        "document": "B87654321",
+        "email": "administracion@delta.example",
+        "tradeName": "Construcciones Delta S.L.",
+        "personName": null,
+        "codeClient": "CLI-000148",
+        "countryId": "<<catalog_list_countries → España>>",
+        "stateId": "<<catalog_list_provinces → Madrid>>",
+        "cityId": "<<catalog_list_cities → Madrid>>",
+        "address": "Calle Mayor 14, 2º B",
+        "postalCode": "28013",
+        "phone": "+34 915 555 123",
+        "siteWeb": null,
+        "applySurchargeEquivalence": false
+      }
+    ],
+
+    "products": [
+      {
+        "reference": "SRV-CONS",
+        "productName": "Consultoría técnica",
+        "productTypeId": 2,
+        "useTypeId": 2,
+        "value": 60.0,
+        "ivaIncluded": false,
+        "valueWithIva": 72.6,
+        "quantity": 10,
+        "applySurchargeEquivalence": false,
+        "subTotal": 600.0,
+        "totalTax": 113.4,
+        "totalwithHoldings": 0,
+        "totalSurCharges": 0,
+        "totaldiscount": 60.0,
+        "taxes": [
+          {
+            "taxId": "<<catalog_list_taxes → IVA>>",
+            "taxName": "IVA",
+            "tariffId": "<<catalog_list_tax_tariffs → tarifa 21 vigente en 2026-08-20>>",
+            "manualRate": null,
+            "rate": 21,
+            "taxBase": 540.0,
+            "valueTax": 113.4,
+            "regimeId": "<<catalog_list_regimen(taxId IVA) → régimen 01 general>>",
+            "qualificationOperationId": "<<catalog_list_operations(taxId IVA) → S1>>",
+            "operationExentaId": null,
+            "equivalenceSurchargeRate": null
+          }
+        ],
+        "retentions": [],
+        "discounts": [
+          {
+            "discountName": "Descuento aplicado",
+            "discountRate": 10,
+            "discountBase": 600.0,
+            "valueDiscount": 60.0
+          }
+        ]
+      },
+      {
+        "reference": "LIC-SW01",
+        "productName": "Licencia software anual",
+        "productTypeId": 2,
+        "useTypeId": 2,
+        "value": 120.0,
+        "ivaIncluded": false,
+        "valueWithIva": 145.2,
+        "quantity": 2,
+        "applySurchargeEquivalence": false,
+        "subTotal": 240.0,
+        "totalTax": 50.4,
+        "totalwithHoldings": 0,
+        "totalSurCharges": 0,
+        "totaldiscount": 0,
+        "taxes": [
+          {
+            "taxId": "<<catalog_list_taxes → IVA>>",
+            "taxName": "IVA",
+            "tariffId": "<<catalog_list_tax_tariffs → tarifa 21>>",
+            "manualRate": null,
+            "rate": 21,
+            "taxBase": 240.0,
+            "valueTax": 50.4,
+            "regimeId": "<<régimen 01>>",
+            "qualificationOperationId": "<<S1>>",
+            "operationExentaId": null,
+            "equivalenceSurchargeRate": null
+          }
+        ],
+        "retentions": [],
+        "discounts": []
+      },
+      {
+        "reference": "FORM-BON",
+        "productName": "Formación bonificada",
+        "productTypeId": 2,
+        "useTypeId": 2,
+        "value": 300.0,
+        "ivaIncluded": false,
+        "valueWithIva": 300.0,
+        "quantity": 1,
+        "applySurchargeEquivalence": false,
+        "subTotal": 300.0,
+        "totalTax": 0,
+        "totalwithHoldings": 0,
+        "totalSurCharges": 0,
+        "totaldiscount": 0,
+        "taxes": [
+          {
+            "taxId": "<<catalog_list_taxes → IVA>>",
+            "taxName": "IVA",
+            "tariffId": "<<catalog_list_tax_tariffs → tarifa 0>>",
+            "manualRate": null,
+            "rate": 0,
+            "taxBase": 300.0,
+            "valueTax": 0,
+            "regimeId": "<<régimen 01>>",
+            "qualificationOperationId": null,
+            "operationExentaId": "<<catalog_list_operation_exenta(taxId IVA) → E1>>",
+            "equivalenceSurchargeRate": null
+          }
+        ],
+        "retentions": [],
+        "discounts": []
+      }
+    ],
+
+    "chargeAndDiscount": [
+      {
+        "feeDiscountTypeId": "<<catalog_list_fee_discount_types → Cargo (CG)>>",
+        "valueFeeDiscountTypeId": "<<catalog_list_value_fee_discount_types → Por valor (VR)>>",
+        "baseFeeDiscount": 0,
+        "valueFeeDiscount": 25.0,
+        "totalFeeDiscount": 25.0
+      },
+      {
+        "feeDiscountTypeId": "<<catalog_list_fee_discount_types → Descuento (DT)>>",
+        "valueFeeDiscountTypeId": "<<Por valor (VR)>>",
+        "baseFeeDiscount": 0,
+        "valueFeeDiscount": 50.0,
+        "totalFeeDiscount": 50.0
+      },
+      {
+        "feeDiscountTypeId": "<<catalog_list_fee_discount_types → Retención IRPF (RT)>>",
+        "valueFeeDiscountTypeId": "<<catalog_list_value_fee_discount_types → Por porcentaje (PJ)>>",
+        "baseFeeDiscount": 1080.0,
+        "valueFeeDiscount": 15,
+        "totalFeeDiscount": 162.0
+      }
+    ],
+
+    "valueExemptBase": 300.0,
+    "sumTotalSubTotal": 1140.0,
+    "sumTotalTaxBase": 1080.0,
+    "sumTotalTax": 163.8,
+    "sumTotalSubTotalAndTax": 1243.8,
+    "sumTotalExemptBase": 300.0,
+    "sumTotalDiscount": 50.0,
+    "sumTotalCharge": 25.0,
+    "sumTotalTotal": 1243.8,
+    "sumTotalNetPayable": 1056.8
+  }
+}

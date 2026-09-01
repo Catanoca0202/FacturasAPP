@@ -318,12 +318,11 @@
     var taxConfig = getClientTaxConfig(tipoImpuesto);
     var tarifaSelect = document.getElementById('tarifaImpuesto');
     var tarifaLibre = document.getElementById('tarifaImpuestoLibre');
-    var recargoContainer = document.getElementById('recargoContainer');
 
     if (!config) {
       tarifaSelect.innerHTML = '';
       tarifaSelect.add(new Option('Selecciona régimen primero', ''));
-      recargoContainer.style.display = '';
+      updateRecargoVisibility();
       actualizarOperacionExenta();
       return;
     }
@@ -370,7 +369,7 @@
       }
     }
 
-    recargoContainer.style.display = '';
+    updateRecargoVisibility();
     actualizarOperacionExenta();
   }
 
@@ -389,11 +388,9 @@
     var select = document.getElementById('operacionExenta');
     var valorPrevio = select.value;
     var isExento = document.getElementById('exento').checked;
-    var taxConfig = getClientTaxConfig(tipoImpuesto);
-    var tarifaVal = (taxConfig.tarifaMode === 'freeform')
-      ? Number(document.getElementById('tarifaImpuestoLibre').value)
-      : Number(document.getElementById('tarifaImpuesto').value);
-    var showExenta = (isExento || tarifaVal === 0) && config && config.exentoOps && config.exentoOps.length > 0;
+    // Operación exenta is driven exclusively by the "Producto exento" checkbox,
+    // never by a 0% tarifa.
+    var showExenta = isExento && config && config.exentoOps && config.exentoOps.length > 0;
 
     if (showExenta) {
       select.innerHTML = '';
@@ -408,15 +405,8 @@
         }
       }
       container.style.display = '';
-    } else if (config && config.exentoOps && config.exentoOps.length > 0) {
-      select.innerHTML = '';
-      select.add(new Option('Selecciona una opción', ''));
-      config.exentoOps.forEach(function(op) {
-        var label = OPERACION_EXENTA_LABELS_CLIENT[op] || op;
-        select.add(new Option(label, label));
-      });
-      container.style.display = 'none';
     } else {
+      // Hidden: also drop the value so a stale selection is never submitted
       select.innerHTML = '<option value="">Selecciona una opción</option>';
       select.value = '';
       container.style.display = 'none';
@@ -481,26 +471,22 @@
     var tarifaSelect = document.getElementById('tarifaImpuesto');
     var tarifaLibre = document.getElementById('tarifaImpuestoLibre');
     var calificacionContainer = document.getElementById('calificacionContainer');
-    var recargoContainer = document.getElementById('recargoContainer');
     var tarifaContainer = tarifaSelect.closest('.col-6');
     var ivaIncluidoContainer = document.getElementById('ivaIncluidoContainer');
 
     if (isExento) {
-      // Hide tarifa (both select + libre), hide calificación, hide + uncheck recargo
+      // Hide tarifa (both select + libre), hide calificación
       tarifaSelect.value = '0';
       tarifaLibre.value = '0';
       tarifaContainer.style.display = 'none';
       tarifaSelect.removeAttribute('required');
       tarifaLibre.removeAttribute('required');
       calificacionContainer.style.display = 'none';
-      recargoContainer.style.display = 'none';
-      document.getElementById('aplicarRecargo').checked = false;
-      document.getElementById('tarifaRecargoContainer').style.display = 'none';
       // Mutual exclusivity: hide + uncheck IVA incluido
       ivaIncluidoContainer.style.display = 'none';
       document.getElementById('ivaIncluido').checked = false;
     } else {
-      // Restore tarifa, calificación, recargo
+      // Restore tarifa and calificación
       tarifaContainer.style.display = '';
       var tipo = document.getElementById('tipoImpuesto').value;
       var taxCfg = getClientTaxConfig(tipo);
@@ -510,12 +496,12 @@
         tarifaSelect.setAttribute('required', '');
       }
       calificacionContainer.style.display = '';
-      recargoContainer.style.display = '';
       // Show IVA incluido only for IVA
       if (tipo === 'IVA') {
         ivaIncluidoContainer.style.display = '';
       }
     }
+    updateRecargoVisibility();
     actualizarOperacionExenta();
   }
 
@@ -531,7 +517,7 @@
       var tarifaContainer = tarifaSelect.closest('.col-6');
       tarifaContainer.style.display = '';
       document.getElementById('calificacionContainer').style.display = '';
-      document.getElementById('recargoContainer').style.display = '';
+      updateRecargoVisibility();
       actualizarOperacionExenta();
     } else {
       exentoContainer.style.display = '';
@@ -635,18 +621,8 @@
       } else {
         marcarCampo('calificacionOperacion', false);
       }
-      // If tarifa = 0, also require operación exenta
-      var isFreeformMode = taxCfg && taxCfg.tarifaMode === 'freeform';
-      var effectiveTarifa = isFreeformMode ? Number(document.getElementById('tarifaImpuestoLibre').value) : Number(document.getElementById('tarifaImpuesto').value);
-      if (effectiveTarifa === 0 && config && config.exentoOps && config.exentoOps.length > 0) {
-        var opExenta = document.getElementById('operacionExenta').value;
-        if (!opExenta) {
-          marcarCampo('operacionExenta', true);
-          isValid = false;
-        } else {
-          marcarCampo('operacionExenta', false);
-        }
-      }
+      // Not exento: operación exenta stays hidden, so it is never required
+      marcarCampo('operacionExenta', false);
     }
 
     return isValid;
@@ -704,7 +680,6 @@
     document.getElementById('ivaIncluido').checked = false;
     document.getElementById('exentoContainer').style.display = '';
     document.getElementById('ivaIncluidoContainer').style.display = '';
-    document.getElementById('recargoContainer').style.display = '';
     document.getElementById('calificacionContainer').style.display = '';
     document.getElementById('calificacionOperacion').value = 'S1';
     document.getElementById('operacionExentaContainer').style.display = 'none';
@@ -717,6 +692,7 @@
     document.getElementById('tarifaImpuestoLibre').value = '';
     document.getElementById('tarifaImpuestoLibre').disabled = false;
     document.getElementById('tipoImpuesto').value = 'IVA';
+    updateRecargoVisibility();
     renderRetencion(false);
     document.getElementById('nombre').focus();
   }
@@ -738,14 +714,29 @@
     }
   }
 
-  function updateRecargoVisibility() {
+  // Recargo de equivalencia is only offered when every rule allows it:
+  // sale of a product, a régimen that permits it (e.g. 08 never does),
+  // not exento and a calificación that is not forced to 0%.
+  function puedeAplicarRecargo() {
     var tipoProducto = document.getElementById('tipoProducto').value;
     var tipoUso = document.getElementById('tipoUso').value;
+    if (tipoProducto !== 'Producto' || tipoUso !== 'Venta') return false;
+    if (document.getElementById('exento').checked) return false;
+    var calificacion = document.getElementById('calificacionOperacion').value;
+    if (['S2', 'N1', 'N2'].indexOf(calificacion) !== -1) return false;
+    var config = getClientRegimenConfig(getSelectedRegimenCode(), document.getElementById('tipoImpuesto').value);
+    // Fail closed: an unknown or empty regimen never allows recargo
+    // (same criterion as isRecargoAllowed in mainScript.js).
+    if (!config || !config.allowRecargo) return false;
+    return true;
+  }
+
+  function updateRecargoVisibility() {
     var recargoContainer = document.getElementById('recargoContainer');
     var recargoCheckbox = document.getElementById('aplicarRecargo');
     var tarifaRecargoContainer = document.getElementById('tarifaRecargoContainer');
     var tarifaRecargo = document.getElementById('tarifaRecargo');
-    if (tipoProducto === 'Producto' && tipoUso === 'Venta') {
+    if (puedeAplicarRecargo()) {
       recargoContainer.style.display = '';
     } else {
       // Full reset: uncheck, clear tarifa value, hide both containers
@@ -805,16 +796,11 @@
       // Force tarifa to 0%
       document.getElementById('tarifaImpuesto').value = '0';
       document.getElementById('tarifaImpuestoLibre').value = '0';
-      // Disable recargo
-      document.getElementById('aplicarRecargo').checked = false;
-      document.getElementById('tarifaRecargoContainer').style.display = 'none';
-      document.getElementById('recargoContainer').style.display = 'none';
     } else if (califVal === 'S1') {
-      // Restore recargo visibility
-      document.getElementById('recargoContainer').style.display = '';
       // Re-apply tarifa based on régimen
       onRegimenChange();
     }
+    updateRecargoVisibility();
     actualizarOperacionExenta();
   }
 

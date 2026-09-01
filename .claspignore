@@ -1,0 +1,8 @@
+# clasp pushes every .js/.html under rootDir unless ignored.
+# Apps Script has a single global scope, so any stray script (e.g. the Node
+# simulator in Docs/ejemplos) collides with real code and breaks the whole project.
+# Strategy: ignore everything, then allow only the root-level source files.
+**/**
+!appsscript.json
+!*.js
+!*.html

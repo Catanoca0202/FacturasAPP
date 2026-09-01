@@ -1,0 +1,203 @@
+{
+  "textCustomerObservations": null,
+  "invoiceNumber": "FAC-2026-0043",
+  "currentNumber": 20260043,
+  "invoiceDate": "2026-08-20T12:00:00.000Z",
+  "invoiceTime": "11:05:33.0000000",
+  "invoiceExpiration": "15",
+  "invoiceIdTypeRegAEAT": "AI",
+  "invoiceIdTypeRegSIF": null,
+  "contactName": "Alejandro Cataño",
+  "operationDate": "20-08-2026",
+  "contacts": [
+    {
+      "contactType": "01",
+      "personType": "01",
+      "companyName": "Marta Ruiz Peña",
+      "customerCode": "CLI-000212",
+      "identificationType": "02",
+      "identification": "12345678Z",
+      "tradeName": "Marta Ruiz Peña - CLI-000212",
+      "regime": "01",
+      "country": "724",
+      "province": "46",
+      "population": "46250",
+      "addressCustomer": "Avenida del Puerto 88",
+      "postalCodeCustomer": "46023",
+      "phoneCustomer": "+34 963 111 222",
+      "webSite": null,
+      "emailCustomer": "marta.ruiz@example.com",
+      "applySurchargeEquivalence": true
+    }
+  ],
+  "products": [
+    {
+      "typeUse": "VEN",
+      "reference": "MON-27",
+      "description": "Monitor 27 pulgadas",
+      "regime": "18",
+      "productType": 1,
+      "unitPrice": 210,
+      "quantity": 3,
+      "subTotal": 630,
+      "totalTax": 132.3,
+      "totalwithHoldings": 0,
+      "totalSurCharges": 32.76,
+      "totaldiscount": 0,
+      "taxes": [
+        {
+          "taxName": "IVA",
+          "rate": 21,
+          "taxBase": 630,
+          "valueTax": 132.3,
+          "taxCode": "01",
+          "isExemptOperation": false,
+          "qualificationOperation": "S1",
+          "regime": "18"
+        }
+      ],
+      "withHoldingsSurChargesDto": [
+        {
+          "isWithHolding": false,
+          "idRateWithHoldings": "11",
+          "rateValueWithHoldings": 0.052,
+          "subTotalWithHoldings": 630,
+          "cuotaWithHoldings": 32.76
+        }
+      ],
+      "discountDtoModules": []
+    },
+    {
+      "typeUse": "VEN",
+      "reference": "CBL-HDMI",
+      "description": "Cable HDMI 2 m",
+      "regime": "18",
+      "productType": 1,
+      "unitPrice": 8.5,
+      "quantity": 10,
+      "subTotal": 85,
+      "totalTax": 8.5,
+      "totalwithHoldings": 0,
+      "totalSurCharges": 1.19,
+      "totaldiscount": 0,
+      "taxes": [
+        {
+          "taxName": "IVA",
+          "rate": 10,
+          "taxBase": 85,
+          "valueTax": 8.5,
+          "taxCode": "01",
+          "isExemptOperation": false,
+          "qualificationOperation": "S1",
+          "regime": "18"
+        }
+      ],
+      "withHoldingsSurChargesDto": [
+        {
+          "isWithHolding": false,
+          "idRateWithHoldings": "11",
+          "rateValueWithHoldings": 0.014,
+          "subTotalWithHoldings": 85,
+          "cuotaWithHoldings": 1.19
+        }
+      ],
+      "discountDtoModules": []
+    },
+    {
+      "typeUse": "VEN",
+      "reference": "SRV-INST",
+      "description": "Servicio de instalación",
+      "regime": "01",
+      "productType": 2,
+      "unitPrice": 150,
+      "quantity": 1,
+      "subTotal": 150,
+      "totalTax": 31.5,
+      "totalwithHoldings": 22.5,
+      "totalSurCharges": 0,
+      "totaldiscount": 0,
+      "taxes": [
+        {
+          "taxName": "IVA",
+          "rate": 21,
+          "taxBase": 150,
+          "valueTax": 31.5,
+          "taxCode": "01",
+          "isExemptOperation": false,
+          "qualificationOperation": "S1",
+          "regime": "01"
+        }
+      ],
+      "withHoldingsSurChargesDto": [
+        {
+          "isWithHolding": true,
+          "idRateWithHoldings": "10",
+          "rateValueWithHoldings": 0.15,
+          "subTotalWithHoldings": 150,
+          "cuotaWithHoldings": 22.5
+        }
+      ],
+      "discountDtoModules": []
+    }
+  ],
+  "idPayment": "EF",
+  "paymentNote": "Pagado en efectivo en el momento de la entrega",
+  "textObservations": null,
+  "idOperations": "S1",
+  "idOperationsExenta": "E0",
+  "valueExemptBase": 0,
+  "chargeAndDiscount": [],
+  "fieldTaxations": [
+    {
+      "taxName": "IVA",
+      "rate": 21,
+      "taxBase": 780,
+      "valueTax": 163.8,
+      "taxCode": "01",
+      "qualificationOperation": "S1",
+      "regime": "18"
+    },
+    {
+      "taxName": "IVA",
+      "rate": 10,
+      "taxBase": 85,
+      "valueTax": 8.5,
+      "taxCode": "01",
+      "qualificationOperation": "S1",
+      "regime": "18"
+    },
+    {
+      "taxName": "RecargoEquivalencia",
+      "rate": 5.2,
+      "taxBase": 630,
+      "valueTax": 32.76,
+      "taxCode": "01",
+      "regime": "18"
+    },
+    {
+      "taxName": "RecargoEquivalencia",
+      "rate": 1.4000000000000001,
+      "taxBase": 85,
+      "valueTax": 1.19,
+      "taxCode": "01",
+      "regime": "18"
+    }
+  ],
+  "sumTotalSubTotal": 865,
+  "sumTotalTaxBase": 865,
+  "sumTotalTax": 172.3,
+  "sumTotalSubTotalAndTax": 1037.3,
+  "sumTotalExemptBase": 0,
+  "sumTotalDiscount": 0,
+  "sumTotalCharge": 0,
+  "sumTotalRetentionIRPF": 0,
+  "sumTotalTotal": 1071.25,
+  "sumTotalNetPayable": 1048.75,
+  "invoiceTypeId": 0,
+  "invoiceRectificativeTypeId": 0,
+  "typeRectificativeId": 0,
+  "aditionalData": {
+    "invoiceId": 0,
+    "startInvoiceId": 0
+  }
+}

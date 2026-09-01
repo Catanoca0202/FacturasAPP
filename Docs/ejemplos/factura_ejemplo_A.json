@@ -1,0 +1,194 @@
+{
+  "textCustomerObservations": "Referencia de pedido PO-8842",
+  "invoiceNumber": "FAC-2026-0042",
+  "currentNumber": 20260042,
+  "invoiceDate": "2026-08-20T12:00:00.000Z",
+  "invoiceTime": "10:24:07.0000000",
+  "invoiceExpiration": "30",
+  "invoiceIdTypeRegAEAT": "AI",
+  "invoiceIdTypeRegSIF": null,
+  "contactName": "Alejandro Cataño",
+  "operationDate": "20-08-2026",
+  "contacts": [
+    {
+      "contactType": "01",
+      "personType": "02",
+      "companyName": "Construcciones Delta S.L.",
+      "customerCode": "CLI-000148",
+      "identificationType": "02",
+      "identification": "B87654321",
+      "tradeName": "Construcciones Delta S.L. - CLI-000148",
+      "regime": "01",
+      "country": "724",
+      "province": "28",
+      "population": "28079",
+      "addressCustomer": "Calle Mayor 14, 2º B",
+      "postalCodeCustomer": "28013",
+      "phoneCustomer": "+34 915 555 123",
+      "webSite": null,
+      "emailCustomer": "administracion@delta.example",
+      "applySurchargeEquivalence": false
+    }
+  ],
+  "products": [
+    {
+      "typeUse": "VEN",
+      "reference": "SRV-CONS",
+      "description": "Consultoría técnica",
+      "regime": "01",
+      "productType": 2,
+      "unitPrice": 60,
+      "quantity": 10,
+      "subTotal": 600,
+      "totalTax": 113.4,
+      "totalwithHoldings": 0,
+      "totalSurCharges": 0,
+      "totaldiscount": 60,
+      "taxes": [
+        {
+          "taxName": "IVA",
+          "rate": 21,
+          "taxBase": 540,
+          "valueTax": 113.4,
+          "taxCode": "01",
+          "isExemptOperation": false,
+          "qualificationOperation": "S1",
+          "regime": "01"
+        }
+      ],
+      "withHoldingsSurChargesDto": [],
+      "discountDtoModules": [
+        {
+          "discountName": "Descuento aplicado",
+          "discountRate": 10,
+          "discountBase": 600,
+          "valueDiscount": 60
+        }
+      ]
+    },
+    {
+      "typeUse": "VEN",
+      "reference": "LIC-SW01",
+      "description": "Licencia software anual",
+      "regime": "01",
+      "productType": 2,
+      "unitPrice": 120,
+      "quantity": 2,
+      "subTotal": 240,
+      "totalTax": 50.4,
+      "totalwithHoldings": 0,
+      "totalSurCharges": 0,
+      "totaldiscount": 0,
+      "taxes": [
+        {
+          "taxName": "IVA",
+          "rate": 21,
+          "taxBase": 240,
+          "valueTax": 50.4,
+          "taxCode": "01",
+          "isExemptOperation": false,
+          "qualificationOperation": "S1",
+          "regime": "01"
+        }
+      ],
+      "withHoldingsSurChargesDto": [],
+      "discountDtoModules": []
+    },
+    {
+      "typeUse": "VEN",
+      "reference": "FORM-BON",
+      "description": "Formación bonificada",
+      "regime": "01",
+      "productType": 2,
+      "unitPrice": 300,
+      "quantity": 1,
+      "subTotal": 300,
+      "totalTax": 0,
+      "totalwithHoldings": 0,
+      "totalSurCharges": 0,
+      "totaldiscount": 0,
+      "taxes": [
+        {
+          "taxName": "IVA",
+          "rate": 0,
+          "taxBase": 300,
+          "valueTax": 0,
+          "taxCode": "01",
+          "isExemptOperation": true,
+          "qualificationOperation": null,
+          "regime": "01",
+          "idExento": "E1"
+        }
+      ],
+      "withHoldingsSurChargesDto": [],
+      "discountDtoModules": []
+    }
+  ],
+  "idPayment": "TF",
+  "paymentNote": "Pago a 30 días a la cuenta ES12 3456 7890 1234 5678 9012",
+  "textObservations": "Servicios prestados durante agosto de 2026.",
+  "idOperations": "S1",
+  "idOperationsExenta": "E1",
+  "valueExemptBase": 300,
+  "chargeAndDiscount": [
+    {
+      "idtypeFeeDiscount": "CG",
+      "idTypeValueFeeDiscount": "VR",
+      "baseFeeDiscount": 0,
+      "valueFeeDiscount": 25,
+      "totalFeeDiscount": 25
+    },
+    {
+      "idtypeFeeDiscount": "DT",
+      "idTypeValueFeeDiscount": "VR",
+      "baseFeeDiscount": 0,
+      "valueFeeDiscount": 50,
+      "totalFeeDiscount": 50
+    },
+    {
+      "idtypeFeeDiscount": "RT",
+      "idTypeValueFeeDiscount": "PJ",
+      "baseFeeDiscount": 1080,
+      "valueFeeDiscount": 15,
+      "totalFeeDiscount": 162
+    }
+  ],
+  "fieldTaxations": [
+    {
+      "taxName": "IVA",
+      "rate": 21,
+      "taxBase": 780,
+      "valueTax": 163.8,
+      "taxCode": "01",
+      "qualificationOperation": "S1",
+      "regime": "01"
+    },
+    {
+      "taxName": "IVA",
+      "rate": 0,
+      "taxBase": 300,
+      "valueTax": 0,
+      "taxCode": "01",
+      "qualificationOperation": null,
+      "regime": "01",
+      "idExento": "E1"
+    }
+  ],
+  "sumTotalSubTotal": 1140,
+  "sumTotalTaxBase": 1080,
+  "sumTotalTax": 163.8,
+  "sumTotalSubTotalAndTax": 1243.8,
+  "sumTotalExemptBase": 300,
+  "sumTotalDiscount": 50,
+  "sumTotalCharge": 25,
+  "sumTotalRetentionIRPF": 162,
+  "sumTotalTotal": 1243.8,
+  "sumTotalNetPayable": 1056.8,
+  "invoiceTypeId": 0,
+  "invoiceRectificativeTypeId": 0,
+  "typeRectificativeId": 0,
+  "aditionalData": {
+    "invoiceId": 0,
+    "startInvoiceId": 0
+  }
+}

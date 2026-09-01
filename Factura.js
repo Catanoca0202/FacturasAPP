@@ -1542,8 +1542,17 @@ function verificarYCopiarContacto(e) {
           if (String(referencias[i][0]).trim() === String(nombreContacto).trim()) {
             let formaPago = String(hojaContactos.getRange(i + 2, 16).getValue() || '').trim();
             if (formaPago && formaPago !== 'No definido') {
-              hojaFacturas.getRange("E4").setValue(formaPago);
-              Logger.log("[verificarYCopiarContacto] E4 set to forma de pago=%s", formaPago);
+              // G5 is the "Forma de pago" cell read by verificarEstadoValidoFactura and
+              // mapIdPaymentCode. E4 is a legacy unlabeled cell and is no longer used.
+              try {
+                hojaFacturas.getRange("G5").setValue(formaPago);
+                Logger.log("[verificarYCopiarContacto] G5 set to forma de pago=%s", formaPago);
+              } catch (errFormaPago) {
+                // G5 carries a strict data validation list: setValue throws if the client's
+                // value is not in it. Must not break invoice number generation downstream.
+                Logger.log("[verificarYCopiarContacto] No se pudo escribir G5 con '%s': %s",
+                  formaPago, errFormaPago);
+              }
             }
             break;
           }
