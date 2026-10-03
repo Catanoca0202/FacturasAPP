@@ -11,6 +11,16 @@
   //ups mal merge
 // }
 
+// Version scheme: MAJOR.MINOR.PATCH.BUILD (four dot-separated numbers).
+// MAJOR is the big release line; bump the last segment for each QA build.
+// Single source of truth — the sidebar footer renders it via getAppVersion().
+const APP_VERSION = '1.0.0.2';
+
+/** Exposed so main.html can print the version from a template scriptlet. */
+function getAppVersion() {
+  return APP_VERSION;
+}
+
 const PRODUCT_COLUMNS = {
   ESTADO: 1,                  // A
   CODIGO_REFERENCIA: 2,       // B
@@ -29,8 +39,22 @@ const PRODUCT_COLUMNS = {
   TARIFA_RECARGO: 15,         // O
   CHECK_RETENCION: 16,        // P
   TARIFA_RETENCION: 17,       // Q
-  IDENTIFICADOR_UNICO: 18     // R — always last
+  PORCENTAJE_RETENCION: 18,   // R — manual rate, only when TARIFA_RETENCION = "Otros"
+  DESCRIPCION_RETENCION: 19,  // S — free text, only when TARIFA_RETENCION = "Otros"
+  IDENTIFICADOR_UNICO: 20     // T — always last
 };
+
+/** Converts a 1-based column number into its A1 letter (1 → "A", 27 → "AA"). */
+function columnToLetter_(columna) {
+  let letra = '';
+  let n = columna;
+  while (n > 0) {
+    const resto = (n - 1) % 26;
+    letra = String.fromCharCode(65 + resto) + letra;
+    n = Math.floor((n - resto) / 26);
+  }
+  return letra;
+}
 
 // Per-tax-type configuration: each tax type has its own valid régimen codes,
 // tarifa mode (dropdown vs freeform), and recargo map.
@@ -78,7 +102,7 @@ const TAX_TYPE_CONFIG = {
   },
   IPSI: {
     regimenes: {
-      '01': { rates: null, allowRecargo: true, exentoOps: ['E1','E4','E5','E6'] },
+      '01': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
       '08': { rates: null, allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
       '11': { rates: null, allowRecargo: false, exentoOps: [] },
       '18': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
@@ -90,10 +114,10 @@ const TAX_TYPE_CONFIG = {
   },
   Otros: {
     regimenes: {
-      '01': { rates: null, allowRecargo: true, exentoOps: ['E1','E4','E5','E6'] },
+      '01': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
       '02': { rates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'], autoExento: true },
       '04': { rates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-      '07': { rates: null, allowRecargo: true, exentoOps: ['E1','E6'] },
+      '07': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
       '08': { rates: null, allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
       '10': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
       '11': { rates: null, allowRecargo: false, exentoOps: [] },
@@ -265,8 +289,27 @@ function extraerCodigoExento(valorCelda) {
 
 // Retenciones IRPF permitidas como etiquetas visibles en la validación
 const RETENCION_IRPF_TARIFAS = ['7%','15%','19%'];
+// RFC 466: "Otros" lets the user type any rate, and requires a description.
+const RETENCION_OTROS_LABEL = 'Otros';
+// Full option list for the Tarifa retención dropdown.
+const RETENCION_IRPF_OPCIONES = RETENCION_IRPF_TARIFAS.concat([RETENCION_OTROS_LABEL]);
+// Bounds of the manual rate, as percentages.
+const RETENCION_OTROS_MIN = 0;
+const RETENCION_OTROS_MAX = 100;
 // Etiqueta usada internamente cuando se aplica recargo automático
 const RETENCION_RECARGO_LABEL = 'Recargo de equivalencia';
+// Cabeceras de las columnas que RFC 466 añade a la hoja Productos
+const RETENCION_OTROS_HEADERS = {
+  PORCENTAJE: '% Retención',
+  DESCRIPCION: 'Descripción retención'
+};
+// Forma de pago preferida (hoja Clientes, columna P)
+const FORMAS_PAGO_CLIENTES = [
+  'No definido', 'Efectivo', 'Transferencia bancaria', 'Domiciliación bancaria',
+  'PayPal', 'Factoring', 'Confirming', 'Talonario', 'Tarjeta de credito',
+  'Tarjeta de debito', 'Pagare', 'Cheque', 'Recibo bancario', 'Contado',
+  'Bizum', 'Letra de cambio', 'Compensacion'
+];
 const FACTURA_CHECKBOX_COL = 12; // Columna "Eliminar" en hoja Factura
 
 /**
@@ -606,13 +649,17 @@ function showSidebar2() {
       return
     }
   }else{
+    // Self-heal schema/validations added after the sheets were installed
+    const ssActual = SpreadsheetApp.getActiveSpreadsheet();
+    migrarColumnasRetencionOtros(ssActual);
+    aplicarValidacionFormaPagoClientes(ssActual);
     var template = HtmlService.createTemplateFromFile('main');
     template.emailPropietario = propietario;
     const html = template
       .evaluate()
       .setTitle('Menú');
     SpreadsheetApp.getUi().showSidebar(html);
-    console.log("showSidebar Exits"); 
+    console.log("showSidebar Exits");
 
   }
 }
@@ -897,6 +944,8 @@ function eliminarHojasFactura() {
 
 function agregarDataValidations() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  // Must run before the product dropdowns are wired: it moves Identificador Único
+  migrarColumnasRetencionOtros(ss);
   const hojaDatos = ss.getSheetByName("Datos");
   const hojaFacturas = ss.getSheetByName("Factura");
   const hojaValoresC = ss.getSheetByName("Clientes");
@@ -916,9 +965,10 @@ function agregarDataValidations() {
   // Rango de valores para los dropdowns
   const rangoValoresClienteInvalido = hojaValoresCInvalidos.getRange("V2:V1000");
   const rangoValoresClienteDatos = hojaValoresC.getRange("B2:B1000");
-  const rangoValoresProductosDatos = hojaValoresP.getRange("R2:R996");
+  const colIdProducto = columnToLetter_(PRODUCT_COLUMNS.IDENTIFICADOR_UNICO);
+  const rangoValoresProductosDatos = hojaValoresP.getRange(`${colIdProducto}2:${colIdProducto}996`);
   const rangoValoresClienteFactura = hojaValoresC.getRange("$B$2:$B$1000");
-  const rangoValoresProductosFactura = hojaValoresP.getRange("$R$2:$R$996");
+  const rangoValoresProductosFactura = hojaValoresP.getRange(`$${colIdProducto}$2:$${colIdProducto}$996`);
 
   // Crear y aplicar validaciones
   const reglas = [
@@ -985,25 +1035,66 @@ function agregarDataValidations() {
           .build();
         hojaClientes.getRange("M2:M1000").setDataValidation(reglaPais);
       }
-
-      // Validación para Forma de pago preferida en hoja Clientes (columna P)
-      const formasPago = [
-        'No definido', 'Efectivo', 'Transferencia bancaria', 'Domiciliación bancaria',
-        'PayPal', 'Factoring', 'Confirming', 'Talonario', 'Tarjeta de credito',
-        'Tarjeta de debito', 'Pagare', 'Cheque', 'Recibo bancario', 'Contado',
-        'Bizum', 'Letra de cambio', 'Compensacion'
-      ];
-      const reglaFormaPago = SpreadsheetApp.newDataValidation()
-        .requireValueInList(formasPago, true)
-        .setAllowInvalid(false)
-        .build();
-      hojaClientes.getRange("P2:P1000").setDataValidation(reglaFormaPago);
     }
   } catch (err) {
     Logger.log("No se pudo aplicar validación de países en Clientes: " + err);
   }
 
+  aplicarValidacionFormaPagoClientes(ss);
+
   SpreadsheetApp.getUi().alert("Validaciones de datos aplicadas correctamente.");
+}
+
+/**
+ * Adds the two RFC 466 columns (% Retención, Descripción retención) to the
+ * Productos sheet, right after Tarifa retención.
+ *
+ * Sheets created before RFC 466 still have Identificador Único in column R, so
+ * without this they would keep feeding the product dropdowns from the wrong
+ * column. Inserting shifts every later column to its new position and preserves
+ * the data already in them. Idempotent: it checks the headers before touching
+ * anything, so it is safe to call on every sidebar open.
+ */
+function migrarColumnasRetencionOtros(ss) {
+  try {
+    const hoja = (ss || SpreadsheetApp.getActiveSpreadsheet()).getSheetByName("Productos");
+    if (!hoja) return false;
+
+    const cabeceraPorcentaje = String(
+      hoja.getRange(1, PRODUCT_COLUMNS.PORCENTAJE_RETENCION).getDisplayValue() || ''
+    ).trim();
+    if (cabeceraPorcentaje === RETENCION_OTROS_HEADERS.PORCENTAJE) {
+      return false; // ya migrada
+    }
+
+    hoja.insertColumnsAfter(PRODUCT_COLUMNS.TARIFA_RETENCION, 2);
+    hoja.getRange(1, PRODUCT_COLUMNS.PORCENTAJE_RETENCION).setValue(RETENCION_OTROS_HEADERS.PORCENTAJE);
+    hoja.getRange(1, PRODUCT_COLUMNS.DESCRIPCION_RETENCION).setValue(RETENCION_OTROS_HEADERS.DESCRIPCION);
+    Logger.log("Productos: columnas de retención 'Otros' añadidas (RFC 466)");
+    return true;
+  } catch (err) {
+    Logger.log("No se pudieron añadir las columnas de retención 'Otros': " + err);
+    return false;
+  }
+}
+
+/**
+ * Applies the Forma de pago dropdown to Clientes!P2:P1000.
+ * Kept separate from agregarDataValidations so it can also run on every sidebar
+ * open: sheets installed before this rule existed never got the dropdown.
+ */
+function aplicarValidacionFormaPagoClientes(ss) {
+  try {
+    const hoja = (ss || SpreadsheetApp.getActiveSpreadsheet()).getSheetByName("Clientes");
+    if (!hoja) return;
+    const regla = SpreadsheetApp.newDataValidation()
+      .requireValueInList(FORMAS_PAGO_CLIENTES, true)
+      .setAllowInvalid(false)
+      .build();
+    hoja.getRange("P2:P1000").setDataValidation(regla);
+  } catch (err) {
+    Logger.log("No se pudo aplicar validación de forma de pago en Clientes: " + err);
+  }
 }
 
 
@@ -1086,12 +1177,20 @@ function processForm(data) {
     const recargoSeleccionado = data.tarifaRecargo && String(data.tarifaRecargo).trim() !== '' ? parsePercentToNumberES(data.tarifaRecargo) : (data.recargo && String(data.recargo).toLowerCase() !== 'seleccione' ? parsePercentToNumberES(data.recargo) : null);
     const retencionSeleccionada = data.retenciones && String(data.retenciones).toLowerCase() !== 'seleccione' ? parsePercentToNumberES(data.retenciones) : null;
 
+    // RFC 466: "Otros" carries its own rate and description instead of a fixed tariff.
+    const retencionEsOtros = esRetencionOtros_(data.retenciones);
+    const porcentajeRetencionOtros = retencionEsOtros ? normalizarPorcentajeRetencion_(data.porcentajeRetencion) : null;
+    const descripcionRetencionOtros = retencionEsOtros ? String(data.descripcionRetencion || '').trim() : '';
+
     let tipoRetencion = data.tipoRetencion || '';
     let tarifaRetencionStr = data.tarifaRetencion || '';
     let aplicarRecargo = aplicarRecargoFormulario || recargoSeleccionado !== null;
 
     // La retención es independiente del recargo
-    if (retencionSeleccionada !== null) {
+    if (retencionEsOtros) {
+      tipoRetencion = 'IRPF';
+      tarifaRetencionStr = RETENCION_OTROS_LABEL;
+    } else if (retencionSeleccionada !== null) {
       tipoRetencion = 'IRPF';
       tarifaRetencionStr = formatPercentES(retencionSeleccionada);
     }
@@ -1236,15 +1335,32 @@ function processForm(data) {
     celdaCheckRet.setDataValidation(reglaCheckRet);
     celdaCheckRet.setValue(aplicarRetencion === true);
     if (aplicarRetencion) {
-      // Validación visual de lista y guardar como porcentaje numérico con formato 0%
-      aplicarValidacionTarifaRetencion(sheet, newRow, false);
+      // Guardar la tarifa primero: la validación de los campos "Otros" depende de ella
       const celdaTarifaRet = sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_RETENCION);
-      celdaTarifaRet.setNumberFormat('0%');
-      const retNum = parsePercentToNumberES(tarifaRetencionStr);
-      celdaTarifaRet.setValue(Number(retNum) / 100);
+      if (retencionEsOtros) {
+        celdaTarifaRet.setValue(RETENCION_OTROS_LABEL);
+      } else {
+        // Guardar como porcentaje numérico con formato 0%
+        celdaTarifaRet.setNumberFormat('0%');
+        const retNum = parsePercentToNumberES(tarifaRetencionStr);
+        celdaTarifaRet.setValue(Number(retNum) / 100);
+      }
+      // Validación visual de lista (también prepara/limpia los campos de "Otros")
+      aplicarValidacionTarifaRetencion(sheet, newRow, false);
+
+      if (retencionEsOtros) {
+        const celdaPorcentajeRet = sheet.getRange(newRow, PRODUCT_COLUMNS.PORCENTAJE_RETENCION);
+        if (porcentajeRetencionOtros === null) {
+          celdaPorcentajeRet.clearContent();
+        } else {
+          celdaPorcentajeRet.setValue(porcentajeRetencionOtros / 100);
+        }
+        sheet.getRange(newRow, PRODUCT_COLUMNS.DESCRIPCION_RETENCION).setValue(descripcionRetencionOtros);
+      }
     } else {
       sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_RETENCION).clearDataValidations();
       sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_RETENCION).clearContent();
+      limpiarCamposRetencionOtros(sheet, newRow);
     }
 
     // Calificación Operación — only set when not exento
@@ -1295,7 +1411,12 @@ function processForm(data) {
       if (aplicarRecargo && sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_RECARGO).getDisplayValue() === '') {
         estado = 'No Valido';
       }
-      if (sheet.getRange(newRow, PRODUCT_COLUMNS.CHECK_RETENCION).getValue() === true && sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_RETENCION).getDisplayValue() === '') {
+      const tarifaRetDisplay = sheet.getRange(newRow, PRODUCT_COLUMNS.TARIFA_RETENCION).getDisplayValue();
+      if (sheet.getRange(newRow, PRODUCT_COLUMNS.CHECK_RETENCION).getValue() === true && tarifaRetDisplay === '') {
+        estado = 'No Valido';
+      }
+      // RFC 466: "Otros" is only complete with both a manual rate and a description
+      if (esRetencionOtros_(tarifaRetDisplay) && (porcentajeRetencionOtros === null || descripcionRetencionOtros === '')) {
         estado = 'No Valido';
       }
     }
@@ -1388,6 +1509,32 @@ function formatPercentES(num) {
   return `${fixed}%`;
 }
 
+/** True when a Tarifa retención value is the RFC 466 "Otros" option. */
+function esRetencionOtros_(valor) {
+  return String(valor || '').trim().toLowerCase() === RETENCION_OTROS_LABEL.toLowerCase();
+}
+
+/**
+ * Normalizes a manual "Otros" retention rate to the 2 decimals RFC 466 allows.
+ * Returns the percentage as a number (e.g. 8.25), or null when out of range.
+ */
+function normalizarPorcentajeRetencion_(valor) {
+  const num = parsePercentToNumberES(valor);
+  if (num === null || isNaN(num)) return null;
+  if (num < RETENCION_OTROS_MIN || num > RETENCION_OTROS_MAX) return null;
+  return Math.round(num * 100) / 100;
+}
+
+/**
+ * Effective retention rate of a product row as a display string ("7%", "8,25%").
+ * With "Otros" the rate lives in its own column, so the tariff cell is not usable.
+ */
+function tarifaRetencionEfectiva_(tarifaDisplay, porcentajeDisplay) {
+  return esRetencionOtros_(tarifaDisplay)
+    ? String(porcentajeDisplay || '')
+    : String(tarifaDisplay || '');
+}
+
 // Mapa oficial 2025 de recargo permitido por IVA
 // Nota: mantenemos 4% -> 0,50% por compatibilidad con productos existentes
 const IVA_RECARGO_MAP_2025 = {
@@ -1440,20 +1587,59 @@ function aplicarValidacionTarifaRetencion(hoja, fila, esRecargo, ivaNum) {
       }
     }
   } else {
-    // Validación para Tarifa retención (col M) si está activa (controlado por el checkbox L)
+    // Validación para Tarifa retención (col Q) si está activa (controlado por el checkbox P)
     const activa = hoja.getRange(fila, PRODUCT_COLUMNS.CHECK_RETENCION).getValue() === true;
     const rangoRet = hoja.getRange(fila, PRODUCT_COLUMNS.TARIFA_RETENCION);
     if (activa) {
       const reglaRet = SpreadsheetApp.newDataValidation()
-        .requireValueInList(RETENCION_IRPF_TARIFAS, true)
+        .requireValueInList(RETENCION_IRPF_OPCIONES, true)
         .setAllowInvalid(false)
         .build();
       rangoRet.setDataValidation(reglaRet);
-      rangoRet.setNumberFormat('0%');
+      // "Otros" is stored as text, so the percent format only applies to the fixed rates.
+      if (!esRetencionOtros_(rangoRet.getDisplayValue())) {
+        rangoRet.setNumberFormat('0%');
+      }
+      aplicarCamposRetencionOtros(hoja, fila);
     } else {
       rangoRet.clearDataValidations();
+      limpiarCamposRetencionOtros(hoja, fila);
     }
   }
+}
+
+/**
+ * Shows or clears the RFC 466 companion columns (% Retención and Descripción)
+ * for one product row, depending on whether Tarifa retención is "Otros".
+ */
+function aplicarCamposRetencionOtros(hoja, fila) {
+  const activa = hoja.getRange(fila, PRODUCT_COLUMNS.CHECK_RETENCION).getValue() === true;
+  const tarifaDisplay = hoja.getRange(fila, PRODUCT_COLUMNS.TARIFA_RETENCION).getDisplayValue();
+  if (!activa || !esRetencionOtros_(tarifaDisplay)) {
+    limpiarCamposRetencionOtros(hoja, fila);
+    return;
+  }
+
+  const celdaPorcentaje = hoja.getRange(fila, PRODUCT_COLUMNS.PORCENTAJE_RETENCION);
+  // The cell is percent-formatted, so the stored value is the fraction (8,25% → 0,0825).
+  const reglaPorcentaje = SpreadsheetApp.newDataValidation()
+    .requireNumberBetween(RETENCION_OTROS_MIN / 100, RETENCION_OTROS_MAX / 100)
+    .setAllowInvalid(false)
+    .setHelpText('Introduce un porcentaje entre ' + RETENCION_OTROS_MIN + '% y ' +
+      RETENCION_OTROS_MAX + '%, con máximo 2 decimales.')
+    .build();
+  celdaPorcentaje.setDataValidation(reglaPorcentaje);
+  celdaPorcentaje.setNumberFormat('0.00%');
+  hoja.getRange(fila, PRODUCT_COLUMNS.DESCRIPCION_RETENCION).clearDataValidations();
+}
+
+function limpiarCamposRetencionOtros(hoja, fila) {
+  const celdaPorcentaje = hoja.getRange(fila, PRODUCT_COLUMNS.PORCENTAJE_RETENCION);
+  const celdaDescripcion = hoja.getRange(fila, PRODUCT_COLUMNS.DESCRIPCION_RETENCION);
+  celdaPorcentaje.clearDataValidations();
+  celdaPorcentaje.clearContent();
+  celdaDescripcion.clearDataValidations();
+  celdaDescripcion.clearContent();
 }
 
 function manejarCheckboxRecargo(hoja, fila) {
@@ -1501,7 +1687,7 @@ function manejarCheckboxRetencion(hoja, fila) {
   if (activa) {
     // Aplica la validación inmediatamente y deja la celda vacía para desplegar la lista
     const regla = SpreadsheetApp.newDataValidation()
-      .requireValueInList(RETENCION_IRPF_TARIFAS, true)
+      .requireValueInList(RETENCION_IRPF_OPCIONES, true)
       .setAllowInvalid(false)
       .build();
     rangoTarifa.setDataValidation(regla);
@@ -1512,6 +1698,7 @@ function manejarCheckboxRetencion(hoja, fila) {
     rangoTarifa.clearDataValidations();
     rangoTarifa.clearContent();
   }
+  limpiarCamposRetencionOtros(hoja, fila);
 }
 
 function manejarCheckboxExento(hoja, fila) {
@@ -2100,15 +2287,46 @@ function onEdit(e) {
         agregarCodigoIdentificador(e);
       }
 
-      // Edición manual de tarifa de retención (M)
+      // Edición manual de tarifa de retención (Q)
       if (colEditada === PRODUCT_COLUMNS.TARIFA_RETENCION){
         const activa = hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.CHECK_RETENCION).getValue() === true;
         if (!activa){
           celdaEditada.setValue("");
           hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RETENCION).clearDataValidations();
+          limpiarCamposRetencionOtros(hojaActual, rowEditada);
         } else {
           // Asegura que exista la validación correcta
           aplicarValidacionTarifaRetencion(hojaActual, rowEditada, false);
+        }
+        verificarDatosObligatoriosProductos(e);
+        agregarCodigoIdentificador(e);
+      }
+
+      // Edición manual del % de retención "Otros" (R)
+      if (colEditada === PRODUCT_COLUMNS.PORCENTAJE_RETENCION){
+        const tarifaDisplay = hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RETENCION).getDisplayValue();
+        const activa = hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.CHECK_RETENCION).getValue() === true;
+        if (!activa || !esRetencionOtros_(tarifaDisplay)){
+          limpiarCamposRetencionOtros(hojaActual, rowEditada);
+        } else {
+          // RFC 466 caps the manual rate at 2 decimals (8,25% → 0,0825 stored).
+          const porcentaje = normalizarPorcentajeRetencion_(celdaEditada.getDisplayValue());
+          if (porcentaje === null) {
+            celdaEditada.clearContent();
+          } else {
+            celdaEditada.setValue(porcentaje / 100);
+          }
+        }
+        verificarDatosObligatoriosProductos(e);
+        agregarCodigoIdentificador(e);
+      }
+
+      // Descripción de la retención "Otros" (S)
+      if (colEditada === PRODUCT_COLUMNS.DESCRIPCION_RETENCION){
+        const tarifaDisplay = hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RETENCION).getDisplayValue();
+        const activa = hojaActual.getRange(rowEditada, PRODUCT_COLUMNS.CHECK_RETENCION).getValue() === true;
+        if (!activa || !esRetencionOtros_(tarifaDisplay)){
+          limpiarCamposRetencionOtros(hojaActual, rowEditada);
         }
         verificarDatosObligatoriosProductos(e);
         agregarCodigoIdentificador(e);

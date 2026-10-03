@@ -56,7 +56,7 @@
         },
         IPSI: {
           regimenes: {
-            '01': { rates: null, allowRecargo: true, exentoOps: ['E1','E4','E5','E6'] },
+            '01': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
             '08': { rates: null, allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
             '11': { rates: null, allowRecargo: false, exentoOps: [] },
             '18': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
@@ -67,10 +67,10 @@
         },
         Otros: {
           regimenes: {
-            '01': { rates: null, allowRecargo: true, exentoOps: ['E1','E4','E5','E6'] },
+            '01': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
             '02': { rates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'], autoExento: true },
             '04': { rates: [0], allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
-            '07': { rates: null, allowRecargo: true, exentoOps: ['E1','E6'] },
+            '07': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
             '08': { rates: null, allowRecargo: false, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
             '10': { rates: null, allowRecargo: true, exentoOps: ['E1','E2','E3','E4','E5','E6'] },
             '11': { rates: null, allowRecargo: false, exentoOps: [] },
@@ -148,11 +148,17 @@
         '0': ['0,00%']
       };
 
+      // RFC 466 adds "Otros": a manual rate plus a mandatory description
+      const RETENCION_OTROS_VALUE = 'Otros';
+      const RETENCION_OTROS_MIN = 0;
+      const RETENCION_OTROS_MAX = 100;
+
       const TARIFAS_RETENCION = [
         { label: 'Selecciona una opción', value: '' },
         { label: '7%', value: '7' },
         { label: '15%', value: '15' },
-        { label: '19%', value: '19' }
+        { label: '19%', value: '19' },
+        { label: 'Otros', value: RETENCION_OTROS_VALUE }
       ];
 
       function abrirSoporte() {
@@ -439,6 +445,26 @@
           marcarCampo('retenciones', false);
         }
 
+        if (aplicarRetencion && retencionSel === RETENCION_OTROS_VALUE) {
+          const porcentajeRet = document.getElementById('porcentajeRetencion').value;
+          const porcentajeNum = Number(String(porcentajeRet).replace(',', '.'));
+          const porcentajeValido = String(porcentajeRet).trim() !== '' && !isNaN(porcentajeNum) &&
+            porcentajeNum >= RETENCION_OTROS_MIN && porcentajeNum <= RETENCION_OTROS_MAX &&
+            tieneMaximoDosDecimales(porcentajeRet);
+          marcarCampo('porcentajeRetencion', !porcentajeValido);
+          if (!porcentajeValido) {
+            isValid = false;
+            mostrarAlerta('El % de retención debe estar entre ' + RETENCION_OTROS_MIN + ' y ' +
+              RETENCION_OTROS_MAX + ', con máximo 2 decimales.');
+          }
+          const descripcionRet = document.getElementById('descripcionRetencion').value.trim();
+          marcarCampo('descripcionRetencion', descripcionRet === '');
+          if (descripcionRet === '') isValid = false;
+        } else {
+          marcarCampo('porcentajeRetencion', false);
+          marcarCampo('descripcionRetencion', false);
+        }
+
         const code = getSelectedRegimenCode();
         const tipoImpuestoVal = document.getElementById('tipoImpuesto').value;
         const config = getClientRegimenConfig(code, tipoImpuestoVal);
@@ -495,9 +521,14 @@
         formData.set('aplicarRecargo', document.getElementById('aplicarRecargo').checked);
         // Retención independiente
         if (document.getElementById('aplicarRetencion').checked) {
+          const esOtros = esRetencionOtrosSeleccionada();
           formData.set('retenciones', document.getElementById('retenciones').value);
+          formData.set('porcentajeRetencion', esOtros ? document.getElementById('porcentajeRetencion').value : '');
+          formData.set('descripcionRetencion', esOtros ? document.getElementById('descripcionRetencion').value.trim() : '');
         } else {
           formData.set('retenciones', '');
+          formData.set('porcentajeRetencion', '');
+          formData.set('descripcionRetencion', '');
         }
         formData.set('calificacionOperacion', document.getElementById('calificacionOperacion').value);
         formData.set('exento', document.getElementById('exento').checked);
@@ -521,7 +552,7 @@
       function resetForm() {
         const form = document.getElementById('productForm');
         form.reset();
-        ['codigoReferencia','nombre','regimen','tipoProducto','tipoUso','valorUnitario','tipoImpuesto','tarifaImpuesto','operacionExenta','retenciones']
+        ['codigoReferencia','nombre','regimen','tipoProducto','tipoUso','valorUnitario','tipoImpuesto','tarifaImpuesto','operacionExenta','retenciones','porcentajeRetencion','descripcionRetencion']
           .forEach(id => marcarCampo(id, false));
         document.getElementById('aplicarRecargo').checked = false;
         document.getElementById('aplicarRetencion').checked = false;
@@ -569,6 +600,34 @@
           select.disabled = true;
           select.value = '';
         }
+        updateRetencionOtrosVisibility();
+      }
+
+      function esRetencionOtrosSeleccionada() {
+        return document.getElementById('retenciones').value === RETENCION_OTROS_VALUE;
+      }
+
+      // RFC 466 caps the manual rate at 2 decimals
+      function tieneMaximoDosDecimales(valor) {
+        const decimales = String(valor).replace(',', '.').split('.')[1];
+        return !decimales || decimales.length <= 2;
+      }
+
+      function updateRetencionOtrosVisibility() {
+        const select = document.getElementById('retenciones');
+        const mostrar = !select.disabled && esRetencionOtrosSeleccionada();
+        document.getElementById('porcentajeRetencionContainer').style.display = mostrar ? '' : 'none';
+        document.getElementById('descripcionRetencionContainer').style.display = mostrar ? '' : 'none';
+        if (!mostrar) {
+          document.getElementById('porcentajeRetencion').value = '';
+          document.getElementById('descripcionRetencion').value = '';
+          marcarCampo('porcentajeRetencion', false);
+          marcarCampo('descripcionRetencion', false);
+        }
+      }
+
+      function onTarifaRetencionChange() {
+        updateRetencionOtrosVisibility();
       }
 
       function onTarifaImpuestoChange() {
@@ -629,6 +688,7 @@
         document.getElementById('tarifaImpuesto').addEventListener('change', onTarifaImpuestoChange);
         document.getElementById('aplicarRecargo').addEventListener('change', onToggleRecargo);
         document.getElementById('aplicarRetencion').addEventListener('change', onToggleRetencion);
+        document.getElementById('retenciones').addEventListener('change', onTarifaRetencionChange);
         document.getElementById('calificacionOperacion').addEventListener('change', onCalificacionChange);
         renderRetencion(false);
         // Initialize régimen options for default tax type (IVA)
@@ -803,7 +863,7 @@
                 <div class="form-check mt-2">
                   <input class="form-check-input" type="checkbox" id="aplicarRetencion" name="aplicarRetencion">
                   <label class="form-check-label" for="aplicarRetencion">
-                    Aplicar retención (7%, 15% o 19%)
+                    Aplicar retención (7%, 15%, 19% u Otros)
                   </label>
                 </div>
               </div>
@@ -812,6 +872,15 @@
                 <select id="retenciones" name="retenciones" class="form-select form-select-lg" disabled>
                   <option value="">Selecciona una opción</option>
                 </select>
+              </div>
+              <div class="col-6" id="porcentajeRetencionContainer" style="display:none">
+                <label for="porcentajeRetencion" class="form-label">% Retención</label>
+                <input type="number" id="porcentajeRetencion" name="porcentajeRetencion" class="form-control form-control-lg"
+                       min="0" max="100" step="0.01" placeholder="0,00">
+              </div>
+              <div class="col-12" id="descripcionRetencionContainer" style="display:none">
+                <label for="descripcionRetencion" class="form-label">Descripción</label>
+                <input type="text" id="descripcionRetencion" name="descripcionRetencion" class="form-control form-control-lg" maxlength="250">
               </div>
 
             </form>
