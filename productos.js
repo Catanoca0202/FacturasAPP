@@ -30,7 +30,11 @@ function obtenerInformacionProducto(producto) {
     let checkRecargo = hojaProductos.getRange(fila, PRODUCT_COLUMNS.CHECK_RECARGO).getValue();
     let tarifaRecargo = hojaProductos.getRange(fila, PRODUCT_COLUMNS.TARIFA_RECARGO).getDisplayValue();
     let checkRetencion = hojaProductos.getRange(fila, PRODUCT_COLUMNS.CHECK_RETENCION).getValue();
-    let tarifaRetencion = hojaProductos.getRange(fila, PRODUCT_COLUMNS.TARIFA_RETENCION).getDisplayValue();
+    let tarifaRetencionDisplay = hojaProductos.getRange(fila, PRODUCT_COLUMNS.TARIFA_RETENCION).getDisplayValue();
+    let porcentajeRetencionDisplay = hojaProductos.getRange(fila, PRODUCT_COLUMNS.PORCENTAJE_RETENCION).getDisplayValue();
+    // With "Otros" (RFC 466) the effective rate lives in its own column
+    let tarifaRetencion = tarifaRetencionEfectiva_(tarifaRetencionDisplay, porcentajeRetencionDisplay);
+    let descripcionRetencion = hojaProductos.getRange(fila, PRODUCT_COLUMNS.DESCRIPCION_RETENCION).getValue();
     let estado = hojaProductos.getRange(fila, PRODUCT_COLUMNS.ESTADO).getValue();
     let tipoProducto = hojaProductos.getRange(fila, PRODUCT_COLUMNS.TIPO_PRODUCTO).getValue();
 
@@ -49,6 +53,7 @@ function obtenerInformacionProducto(producto) {
       "tipoProducto": String(tipoProducto || '').trim(),
       "Recargo de equivalencia": checkRecargo === true || checkRecargo === "TRUE" ? tarifaRecargo : "",
       "retencion": checkRetencion === true || checkRetencion === "TRUE" ? tarifaRetencion : "",
+      "descripcionRetencion": checkRetencion === true || checkRetencion === "TRUE" ? String(descripcionRetencion || "") : "",
       "Estado": estado,
       "calificacionOperacion": String(calificacionOperacion),
       "exento": exento
@@ -107,7 +112,7 @@ function obtenerInformacionProducto(producto) {
     let ultimaFila = hojaProductos.getLastRow();
     if (ultimaFila <= 1) return result;
 
-    let numCols = PRODUCT_COLUMNS.IDENTIFICADOR_UNICO; // 18
+    let numCols = PRODUCT_COLUMNS.IDENTIFICADOR_UNICO;
     let allData = hojaProductos.getRange(2, 1, ultimaFila - 1, numCols).getValues();
     let allDisplay = hojaProductos.getRange(2, 1, ultimaFila - 1, numCols).getDisplayValues();
 
@@ -136,7 +141,14 @@ function obtenerInformacionProducto(producto) {
         "impuestos": row[PRODUCT_COLUMNS.TIPO_IMPUESTO - 1],
         "tipoProducto": String(row[PRODUCT_COLUMNS.TIPO_PRODUCTO - 1] || '').trim(),
         "Recargo de equivalencia": (checkRecargo === true || checkRecargo === "TRUE") ? displayRow[PRODUCT_COLUMNS.TARIFA_RECARGO - 1] : "",
-        "retencion": (checkRetencion === true || checkRetencion === "TRUE") ? displayRow[PRODUCT_COLUMNS.TARIFA_RETENCION - 1] : "",
+        "retencion": (checkRetencion === true || checkRetencion === "TRUE")
+          ? tarifaRetencionEfectiva_(displayRow[PRODUCT_COLUMNS.TARIFA_RETENCION - 1], displayRow[PRODUCT_COLUMNS.PORCENTAJE_RETENCION - 1])
+          : "",
+        "descripcionRetencion": (checkRetencion === true || checkRetencion === "TRUE")
+          ? String(row[PRODUCT_COLUMNS.DESCRIPCION_RETENCION - 1] || "")
+          : "",
+        "retencionEsOtros": (checkRetencion === true || checkRetencion === "TRUE") &&
+          esRetencionOtros_(displayRow[PRODUCT_COLUMNS.TARIFA_RETENCION - 1]),
         "Estado": row[PRODUCT_COLUMNS.ESTADO - 1],
         "calificacionOperacion": String(row[PRODUCT_COLUMNS.CALIFICACION_OPERACION - 1] || ''),
         "exento": row[PRODUCT_COLUMNS.EXENTO - 1] === true

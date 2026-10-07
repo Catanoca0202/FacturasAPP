@@ -510,8 +510,8 @@ function agregarProductoDesdeFactura(cantidad,producto){
     factura_sheet.getRange("C15").setValue(cantidad)
     factura_sheet.getRange("D15").setValue(dictInformacionProducto["valor Unitario"])
     factura_sheet.getRange("G15").setValue(dictInformacionProducto["IVA"])
-    factura_sheet.getRange("I15").setValue(dictInformacionProducto["retencion"])
-    factura_sheet.getRange("J15").setValue(dictInformacionProducto["Recargo de equivalencia"])
+    factura_sheet.getRange("I15").setValue(dictInformacionProducto["Recargo de equivalencia"])//Tarifa recargo
+    factura_sheet.getRange("J15").setValue(dictInformacionProducto["retencion"])//Tarifa retención
 
   }else{
     hojaFactura.insertRowAfter(lastProductRow)
@@ -730,10 +730,15 @@ function enviarFactura(){
       }
     } else if (responseCode === 500) {
       Logger.log("Error HTTP 500: " + responseText);
-      SpreadsheetApp.getUi().alert("Ocurrió un error interno del servidor (500).\nPor favor, intenta cerrar sesión y volver a iniciarla en FacturasApp.\nSi el problema persiste, contacta a soporte.");
+      // Show what the server reported so the cause can be diagnosed from the alert
+      const detalle500 = extraerMensajeErrorApi_(responseText);
+      SpreadsheetApp.getUi().alert("Ocurrió un error interno del servidor (500)." +
+        (detalle500 ? "\n\nDetalle: " + detalle500 : "") +
+        "\n\nSi el problema persiste, contacta a soporte con el número de factura.");
     } else {
       Logger.log("Error HTTP " + responseCode + ": " + responseText);
-      SpreadsheetApp.getUi().alert("Error HTTP " + responseCode + ": " + responseText);
+      SpreadsheetApp.getUi().alert("Error de FacturasApp (" + responseCode + "):\n" +
+        (extraerMensajeErrorApi_(responseText) || responseText));
     }
   } catch (error) {
     Logger.log("Error al enviar el JSON a la API: " + error.message);
@@ -821,7 +826,7 @@ function enviarFacturaHistorial(numeroFactura){
         }
       }
     } else {
-      SpreadsheetApp.getUi().alert("Error al enviar la factura: " + responseText);
+      SpreadsheetApp.getUi().alert("Error al enviar la factura:\n" + (extraerMensajeErrorApi_(responseText) || responseText));
     }
   } catch (error) {
     Logger.log("Error al enviar el JSON a la API: " + error.message);
@@ -1929,6 +1934,28 @@ function validarValorWithHolding(valor, tipoWithHolding) {
   return valoresPermitidos.includes(valorRedondeado);
 }
 
+/**
+ * Readable text from an API error body. The API answers in three shapes:
+ * { messages: [...] , exception }, ASP.NET validation { errors: { field: [...] } },
+ * or plain text. Returns '' when there is nothing useful to show.
+ */
+function extraerMensajeErrorApi_(responseText) {
+  let data;
+  try { data = JSON.parse(responseText); } catch (e) { return String(responseText || '').substring(0, 500); }
+  if (!data || typeof data !== 'object') return '';
+  const partes = [];
+  if (Array.isArray(data.messages)) partes.push.apply(partes, data.messages);
+  else if (data.messages) partes.push(String(data.messages));
+  if (data.errors && typeof data.errors === 'object') {
+    Object.keys(data.errors).forEach(campo => {
+      [].concat(data.errors[campo]).forEach(msg => partes.push(msg));
+    });
+  }
+  if (partes.length === 0 && data.exception) partes.push(data.exception);
+  if (partes.length === 0 && data.title) partes.push(data.title);
+  return partes.map(p => '• ' + p).join('\n');
+}
+
 function getIdTypeWithHoldings_(tipoRetencion) {
   // Returns the TypeWithHoldings code (not the old tariff code).
   // Backend recomputes the percentage from cuotaWithHoldings / subTotalWithHoldings.
@@ -1936,6 +1963,9 @@ function getIdTypeWithHoldings_(tipoRetencion) {
     case 'retencion': return "10";
     case 'recargo':   return "11";
     case 'irpf':      return "99";
+    // "Otros" is selected by its tariff code (GetTariffsByRetention id 8); the API
+    // takes the rate from cuotaWithHoldings / subTotalWithHoldings.
+    case 'otros':     return "8";
     default:          return null;
   }
 }
@@ -2230,14 +2260,21 @@ function guardarYGenerarInvoice(){
     
     let withHoldingsSurChargesDto = [];
     if (retencionRate > 0) {
-      Logger.log("Producto: " + descripcion + " - Retención: " + (retencionRate * 100) + "% - Tipo: 10");
-      withHoldingsSurChargesDto.push({
+      const retencionEsOtros = !!(prodInfo && prodInfo["retencionEsOtros"]);
+      const retencionDto = {
         isWithHolding: true,
-        idRateWithHoldings: getIdTypeWithHoldings_('retencion'),
+        idRateWithHoldings: getIdTypeWithHoldings_(retencionEsOtros ? 'otros' : 'retencion'),
         rateValueWithHoldings: retencionRate,
         subTotalWithHoldings: baseNeta,
         cuotaWithHoldings: withHoldingsAmount
-      });
+      };
+      // The API only accepts otherDescription with "Otros", and at most 50 characters
+      const descripcionOtros = retencionEsOtros ? String(prodInfo["descripcionRetencion"] || "").trim() : "";
+      if (descripcionOtros) {
+        retencionDto.otherDescription = descripcionOtros.substring(0, RETENCION_OTROS_DESCRIPCION_MAX);
+      }
+      Logger.log("Producto: " + descripcion + " - Retención: " + (retencionRate * 100) + "% - Tipo: " + retencionDto.idRateWithHoldings);
+      withHoldingsSurChargesDto.push(retencionDto);
       hasPerProductRetention = true;
     }
 
@@ -2522,7 +2559,7 @@ function guardarYGenerarInvoice(){
   // Base neta (exenta) para facturas sin impuestos
   const baseNetaTotal = round2(totalSubTotal - totalDiscounts);
   let fieldInvoice = {
-    textCustomerObservations: String(prefactura_sheet.getRange("D11").getValue() || "").substring(0, 350) || null,
+    textCustomerObservations: String(prefactura_sheet.getRange("D11").getValue() || "").substring(0, 200) || null, // API limit: 200
     invoiceNumber: numeroFacturaValidado.substring(0, 50),
     currentNumber: currentNumber,
     // Importante: no usar toISOString() directo con fechas de hoja a medianoche,
@@ -2537,7 +2574,7 @@ function guardarYGenerarInvoice(){
     contacts: contacts,
     products: products,
     idPayment: idPaymentCode,
-    paymentNote: String(prefactura_sheet.getRange("D11").getValue() || "").substring(0, 300) || null,
+    paymentNote: String(prefactura_sheet.getRange("D11").getValue() || "").substring(0, 200) || null, // API limit: 200
     textObservations: String(prefactura_sheet.getRange("B10").getValue() || "").substring(0, 500) || null,
     idOperations: "S1", // Según factura.json
     idOperationsExenta: totalExemptBase > 0 ? (firstIdExento || "E1") : "E0",
