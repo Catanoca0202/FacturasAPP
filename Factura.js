@@ -2863,3 +2863,199 @@ function filtroHistorialFacturas(tipoFiltro){
   
 
 }
+
+
+// ---------------------------------------------------------------------------
+// Invoice state services (GetInvoicesByDateRange, GetInvoiceStateByNumber,
+// GetVerifactuRejectionErrors)
+// ---------------------------------------------------------------------------
+
+const HISTORIAL_DATA_SHEET = 'Historial Facturas Data';
+const HISTORIAL_COL_NUMERO = 1; // A
+const HISTORIAL_COL_FECHA = 4;  // D
+const HISTORIAL_COL_ESTADO = 5; // E
+// Used when the history has no parsable dates to start the range from
+const HISTORIAL_DIAS_POR_DEFECTO = 365;
+
+function getInvoiceApiBaseUrl_() {
+  const ambiente = PropertiesService.getDocumentProperties().getProperty('Ambiente');
+  const host = ambiente === 'Pruebas' ? 'https://facturasapp-qa.cenet.ws' : 'https://www.facturasapp.com';
+  return host + '/ApiGateway/ApiExternal/Invoice/api/InvoiceServices';
+}
+
+/** API key linked to this sheet, or null when the account is not linked (Datos!I21 = 0). */
+function getApiKey_() {
+  const hojaDatos = SpreadsheetApp.getActive().getSheetByName('Datos');
+  const apiKey = hojaDatos ? hojaDatos.getRange('I21').getValue() : null;
+  if (!apiKey || apiKey === '0' || apiKey === 0) return null;
+  return String(apiKey);
+}
+
+/**
+ * Calls an InvoiceServices endpoint. Returns { ok, status, data, error } and never
+ * throws, so callers only branch on ok. The API key is never logged.
+ */
+function invoiceServicesFetch_(path, method, body) {
+  const apiKey = getApiKey_();
+  if (!apiKey) {
+    return { ok: false, status: 0, data: null, error: 'La cuenta no está vinculada a FacturasApp.' };
+  }
+
+  const options = {
+    method: method || 'get',
+    headers: { 'X-API-KEY': apiKey },
+    muteHttpExceptions: true
+  };
+  if (body !== undefined) {
+    options.contentType = 'application/json';
+    options.payload = JSON.stringify(body);
+  }
+
+  let status = 0;
+  let data = null;
+  try {
+    const resp = UrlFetchApp.fetch(getInvoiceApiBaseUrl_() + path, options);
+    status = resp.getResponseCode();
+    const texto = resp.getContentText();
+    try { data = texto ? JSON.parse(texto) : null; } catch (e) { data = null; }
+  } catch (err) {
+    Logger.log('InvoiceServices ' + path + ' failed: ' + err);
+    return { ok: false, status: 0, data: null, error: 'No se pudo conectar con FacturasApp.' };
+  }
+
+  if (status === 401) {
+    return { ok: false, status, data, error: 'La API Key no es válida. Vuelve a vincular tu cuenta.' };
+  }
+  // ResponseTools bodies report failures with isError even on HTTP 200
+  if (status !== 200 || (data && data.isError === true)) {
+    const mensaje = (data && (data.exception || (typeof data.messages === 'string' ? data.messages : ''))) ||
+      ('Error ' + status + ' al consultar FacturasApp.');
+    Logger.log('InvoiceServices ' + path + ' returned ' + status + ': ' + mensaje);
+    return { ok: false, status, data, error: mensaje };
+  }
+  return { ok: true, status, data, error: null };
+}
+
+function normalizarNumeroFactura_(valor) {
+  return String(valor || '').trim().toUpperCase();
+}
+
+function formatearFechaApi_(fecha) {
+  return Utilities.formatDate(fecha, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ss");
+}
+
+/**
+ * Pulls the real state of every invoice in the history from FacturasApp and writes
+ * it into column E (guardarFacturaHistorial always stores "Creada" on creation).
+ */
+function actualizarEstadosHistorial() {
+  const hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HISTORIAL_DATA_SHEET);
+  if (!hoja || hoja.getLastRow() < 2) {
+    return crearMensaje('No hay facturas en el historial.', 'info', 'Actualizar estados');
+  }
+
+  const filas = hoja.getRange(2, 1, hoja.getLastRow() - 1, HISTORIAL_COL_ESTADO).getValues();
+  const fechas = filas
+    .map(fila => fila[HISTORIAL_COL_FECHA - 1])
+    .filter(valor => valor instanceof Date && !isNaN(valor.getTime()));
+
+  let desde;
+  if (fechas.length > 0) {
+    desde = new Date(Math.min.apply(null, fechas.map(f => f.getTime())));
+  } else {
+    desde = new Date();
+    desde.setDate(desde.getDate() - HISTORIAL_DIAS_POR_DEFECTO);
+  }
+  desde.setHours(0, 0, 0, 0);
+  const hasta = new Date();
+  hasta.setHours(23, 59, 59, 0);
+
+  const resultado = invoiceServicesFetch_('/GetInvoicesByDateRange', 'post', {
+    startDate: formatearFechaApi_(desde),
+    endDate: formatearFechaApi_(hasta)
+  });
+  if (!resultado.ok) {
+    return crearMensaje(resultado.error, 'error', 'Actualizar estados');
+  }
+
+  const estadosPorNumero = {};
+  (resultado.data.toolObject || []).forEach(factura => {
+    estadosPorNumero[normalizarNumeroFactura_(factura.invoiceNumber)] = factura.invoiceStateName;
+  });
+
+  // Write the whole column at once instead of one call per row
+  const columnaEstado = filas.map(fila => [fila[HISTORIAL_COL_ESTADO - 1]]);
+  let actualizadas = 0;
+  filas.forEach((fila, i) => {
+    const estado = estadosPorNumero[normalizarNumeroFactura_(fila[HISTORIAL_COL_NUMERO - 1])];
+    if (estado && estado !== columnaEstado[i][0]) {
+      columnaEstado[i][0] = estado;
+      actualizadas++;
+    }
+  });
+  if (actualizadas > 0) {
+    hoja.getRange(2, HISTORIAL_COL_ESTADO, columnaEstado.length, 1).setValues(columnaEstado);
+  }
+
+  const mensaje = actualizadas > 0
+    ? 'Se actualizó el estado de ' + actualizadas + ' factura(s).'
+    : 'Los estados del historial ya están al día.';
+  return crearMensaje(mensaje, 'success', 'Actualizar estados');
+}
+
+/**
+ * State of one invoice, plus its VeriFactu rejection errors when it was rejected.
+ * Also refreshes that invoice's state in the history.
+ */
+function consultarEstadoFactura(numFactura) {
+  const numero = String(numFactura || '').trim();
+  if (!numero) {
+    return { ok: false, error: 'Ingresa un número de factura.' };
+  }
+
+  const resultado = invoiceServicesFetch_('/GetInvoiceStateByNumber/' + encodeURIComponent(numero), 'get');
+  if (!resultado.ok) {
+    return { ok: false, error: resultado.error };
+  }
+
+  const info = resultado.data.toolObject || {};
+  const respuesta = {
+    ok: true,
+    numero: info.invoiceNumber || numero,
+    estado: info.stateName || '',
+    descripcion: info.stateDescription || '',
+    agencyUrl: info.agencyUrl || '',
+    errores: [],
+    error: null
+  };
+
+  const tieneErrores = Array.isArray(info.errors) ? info.errors.length > 0 : !!info.errors;
+  if (/incorrect/i.test(respuesta.estado) || tieneErrores) {
+    const rechazo = invoiceServicesFetch_('/GetVerifactuRejectionErrors/' + encodeURIComponent(numero), 'get');
+    if (rechazo.ok) {
+      respuesta.errores = ((rechazo.data && rechazo.data.errores) || []).map(e => ({
+        codigoError: e.codigoError || '',
+        descripcion: e.descripcion || ''
+      }));
+    } else if (rechazo.status !== 404) {
+      // 404 just means there is no rejection detail for this invoice
+      respuesta.error = rechazo.error;
+    }
+  }
+
+  actualizarEstadoEnHistorial_(respuesta.numero, respuesta.estado);
+  return respuesta;
+}
+
+function actualizarEstadoEnHistorial_(numFactura, estado) {
+  if (!estado) return;
+  const hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HISTORIAL_DATA_SHEET);
+  if (!hoja || hoja.getLastRow() < 2) return;
+  const numeros = hoja.getRange(2, HISTORIAL_COL_NUMERO, hoja.getLastRow() - 1, 1).getValues();
+  const buscado = normalizarNumeroFactura_(numFactura);
+  numeros.forEach(([valor], i) => {
+    if (normalizarNumeroFactura_(valor) === buscado) {
+      hoja.getRange(i + 2, HISTORIAL_COL_ESTADO).setValue(estado);
+    }
+  });
+}

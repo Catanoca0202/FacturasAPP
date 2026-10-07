@@ -69,6 +69,85 @@
           }
         
       }
+
+      function escapeHtml(texto) {
+        const div = document.createElement('div');
+        div.textContent = texto == null ? '' : String(texto);
+        return div.innerHTML;
+      }
+
+      function setCargando(cargando, texto) {
+        document.getElementById('estadoCargando').style.display = cargando ? '' : 'none';
+        document.getElementById('estadoCargandoTexto').textContent = texto || '';
+        document.querySelectorAll('.btn-estado').forEach(btn => { btn.disabled = cargando; });
+      }
+
+      function mostrarResultadoEstado(html) {
+        const panel = document.getElementById('resultadoEstado');
+        panel.innerHTML = html;
+        panel.style.display = html ? '' : 'none';
+      }
+
+      function consultarEstado() {
+        const numFactura = document.getElementById('numFactura').value.trim();
+        if (!numFactura) {
+          mostrarAlerta("Por favor, ingresa un código de factura válido.");
+          return;
+        }
+        mostrarResultadoEstado('');
+        setCargando(true, 'Consultando estado…');
+        google.script.run
+          .withSuccessHandler(function (res) {
+            setCargando(false);
+            if (!res || !res.ok) {
+              mostrarResultadoEstado('<div class="alert alert-danger mb-0">' +
+                escapeHtml(res && res.error ? res.error : 'No se pudo consultar el estado.') + '</div>');
+              return;
+            }
+            let html = '<div class="alert alert-light border mb-0">' +
+              '<p class="mb-1"><strong>Factura:</strong> ' + escapeHtml(res.numero) + '</p>' +
+              '<p class="mb-1"><strong>Estado:</strong> ' + escapeHtml(res.estado) + '</p>';
+            if (res.descripcion) {
+              html += '<p class="mb-1 small text-muted">' + escapeHtml(res.descripcion) + '</p>';
+            }
+            if (res.errores && res.errores.length) {
+              html += '<p class="mb-1 mt-2"><strong>Errores de rechazo VeriFactu:</strong></p><ul class="small mb-1 ps-3">';
+              res.errores.forEach(function (e) {
+                html += '<li><strong>' + escapeHtml(e.codigoError) + '</strong> ' + escapeHtml(e.descripcion) + '</li>';
+              });
+              html += '</ul>';
+            }
+            if (res.error) {
+              html += '<p class="mb-1 small text-danger">' + escapeHtml(res.error) + '</p>';
+            }
+            if (res.agencyUrl && /^https?:\/\//i.test(res.agencyUrl)) {
+              html += '<a href="' + escapeHtml(res.agencyUrl) + '" target="_blank" rel="noopener" class="small">Ver en la Agencia Tributaria</a>';
+            }
+            html += '</div>';
+            mostrarResultadoEstado(html);
+          })
+          .withFailureHandler(function (err) {
+            setCargando(false);
+            mostrarResultadoEstado('<div class="alert alert-danger mb-0">' + escapeHtml(err && err.message ? err.message : err) + '</div>');
+          })
+          .consultarEstadoFactura(numFactura);
+      }
+
+      function actualizarEstados() {
+        mostrarResultadoEstado('');
+        setCargando(true, 'Actualizando estados del historial…');
+        google.script.run
+          .withSuccessHandler(function (res) {
+            setCargando(false);
+            const clase = res && res.tipo === 'error' ? 'alert-danger' : 'alert-success';
+            mostrarResultadoEstado('<div class="alert ' + clase + ' mb-0">' + escapeHtml(res ? res.mensaje : '') + '</div>');
+          })
+          .withFailureHandler(function (err) {
+            setCargando(false);
+            mostrarResultadoEstado('<div class="alert alert-danger mb-0">' + escapeHtml(err && err.message ? err.message : err) + '</div>');
+          })
+          .actualizarEstadosHistorial();
+      }
   </script>
   <body class="d-flex h-100">
     <div class="assistant-container d-flex w-100 h-100 mx-auto flex-column">
@@ -111,7 +190,7 @@
       <main class="d-flex flex-column align-items-center justify-content-center flex-grow-1">
         <div class="row py-3 px-4 gx-0 w-100">
           <div class="col-12 py-4">
-            <p class="fs-6">Ingresa el número de la factura la cual deseas descargar o enviar.</p>
+            <p class="fs-6">Ingresa el número de la factura la cual deseas descargar, enviar o consultar su estado.</p>
           </div>
           <div class="col-12 px-0">
             <form class="row g-3 d-flex flex-column align-items-center">
@@ -131,6 +210,21 @@
                   
                 </button>
               </div>
+              <div class="col-12">
+                <button type="button" class="btn btn-primary btn-lg w-100 btn-menu btn-estado" onclick="consultarEstado()">
+                  <span class="pe-4">Consultar estado</span>
+                </button>
+              </div>
+              <div class="col-12">
+                <button type="button" class="btn btn-outline-primary btn-lg w-100 btn-menu btn-estado" onclick="actualizarEstados()">
+                  <span class="pe-4">Actualizar estados del historial</span>
+                </button>
+              </div>
+              <div class="col-12 text-center" id="estadoCargando" style="display: none;">
+                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                <span class="ms-2 small" id="estadoCargandoTexto"></span>
+              </div>
+              <div class="col-12" id="resultadoEstado" style="display: none;"></div>
               <!-- <div class="col-12">
                 <button type="button" class="btn btn-primary btn-lg w-100 btn-menu" onclick="enviarFacturasApp()">
                   <span class="pe-4">Envío a FacturasApp</span>

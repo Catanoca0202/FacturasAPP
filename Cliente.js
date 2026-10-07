@@ -491,9 +491,7 @@ function verificarDatosObligatoriosProductos(e){
     PRODUCT_COLUMNS.OPERACION_EXENTA,
     PRODUCT_COLUMNS.PRECIO_CON_IMPUESTO,
     PRODUCT_COLUMNS.TARIFA_RECARGO,
-    PRODUCT_COLUMNS.TARIFA_RETENCION,
-    PRODUCT_COLUMNS.PORCENTAJE_RETENCION,
-    PRODUCT_COLUMNS.DESCRIPCION_RETENCION
+    PRODUCT_COLUMNS.TARIFA_RETENCION
   ]);
   const estadosDefault = ["", "Seleccione", "Selecciona una opción"];
   const estadosDefaultLower = estadosDefault.map(item => item.toLowerCase());
@@ -544,27 +542,13 @@ function verificarDatosObligatoriosProductos(e){
   }
 
   if (retencionActiva) {
-    if (esRetencionOtros_(tarifaRetencionDisplay)) {
-      // RFC 466: "Otros" needs a manual rate (0–100%, max 2 decimals) and a description
-      const porcentajeDisplay = sheet.getRange(rowEditada, PRODUCT_COLUMNS.PORCENTAJE_RETENCION).getDisplayValue().trim();
-      if (normalizarPorcentajeRetencion_(porcentajeDisplay) === null) {
-        estaCompleto = false;
-        sheet.getRange(rowEditada, PRODUCT_COLUMNS.PORCENTAJE_RETENCION).setBackground('#FFC7C7');
-      }
-      const descripcionRetencion = String(sheet.getRange(rowEditada, PRODUCT_COLUMNS.DESCRIPCION_RETENCION).getValue() || '').trim();
-      if (descripcionRetencion === '') {
-        estaCompleto = false;
-        sheet.getRange(rowEditada, PRODUCT_COLUMNS.DESCRIPCION_RETENCION).setBackground('#FFC7C7');
-      }
-    } else {
-      const tarifaNum = parsePercentToNumberES(tarifaRetencionDisplay);
-      const permitido = RETENCION_IRPF_TARIFAS
-        .map(valor => parsePercentToNumberES(valor))
-        .some(valor => Math.abs(valor - tarifaNum) < 0.0001);
-      if (!permitido) {
-        estaCompleto = false;
-        sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RETENCION).setBackground('#FFC7C7');
-      }
+    const tarifaNum = parsePercentToNumberES(tarifaRetencionDisplay);
+    const permitido = RETENCION_IRPF_TARIFAS
+      .map(valor => parsePercentToNumberES(valor))
+      .some(valor => Math.abs(valor - tarifaNum) < 0.0001);
+    if (!permitido) {
+      estaCompleto = false;
+      sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RETENCION).setBackground('#FFC7C7');
     }
   }
 
