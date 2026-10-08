@@ -17,7 +17,7 @@
 //   HOTFIX  — almost always 0; only bumped for an emergency release
 //   PROJECT — identifies the project, never incremented (this add-on is 2)
 // Single source of truth — the sidebar footer renders it via getAppVersion().
-const APP_VERSION = '1.2.0.2';
+const APP_VERSION = '1.3.1.2';
 
 /** Exposed so main.html can print the version from a template scriptlet. */
 function getAppVersion() {

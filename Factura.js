@@ -404,6 +404,24 @@ function verificarEstadoValidoFactura() {
     }
   }
 
+  // The customer email is required: without it the API fails with HTTP 500
+  // ("Cannot insert the value NULL into column 'EmailCustomer'"), and it rejects malformed ones.
+  const emailCliente = String(getCustomerInformation(clienteActual).Email || "").trim();
+  if (!emailCliente) {
+    estaValido.success = false;
+    estaValido.message =
+      "El cliente " + clienteActual + " no tiene correo electrónico.\n" +
+      "Solución: agrega su correo en la columna Email de la hoja Clientes y vuelve a guardar la factura.";
+    return estaValido;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailCliente)) {
+    estaValido.success = false;
+    estaValido.message =
+      "El correo del cliente " + clienteActual + " no es válido (" + emailCliente + ").\n" +
+      "Solución: corrígelo en la columna Email de la hoja Clientes.";
+    return estaValido;
+  }
+
   // Si pasa todas las validaciones, está válido
   estaValido.success = true;
   estaValido.message = "Factura válida para guardar.";
