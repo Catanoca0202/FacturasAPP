@@ -2391,7 +2391,7 @@ function guardarYGenerarInvoice(){
     let producto = {
       typeUse: "VEN",
       reference: String(referencia).substring(0, 50),
-      description: String(descripcion).substring(0, 100),
+      description: String(descripcion).substring(0, 300), // API limit: 300 (RFC 485)
       regime: regimenProducto,
       productType: productTypeIdProducto,
       unitPrice: Number(precioUnitario),
