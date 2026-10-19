@@ -15,46 +15,84 @@
         align-items: flex-start;
         gap: 12px;
       }
-      .icon {
+      .spinner {
         width: 32px;
         height: 32px;
-        border-radius: 50%;
-        background-color: #e3f2fd;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #1976d2;
-        font-size: 18px;
         flex-shrink: 0;
+        border-radius: 50%;
+        border: 3px solid #e3f2fd;
+        border-top-color: #1976d2;
+        animation: spin 0.9s linear infinite;
       }
+      @keyframes spin { to { transform: rotate(360deg); } }
       .text {
         font-size: 14px;
         color: #202124;
       }
       .text strong {
         display: block;
-        margin-bottom: 2px;
+        margin-bottom: 4px;
+      }
+      .hint {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #5f6368;
+      }
+      .done .spinner {
+        animation: none;
+        border-color: #34a853;
       }
     </style>
   </head>
   <body>
-    <div class="container">
-      <div class="icon">⏳</div>
+    <div class="container" id="container">
+      <div class="spinner"></div>
       <div class="text">
-        <strong>Estamos generando tu factura…</strong>
-        Tu factura se está generando, espera un momento por favor.
+        <strong id="titulo">Estamos generando y enviando tu factura…</strong>
+        <span id="detalle">Puede tardar hasta un minuto. Esta ventana se cerrará sola cuando termine.</span>
+        <div class="hint">Tiempo transcurrido: <span id="segundos">0</span> s</div>
       </div>
     </div>
     <script>
-      // Cerrar automáticamente el diálogo después de unos segundos
-      setTimeout(function () {
+      // The dialog stays open while the server-side flag is set (see
+      // facturaSigueGenerando in Factura.js) instead of closing on a fixed timer.
+      var POLL_MS = 2000;
+      var MAX_SEGUNDOS = 240; // safety cap in case the flag never clears
+      var inicio = Date.now();
+
+      function cerrar() {
         if (window.google && google.script && google.script.host) {
           google.script.host.close();
         }
-      }, 15000); // 15 segundos
+      }
+
+      function terminar() {
+        document.getElementById('container').className = 'container done';
+        document.getElementById('titulo').textContent = 'Listo. Revisa el resultado en el panel lateral.';
+        document.getElementById('detalle').textContent = '';
+        setTimeout(cerrar, 1200);
+      }
+
+      function consultar() {
+        var segundos = Math.round((Date.now() - inicio) / 1000);
+        document.getElementById('segundos').textContent = segundos;
+        if (segundos >= MAX_SEGUNDOS) { terminar(); return; }
+        if (segundos > 60) {
+          document.getElementById('detalle').textContent =
+            'Está tardando más de lo habitual, pero sigue en proceso. No cierres la hoja.';
+        }
+        google.script.run
+          .withSuccessHandler(function (sigue) {
+            if (sigue) { setTimeout(consultar, POLL_MS); } else { terminar(); }
+          })
+          .withFailureHandler(function () {
+            // A failed poll is not a failed invoice: keep waiting
+            setTimeout(consultar, POLL_MS);
+          })
+          .facturaSigueGenerando();
+      }
+
+      setTimeout(consultar, POLL_MS);
     </script>
   </body>
 </html>
-
-
-

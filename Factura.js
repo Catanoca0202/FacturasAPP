@@ -473,6 +473,9 @@ function guardarFactura(){
     }
     Logger.log("guardarFactura error: " + mensaje);
     return crearMensaje("No se pudo guardar/enviar la factura. " + mensaje, 'error', 'Error');
+  } finally {
+    // Lets the "Generando factura" dialog close as soon as we are done, on any path
+    limpiarEstadoFacturaGenerando_();
   }
 }
 function agregarFilaNueva(){
@@ -1297,16 +1300,43 @@ function enviarEmailPostFactura(email,historial=false,numFacturaAbuscar=null) {
   }
 }
 
+// Flag the "Generando factura" dialog polls to know when guardarFactura is done.
+// Lives in the document cache so a crashed execution can't leave it set forever.
+const FACTURA_GENERANDO_KEY = 'facturaGenerando';
+const FACTURA_GENERANDO_TTL_SEG = 300;
+
 /**
- * Muestra un diálogo HTML sencillo que informa al usuario
- * de que la factura se está generando y se cierra solo
- * después de unos segundos.
+ * Shows the "Generando factura" dialog. It used to close itself after 15 s, which
+ * was often before the send had finished; now it stays open while the flag is set
+ * and guardarFactura clears the flag in its finally block.
  */
 function mostrarDialogoFacturaGenerando() {
+  try {
+    CacheService.getDocumentCache().put(FACTURA_GENERANDO_KEY, '1', FACTURA_GENERANDO_TTL_SEG);
+  } catch (e) {
+    Logger.log('No se pudo marcar facturaGenerando: ' + e);
+  }
   const html = HtmlService.createHtmlOutputFromFile('facturaGenerando')
     .setWidth(420)
-    .setHeight(160);
+    .setHeight(190);
   SpreadsheetApp.getUi().showModalDialog(html, 'Generando factura');
+}
+
+/** Polled by facturaGenerando.html every couple of seconds. */
+function facturaSigueGenerando() {
+  try {
+    return CacheService.getDocumentCache().get(FACTURA_GENERANDO_KEY) === '1';
+  } catch (e) {
+    return false;
+  }
+}
+
+function limpiarEstadoFacturaGenerando_() {
+  try {
+    CacheService.getDocumentCache().remove(FACTURA_GENERANDO_KEY);
+  } catch (e) {
+    Logger.log('No se pudo limpiar facturaGenerando: ' + e);
+  }
 }
 
 
