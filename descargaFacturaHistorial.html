@@ -44,8 +44,13 @@
 
           google.script.run
               .withSuccessHandler(function (url) {
-                  if (!url || (typeof url === 'string' && (url === 'Factura no encontrada en el historial' || url === 'Factura no encontrada' || url.indexOf('no encontrada') !== -1 || url.indexOf('Error') === 0))) {
+                  if (!url || (typeof url === 'string' && url.indexOf('no encontrada') !== -1)) {
                       mostrarAlerta('No se encontró la factura en el historial. Verifica el consecutivo ingresado.');
+                      return;
+                  }
+                  if (typeof url === 'string' && url.indexOf('Error') === 0) {
+                      // PDF not ready yet or API failure: show the server's own message
+                      mostrarAlerta(url.replace(/^Error:\s*/, ''));
                       return;
                   }
                   const link = document.createElement('a');

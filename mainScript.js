@@ -17,7 +17,7 @@
 //   HOTFIX  — almost always 0; only bumped for an emergency release
 //   PROJECT — identifies the project, never incremented (this add-on is 2)
 // Single source of truth — the sidebar footer renders it via getAppVersion().
-const APP_VERSION = '1.3.1.2';
+const APP_VERSION = '1.4.0.2';
 
 /** Exposed so main.html can print the version from a template scriptlet. */
 function getAppVersion() {
@@ -309,6 +309,7 @@ const RETENCION_OTROS_HEADERS = {
   DESCRIPCION: 'Descripción retención'
 };
 // Forma de pago preferida (hoja Clientes, columna P)
+const CLIENTES_FORMA_PAGO_HEADER = 'Forma de pago';
 const FORMAS_PAGO_CLIENTES = [
   'No definido', 'Efectivo', 'Transferencia bancaria', 'Domiciliación bancaria',
   'PayPal', 'Factoring', 'Confirming', 'Talonario', 'Tarjeta de credito',
@@ -1084,6 +1085,48 @@ function migrarColumnasRetencionOtros(ss) {
 }
 
 /**
+ * Self-heals the Clientes sheet when the template never got the "Forma de pago"
+ * column at P. The add-on has written that column since v1.22, so on such sheets
+ * the header row is one column behind the data (Email header over Sitio web, the
+ * real email in an unlabeled U). Rows written by an even older add-on still carry
+ * the old layout (email in T); those rows are shifted right by one cell.
+ * Idempotent: does nothing once P1 reads "Forma de pago".
+ */
+function repararEncabezadoClientes_(hoja) {
+  const COL_P = 16;
+  const headerP = String(hoja.getRange(1, COL_P).getValue() || '').trim();
+  if (headerP === CLIENTES_FORMA_PAGO_HEADER) return false;
+  // Only repair the known legacy layout; anything else is left for a human
+  if (headerP.toLowerCase() !== 'dirección' && headerP.toLowerCase() !== 'direccion') {
+    Logger.log("repararEncabezadoClientes_: P1 is '" + headerP + "', not repairing");
+    return false;
+  }
+
+  const lastRow = hoja.getLastRow();
+  if (lastRow >= 2) {
+    // P..U of each data row: formaPago, direccion, codigoPostal, telefono, sitioWeb, email
+    const filas = hoja.getRange(2, COL_P, lastRow - 1, 6).getValues();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    for (let i = 0; i < filas.length; i++) {
+      const p = String(filas[i][0] || '').trim();
+      const t = String(filas[i][4] || '').trim();
+      const u = String(filas[i][5] || '').trim();
+      if (!p && !t && !u) continue;
+      const esLayoutNuevo = u !== '' || FORMAS_PAGO_CLIENTES.indexOf(p) !== -1;
+      const esLayoutViejo = !esLayoutNuevo && (emailRegex.test(t) || p !== '');
+      if (esLayoutViejo) {
+        hoja.getRange(i + 2, COL_P).insertCells(SpreadsheetApp.Dimension.COLUMNS);
+        hoja.getRange(i + 2, COL_P).setValue('No definido');
+      }
+    }
+  }
+  hoja.getRange(1, COL_P).insertCells(SpreadsheetApp.Dimension.COLUMNS);
+  hoja.getRange(1, COL_P).setValue(CLIENTES_FORMA_PAGO_HEADER);
+  Logger.log("repararEncabezadoClientes_: header row repaired");
+  return true;
+}
+
+/**
  * Applies the Forma de pago dropdown to Clientes!P2:P1000.
  * Kept separate from agregarDataValidations so it can also run on every sidebar
  * open: sheets installed before this rule existed never got the dropdown.
@@ -1092,6 +1135,7 @@ function aplicarValidacionFormaPagoClientes(ss) {
   try {
     const hoja = (ss || SpreadsheetApp.getActiveSpreadsheet()).getSheetByName("Clientes");
     if (!hoja) return;
+    repararEncabezadoClientes_(hoja);
     const regla = SpreadsheetApp.newDataValidation()
       .requireValueInList(FORMAS_PAGO_CLIENTES, true)
       .setAllowInvalid(false)

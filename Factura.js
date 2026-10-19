@@ -446,11 +446,20 @@ function guardarFactura(){
       let consecutivoOk = verificarEstadoConsecutivo();
       if (consecutivoOk) {
         guardarYGenerarInvoice();
-        guardarFacturaHistorial();
         Logger.log("guardar factura");
-        enviarFactura();
+        // Only record the invoice locally once the API confirmed it. Otherwise a
+        // failed send used to land in Historial as "Creada", consume a number and
+        // wipe the sheet while the sidebar still reported success.
+        const envio = enviarFactura();
+        if (!envio.ok) {
+          return crearMensaje(
+            "La factura NO fue enviada a FacturasApp y se mantiene en la hoja para que puedas reintentar.\n" + envio.mensaje,
+            'error', 'Error al enviar');
+        }
+        guardarFacturaHistorial();
         limpiarHojaFactura();
-        return crearMensaje("Factura guardada y enviada exitosamente", 'success', 'Éxito');
+        return crearMensaje("Factura guardada y enviada exitosamente." +
+          (envio.id ? " ID: " + envio.id : ""), 'success', 'Éxito');
       } else {
         return crearMensaje("No fue posible guardar la factura. Verifica el consecutivo configurado.", 'error', 'Error al guardar');
       }
@@ -662,12 +671,18 @@ function guardarFacturaHistorial() {
 // - convertPdfToBase64Historial()
 // - convertPdfToBase64()
 // Reemplazadas por obtenerPDFFacturaBase64() que usa el endpoint PDFInvoice
+/**
+ * Sends the last generated invoice JSON (ListadoEstado col M) to AddInvoice.
+ * Returns { ok, mensaje, id } instead of alerting, so guardarFactura can decide
+ * what to persist. A gateway timeout (502/503/504 or a fetch exception) is
+ * double-checked with GetInvoiceStateByNumber: the invoice may still exist.
+ */
 function enviarFactura(){
   var spreadsheet = SpreadsheetApp.getActive();
   const scriptProps = PropertiesService.getDocumentProperties();
   let ambiente = scriptProps.getProperty('Ambiente')
   Logger.log("Ambiente: "+ambiente)
-  
+
   // Nuevo endpoint para AddInvoice
   let url
   if (ambiente=="Pruebas"){
@@ -675,25 +690,23 @@ function enviarFactura(){
   }else{
     url = "https://www.facturasapp.com/ApiGateway/ApiExternal/Invoice/api/InvoiceServices/AddInvoice";
   }
-  
+
   // Obtener el JSON del nuevo formato desde ListadoEstado
   let listadoEstado = spreadsheet.getSheetByName('ListadoEstado');
   let lastRow = listadoEstado.getLastRow();
   let jsonFieldInvoice = listadoEstado.getRange(lastRow, 13).getValue(); // Columna M donde se guarda el nuevo JSON
-  
+
   if (!jsonFieldInvoice) {
-    SpreadsheetApp.getUi().alert("Error: No se encontró el JSON de la factura. Asegúrese de haber generado la factura primero.");
-    return;
+    return { ok: false, mensaje: "No se encontró el JSON de la factura. Asegúrate de haber generado la factura primero." };
   }
-  
+
   let hojaDatos = spreadsheet.getSheetByName('Datos');
   let APIkey = hojaDatos.getRange("I21").getValue()
-  
+
   if (!APIkey) {
-    SpreadsheetApp.getUi().alert("Error: No se encontró la API Key. Asegúrese de haber vinculado su cuenta de FacturasApp.");
-    return;
+    return { ok: false, mensaje: "No se encontró la API Key. Asegúrate de haber vinculado tu cuenta de FacturasApp." };
   }
-  
+
   let opciones = {
     "method": "post",
     "contentType": "application/json",
@@ -702,66 +715,81 @@ function enviarFactura(){
     'muteHttpExceptions': true
   };
 
+  let numeroFactura = "";
   try {
     Logger.log("URL: " + url);
-    Logger.log("API Key: " + APIkey);
     Logger.log("Payload length: " + jsonFieldInvoice.length);
     Logger.log("jsonFieldInvoice"+jsonFieldInvoice)
-    
+
     // Verificar que el JSON es válido
     try {
       let testJson = JSON.parse(jsonFieldInvoice);
+      numeroFactura = String(testJson.invoiceNumber || "");
       Logger.log("JSON válido. Productos: " + testJson.products.length);
     } catch (parseError) {
       Logger.log("ERROR: JSON inválido - " + parseError.message);
-      SpreadsheetApp.getUi().alert("Error: El JSON generado no es válido. " + parseError.message);
-      return;
+      return { ok: false, mensaje: "El JSON generado no es válido. " + parseError.message };
     }
-    
+
     var respuesta = UrlFetchApp.fetch(url, opciones);
     let responseText = respuesta.getContentText();
     let responseCode = respuesta.getResponseCode();
-    
+
     Logger.log("Status: " + responseCode);
     Logger.log("Response: " + responseText);
-    
+
     if (responseCode === 200) {
       let responseData = JSON.parse(responseText);
       if (responseData.isError) {
         Logger.log("Error de FacturasApp: " + responseData.messages);
         if (String(responseData.messages || '').toLowerCase().includes('suscripción') &&
             String(responseData.messages || '').toLowerCase().includes('inactiva')) {
-          SpreadsheetApp.getUi().alert(
-            "⚠️ Suscripción inactiva\n\n" +
-            "Tu suscripción de FacturasApp no está activa. " +
-            "Por favor, activa tu suscripción antes de enviar facturas.\n\n" +
-            "Puedes activarla desde tu cuenta en facturasapp.com"
-          );
-        } else {
-          SpreadsheetApp.getUi().alert("Error de FacturasApp: " + responseData.messages);
+          return { ok: false, mensaje:
+            "⚠️ Suscripción inactiva. Tu suscripción de FacturasApp no está activa. " +
+            "Actívala desde tu cuenta en facturasapp.com antes de enviar facturas." };
         }
-      } else {
-        SpreadsheetApp.getUi().alert("Factura enviada correctamente a FacturasApp. ID: " + responseData.id);
-        if (responseData.id) {
-          Logger.log("Factura creada con ID: " + responseData.id+" y enviada a FacturasApp");
-        }
+        return { ok: false, mensaje: "Error de FacturasApp: " + responseData.messages };
       }
-    } else if (responseCode === 500) {
-      Logger.log("Error HTTP 500: " + responseText);
-      // Show what the server reported so the cause can be diagnosed from the alert
-      const detalle500 = extraerMensajeErrorApi_(responseText);
-      SpreadsheetApp.getUi().alert("Ocurrió un error interno del servidor (500)." +
-        (detalle500 ? "\n\nDetalle: " + detalle500 : "") +
-        "\n\nSi el problema persiste, contacta a soporte con el número de factura.");
-    } else {
-      Logger.log("Error HTTP " + responseCode + ": " + responseText);
-      SpreadsheetApp.getUi().alert("Error de FacturasApp (" + responseCode + "):\n" +
-        (extraerMensajeErrorApi_(responseText) || responseText));
+      Logger.log("Factura creada con ID: " + responseData.id+" y enviada a FacturasApp");
+      return { ok: true, id: responseData.id, mensaje: "Factura enviada correctamente a FacturasApp." };
     }
+    if (responseCode === 500) {
+      Logger.log("Error HTTP 500: " + responseText);
+      const detalle500 = extraerMensajeErrorApi_(responseText);
+      return { ok: false, mensaje: "Ocurrió un error interno del servidor (500)." +
+        (detalle500 ? "\nDetalle: " + detalle500 : "") +
+        "\nSi el problema persiste, contacta a soporte con el número de factura." };
+    }
+    if (responseCode === 502 || responseCode === 503 || responseCode === 504) {
+      Logger.log("Error HTTP " + responseCode + " (gateway): " + responseText);
+      if (facturaExisteEnApi_(numeroFactura)) {
+        return { ok: true, id: null, mensaje: "Factura enviada (confirmada tras un tiempo de espera del servidor)." };
+      }
+      return { ok: false, mensaje: "El servidor de FacturasApp no respondió a tiempo (" + responseCode +
+        ") y la factura " + numeroFactura + " no aparece registrada. Intenta enviarla de nuevo." };
+    }
+    Logger.log("Error HTTP " + responseCode + ": " + responseText);
+    return { ok: false, mensaje: "Error de FacturasApp (" + responseCode + "): " +
+      (extraerMensajeErrorApi_(responseText) || responseText) };
   } catch (error) {
     Logger.log("Error al enviar el JSON a la API: " + error.message);
     Logger.log("Stack trace: " + error.stack);
-    SpreadsheetApp.getUi().alert("Error al enviar la factura a FacturasApp. Error: " + error.message);
+    if (numeroFactura && facturaExisteEnApi_(numeroFactura)) {
+      return { ok: true, id: null, mensaje: "Factura enviada (confirmada tras un error de conexión)." };
+    }
+    return { ok: false, mensaje: "Error de conexión con FacturasApp: " + error.message };
+  }
+}
+
+/** True when GetInvoiceStateByNumber finds the invoice. Never throws. */
+function facturaExisteEnApi_(numeroFactura) {
+  if (!numeroFactura) return false;
+  try {
+    const res = invoiceServicesFetch_('/GetInvoiceStateByNumber/' + encodeURIComponent(numeroFactura), 'get');
+    return !!(res && res.ok && res.data && res.data.toolObject);
+  } catch (e) {
+    Logger.log("facturaExisteEnApi_ error: " + e);
+    return false;
   }
 }
 
@@ -1065,18 +1093,33 @@ function obtenerPDFFacturaBase64(numeroFactura) {
   };
 
   try {
-    var respuesta = UrlFetchApp.fetch(url, opciones);
-    let responseCode = respuesta.getResponseCode();
+    // The first render of a PDF can exceed the gateway timeout (504 after ~20s);
+    // the next request finds it cached. Retry on 5xx or an empty body.
+    const MAX_INTENTOS = 3;
+    var respuesta = null;
+    let responseCode = 0;
+    let contentText = '';
+    for (let intento = 1; intento <= MAX_INTENTOS; intento++) {
+      respuesta = UrlFetchApp.fetch(url, opciones);
+      responseCode = respuesta.getResponseCode();
+      try { contentText = respuesta.getContentText(); } catch (e) { contentText = ''; }
+      const reintentar = responseCode >= 500 || (responseCode === 200 && !respuesta.getContent().length);
+      if (!reintentar) break;
+      Logger.log("PDFInvoice intento " + intento + "/" + MAX_INTENTOS + " -> " + responseCode +
+        " (" + respuesta.getContent().length + " bytes)");
+      if (intento < MAX_INTENTOS) Utilities.sleep(2000);
+    }
 
     if (responseCode !== 200) {
-      let responseText = respuesta.getContentText();
-      Logger.log("Error al obtener el PDF: " + responseText);
+      Logger.log("Error al obtener el PDF: " + contentText);
+      return null;
+    }
+    if (!respuesta.getContent().length) {
+      Logger.log("PDFInvoice devolvió un cuerpo vacío tras " + MAX_INTENTOS + " intentos");
       return null;
     }
 
     // Intentar detectar JSON y extraer 'toolObject'
-    let contentText = '';
-    try { contentText = respuesta.getContentText(); } catch (e) { contentText = ''; }
 
     if (contentText && contentText.trim().startsWith('{')) {
       try {
@@ -1300,9 +1343,10 @@ function ProcesarFormularioFactura(data) {
     
     // Usar la función directa que obtiene el PDF como base64
     var downloadUrl = descargarPDFDirecto(numFactura);
-    
+
     if (!downloadUrl) {
-      return 'Error al obtener el PDF desde FacturasApp';
+      return 'Error: FacturasApp todavía está generando el PDF de la factura ' + numFactura +
+        '. Espera unos segundos e intenta descargarla de nuevo.';
     }
 
    
@@ -1321,9 +1365,10 @@ function descargarPDFDirecto(numeroFactura) {
     
     // Obtener PDF como base64 desde FacturasApp
     var base64PDF = obtenerPDFFacturaBase64(numeroFactura);
-    
+
     if (!base64PDF) {
-      SpreadsheetApp.getUi().alert("Error al obtener el PDF desde FacturasApp");
+      // Callers report the failure themselves (sidebar message or alert)
+      Logger.log("No se obtuvo el PDF de " + numeroFactura + " desde FacturasApp");
       return null;
     }
     
@@ -1669,15 +1714,20 @@ function generarNumeroFactura(){
   if (!isFinite(numeroPlantilla) || numeroPlantilla < 1) numeroPlantilla = 1;
   Logger.log("[generarNumeroFactura] numeroPlantilla=%s (desde NumeroConescutivo=%s)", String(numeroPlantilla), String(numeroOld || ''));
 
-  // Sync with API to get the latest consecutivoActual (prevents conflicts with other devices)
-  let apiConsecutivoActual = -1;
+  // Sync with API to get the NEXT number to use (prevents conflicts with other devices).
+  // GetConsecutives.consecutivoActual is already the next free number (it matches
+  // nextInvoiceNumber, e.g. consecutivoActual 30 / nextInvoiceNumber "AC30" when AC29
+  // is the last invoice). Adding 1 to it skipped a number on every invoice.
+  let apiSiguiente = -1;
   try {
     const apiData = fetchConsecutivesFromAPI_();
     if (apiData && apiData.facturasDeAlta && apiData.facturasDeAlta.length > 0) {
       let defaultEntry = apiData.facturasDeAlta.find(function(e) { return e.isDefault === true; });
       if (!defaultEntry) defaultEntry = apiData.facturasDeAlta[0];
-      apiConsecutivoActual = Number(defaultEntry.consecutivoActual || 0);
-      Logger.log("[generarNumeroFactura] API consecutivoActual=%s", String(apiConsecutivoActual));
+      const desdeNext = obtenerParteNumerica(String(defaultEntry.nextInvoiceNumber || ''));
+      apiSiguiente = desdeNext > 0 ? desdeNext : Number(defaultEntry.consecutivoActual || 0);
+      Logger.log("[generarNumeroFactura] API nextInvoiceNumber=%s consecutivoActual=%s -> apiSiguiente=%s",
+        String(defaultEntry.nextInvoiceNumber || ''), String(defaultEntry.consecutivoActual || ''), String(apiSiguiente));
     }
   } catch (apiErr) {
     Logger.log("[generarNumeroFactura] API sync failed, using local history: " + apiErr.message);
@@ -1701,9 +1751,10 @@ function generarNumeroFactura(){
     }
   }
 
-  // Use the highest of: API consecutivoActual, local history max, or template number
-  const effectiveMax = Math.max(numeroMayor, apiConsecutivoActual);
-  const siguienteNumero = (effectiveMax >= 0) ? (effectiveMax + 1) : numeroPlantilla;
+  // Next number = the highest of: API next number, local history max + 1, or template number
+  let siguienteNumero = numeroPlantilla;
+  if (numeroMayor >= 0) siguienteNumero = numeroMayor + 1;
+  if (apiSiguiente > 0) siguienteNumero = Math.max(siguienteNumero, apiSiguiente);
   const nuevoConsecutivo = String(prefijo) + String(siguienteNumero).padStart(digitos, '0');
   Logger.log("[generarNumeroFactura] numeroMayor=%s siguienteNumero=%s nuevoConsecutivo=%s", String(numeroMayor), String(siguienteNumero), String(nuevoConsecutivo));
   sheet.getRange("G2").setValue(nuevoConsecutivo);
