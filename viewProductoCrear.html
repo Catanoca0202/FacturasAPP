@@ -118,6 +118,9 @@
         <select id="tarifaRecargo" name="tarifaRecargo" class="form-select form-select-lg">
           <option value="">Selecciona una opción</option>
         </select>
+        <!-- Non-IVA taxes have no official surcharge table: the rate is typed by hand -->
+        <input type="number" class="form-control form-control-lg" id="tarifaRecargoLibre"
+          min="0" max="100" step="0.01" placeholder="0-100%" style="display:none">
       </div>
 
       <div class="col-12" id="operacionExentaContainer" style="display:none">
@@ -587,12 +590,25 @@
     }
 
     var aplicarRecargo = document.getElementById('aplicarRecargo').checked;
-    var recargoSel = document.getElementById('tarifaRecargo').value;
-    if (aplicarRecargo && !recargoSel) {
+    if (aplicarRecargo && esRecargoManual()) {
+      // Manual surcharge (non-IVA): required, 0-100, max 2 decimals
+      var recargoLibre = document.getElementById('tarifaRecargoLibre').value;
+      var recargoNum = Number(String(recargoLibre).replace(',', '.'));
+      var recargoValido = String(recargoLibre).trim() !== '' && !isNaN(recargoNum) &&
+        recargoNum >= 0 && recargoNum <= 100 && tieneMaximoDosDecimales(recargoLibre);
+      marcarCampo('tarifaRecargoLibre', !recargoValido);
+      marcarCampo('tarifaRecargo', false);
+      if (!recargoValido) {
+        isValid = false;
+        mostrarAlerta('La tarifa de recargo de equivalencia debe estar entre 0 y 100, con máximo 2 decimales.');
+      }
+    } else if (aplicarRecargo && !document.getElementById('tarifaRecargo').value) {
       marcarCampo('tarifaRecargo', true);
+      marcarCampo('tarifaRecargoLibre', false);
       isValid = false;
     } else {
       marcarCampo('tarifaRecargo', false);
+      marcarCampo('tarifaRecargoLibre', false);
     }
 
     var aplicarRetencion = document.getElementById('aplicarRetencion').checked;
@@ -682,7 +698,7 @@
     var form = event.target;
     var formData = new FormData(form);
     formData.set('aplicarRecargo', document.getElementById('aplicarRecargo').checked);
-    formData.set('tarifaRecargo', document.getElementById('aplicarRecargo').checked ? document.getElementById('tarifaRecargo').value : '');
+    formData.set('tarifaRecargo', obtenerTarifaRecargoSeleccionada());
     if (document.getElementById('aplicarRetencion').checked) {
       var esOtros = esRetencionOtrosSeleccionada();
       formData.set('retenciones', document.getElementById('retenciones').value);
@@ -715,11 +731,12 @@
   function resetFormProducto() {
     var form = document.getElementById('productForm');
     form.reset();
-    ['codigoReferencia','nombre','regimen','tipoProducto','tipoUso','valorUnitario','tipoImpuesto','tarifaImpuesto','operacionExenta','retenciones','porcentajeRetencion','descripcionRetencion']
+    ['codigoReferencia','nombre','regimen','tipoProducto','tipoUso','valorUnitario','tipoImpuesto','tarifaImpuesto','operacionExenta','retenciones','porcentajeRetencion','descripcionRetencion','tarifaRecargo','tarifaRecargoLibre']
       .forEach(function(id) { marcarCampo(id, false); });
     document.getElementById('aplicarRecargo').checked = false;
     document.getElementById('tarifaRecargoContainer').style.display = 'none';
     document.getElementById('tarifaRecargo').innerHTML = '<option value="">Selecciona una opción</option>';
+    document.getElementById('tarifaRecargoLibre').value = '';
     document.getElementById('aplicarRetencion').checked = false;
     document.getElementById('exento').checked = false;
     document.getElementById('ivaIncluido').checked = false;
@@ -811,6 +828,7 @@
     var tarifaRecargo = document.getElementById('tarifaRecargo');
     if (puedeAplicarRecargo()) {
       recargoContainer.style.display = '';
+      if (recargoCheckbox.checked) updateTarifaRecargoOptions();
     } else {
       // Full reset: uncheck, clear tarifa value, hide both containers
       recargoContainer.style.display = 'none';
@@ -818,7 +836,21 @@
       tarifaRecargoContainer.style.display = 'none';
       tarifaRecargo.innerHTML = '<option value="">Selecciona una opción</option>';
       tarifaRecargo.value = '';
+      document.getElementById('tarifaRecargoLibre').value = '';
     }
+  }
+
+  // IVA derives the surcharge from the IVA rate; any other tax type
+  // (IPSI, IGIC, Otros) needs the rate typed by the user.
+  function esRecargoManual() {
+    return document.getElementById('tipoImpuesto').value !== 'IVA';
+  }
+
+  function obtenerTarifaRecargoSeleccionada() {
+    if (!document.getElementById('aplicarRecargo').checked) return '';
+    return esRecargoManual()
+      ? document.getElementById('tarifaRecargoLibre').value
+      : document.getElementById('tarifaRecargo').value;
   }
 
   function onToggleRecargo(event) {
@@ -831,16 +863,24 @@
     } else {
       container.style.display = 'none';
       select.value = '';
+      document.getElementById('tarifaRecargoLibre').value = '';
+      marcarCampo('tarifaRecargoLibre', false);
     }
   }
 
   function updateTarifaRecargoOptions() {
-    var tipoImpuesto = document.getElementById('tipoImpuesto').value;
-    var taxCfgRecargo = getClientTaxConfig(tipoImpuesto);
-    var tarifaVal = (taxCfgRecargo.tarifaMode === 'freeform')
-      ? String(Math.round(Number(document.getElementById('tarifaImpuestoLibre').value)))
-      : document.getElementById('tarifaImpuesto').value;
     var select = document.getElementById('tarifaRecargo');
+    var inputLibre = document.getElementById('tarifaRecargoLibre');
+    if (esRecargoManual()) {
+      // Non-IVA: free numeric input instead of the IVA table
+      select.style.display = 'none';
+      inputLibre.style.display = '';
+      return;
+    }
+    select.style.display = '';
+    inputLibre.style.display = 'none';
+    inputLibre.value = '';
+    var tarifaVal = document.getElementById('tarifaImpuesto').value;
     var prevVal = select.value;
     select.innerHTML = '';
     var options = IVA_RECARGO_2025[tarifaVal];

@@ -17,7 +17,7 @@
 //   HOTFIX  — almost always 0; only bumped for an emergency release
 //   PROJECT — identifies the project, never incremented (this add-on is 2)
 // Single source of truth — the sidebar footer renders it via getAppVersion().
-const APP_VERSION = '1.4.2.2';
+const APP_VERSION = '1.4.3.2';
 
 /** Exposed so main.html can print the version from a template scriptlet. */
 function getAppVersion() {
@@ -1223,7 +1223,7 @@ function processForm(data) {
     }
 
     let aplicarRecargoFormulario = String(data.aplicarRecargo || '').toLowerCase() === 'true';
-    const recargoSeleccionado = data.tarifaRecargo && String(data.tarifaRecargo).trim() !== '' ? parsePercentToNumberES(data.tarifaRecargo) : (data.recargo && String(data.recargo).toLowerCase() !== 'seleccione' ? parsePercentToNumberES(data.recargo) : null);
+    let recargoSeleccionado = data.tarifaRecargo && String(data.tarifaRecargo).trim() !== '' ? parsePercentToNumberES(data.tarifaRecargo) : (data.recargo && String(data.recargo).toLowerCase() !== 'seleccione' ? parsePercentToNumberES(data.recargo) : null);
     const retencionSeleccionada = data.retenciones && String(data.retenciones).toLowerCase() !== 'seleccione' ? parsePercentToNumberES(data.retenciones) : null;
 
     // RFC 466: "Otros" carries its own rate and description instead of a fixed tariff.
@@ -1258,8 +1258,12 @@ function processForm(data) {
           SpreadsheetApp.getUi().alert('La tarifa de IVA seleccionada no permite recargo de equivalencia.');
           aplicarRecargo = false;
         }
+      } else if (recargoSeleccionado !== null && !esTarifaRecargoManualValida_(recargoSeleccionado)) {
+        // Non-IVA: manual rate, only the 0-100 range is enforced. The row is
+        // left "No Valido" below so the user fixes column O on the sheet.
+        SpreadsheetApp.getUi().alert('La tarifa de recargo de equivalencia debe estar entre 0 y 100.');
+        recargoSeleccionado = null;
       }
-      // Non-IVA: freeform recargo accepted as-is
     } else if (tarifaRetencionStr !== '') {
       const tarifaIrpfNum = parsePercentToNumberES(tarifaRetencionStr);
       if (tarifaIrpfNum !== null && !isNaN(tarifaIrpfNum)) {
@@ -1594,6 +1598,12 @@ const IVA_RECARGO_MAP_2025 = {
   '4': [0.5],
   '0': [0]
 };
+
+// Non-IVA taxes (IPSI/IGIC/Otros) have no official surcharge table: the rate
+// is typed by the user and only has to be a number between 0 and 100.
+function esTarifaRecargoManualValida_(tarifaNum) {
+  return tarifaNum !== null && !isNaN(tarifaNum) && tarifaNum >= 0 && tarifaNum <= 100;
+}
 
 // Returns an array of allowed recargo rates for the given IVA, or null if not allowed
 function recargoPermitidoParaIva(ivaNum) {

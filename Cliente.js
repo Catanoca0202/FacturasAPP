@@ -532,11 +532,18 @@ function verificarDatosObligatoriosProductos(e){
   const tarifaRetencionDisplay = sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RETENCION).getDisplayValue().trim();
 
   if (esRecargo) {
-    const ivaNum = parsePercentToNumberES(sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_IMPUESTO).getDisplayValue());
-    const permitidos = recargoPermitidoParaIva(ivaNum);
+    const tipoImpuestoFila = String(sheet.getRange(rowEditada, PRODUCT_COLUMNS.TIPO_IMPUESTO).getValue() || 'IVA').trim();
     const tarifaNum = parsePercentToNumberES(sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RECARGO).getDisplayValue());
-    const esValido = permitidos !== null && tarifaNum !== null &&
-      permitidos.some(function(p) { return Math.abs(tarifaNum - p) < 0.0001; });
+    let esValido;
+    if (tipoImpuestoFila === 'IVA') {
+      const ivaNum = parsePercentToNumberES(sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_IMPUESTO).getDisplayValue());
+      const permitidos = recargoPermitidoParaIva(ivaNum);
+      esValido = permitidos !== null && tarifaNum !== null &&
+        permitidos.some(function(p) { return Math.abs(tarifaNum - p) < 0.0001; });
+    } else {
+      // Non-IVA (IPSI/IGIC/Otros): no official table, any rate between 0 and 100 is accepted
+      esValido = esTarifaRecargoManualValida_(tarifaNum);
+    }
     if (!esValido) {
       estaCompleto = false;
       sheet.getRange(rowEditada, PRODUCT_COLUMNS.TARIFA_RECARGO).setBackground('#FFC7C7');

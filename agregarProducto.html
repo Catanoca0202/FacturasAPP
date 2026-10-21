@@ -437,6 +437,21 @@
           }
         }
 
+        // Manual surcharge (non-IVA): required, 0-100, max 2 decimals
+        if (document.getElementById('aplicarRecargo').checked && esRecargoManual()) {
+          const recargoLibre = document.getElementById('tarifaRecargoLibre').value;
+          const recargoNum = Number(String(recargoLibre).replace(',', '.'));
+          const recargoValido = String(recargoLibre).trim() !== '' && !isNaN(recargoNum) &&
+            recargoNum >= 0 && recargoNum <= 100 && tieneMaximoDosDecimales(recargoLibre);
+          marcarCampo('tarifaRecargoLibre', !recargoValido);
+          if (!recargoValido) {
+            isValid = false;
+            mostrarAlerta('La tarifa de recargo de equivalencia debe estar entre 0 y 100, con máximo 2 decimales.');
+          }
+        } else {
+          marcarCampo('tarifaRecargoLibre', false);
+        }
+
         const aplicarRetencion = document.getElementById('aplicarRetencion').checked;
         const retencionSel = document.getElementById('retenciones').value;
         if (aplicarRetencion && !retencionSel) {
@@ -524,6 +539,8 @@
         const form = event.target;
         const formData = new FormData(form);
         formData.set('aplicarRecargo', document.getElementById('aplicarRecargo').checked);
+        formData.set('tarifaRecargo', document.getElementById('aplicarRecargo').checked && esRecargoManual()
+          ? document.getElementById('tarifaRecargoLibre').value : '');
         // Retención independiente
         if (document.getElementById('aplicarRetencion').checked) {
           const esOtros = esRetencionOtrosSeleccionada();
@@ -557,9 +574,10 @@
       function resetForm() {
         const form = document.getElementById('productForm');
         form.reset();
-        ['codigoReferencia','nombre','regimen','tipoProducto','tipoUso','valorUnitario','tipoImpuesto','tarifaImpuesto','operacionExenta','retenciones','porcentajeRetencion','descripcionRetencion']
+        ['codigoReferencia','nombre','regimen','tipoProducto','tipoUso','valorUnitario','tipoImpuesto','tarifaImpuesto','operacionExenta','retenciones','porcentajeRetencion','descripcionRetencion','tarifaRecargoLibre']
           .forEach(id => marcarCampo(id, false));
         document.getElementById('aplicarRecargo').checked = false;
+        document.getElementById('tarifaRecargoLibre').value = '';
         document.getElementById('aplicarRetencion').checked = false;
         document.getElementById('exento').checked = false;
         document.getElementById('ivaIncluido').checked = false;
@@ -665,10 +683,35 @@
           recargoContainer.style.display = 'none';
           recargoCheckbox.checked = false;
         }
+        updateTarifaRecargoLibreVisibility();
+      }
+
+      // IVA derives the surcharge from the IVA rate on the sheet; any other
+      // tax type (IPSI, IGIC, Otros) needs the rate typed by the user.
+      function esRecargoManual() {
+        return document.getElementById('tipoImpuesto').value !== 'IVA';
+      }
+
+      function updateTarifaRecargoLibreVisibility() {
+        const checked = document.getElementById('aplicarRecargo').checked;
+        const manual = esRecargoManual();
+        const container = document.getElementById('tarifaRecargoLibreContainer');
+        const input = document.getElementById('tarifaRecargoLibre');
+        document.getElementById('aplicarRecargoLabel').textContent = manual
+          ? 'Aplicar recargo de equivalencia'
+          : 'Aplicar recargo de equivalencia automático';
+        if (checked && manual) {
+          container.style.display = '';
+        } else {
+          container.style.display = 'none';
+          input.value = '';
+          marcarCampo('tarifaRecargoLibre', false);
+        }
       }
 
       function onToggleRecargo(event) {
         // recargo independiente, no afecta retención
+        updateTarifaRecargoLibreVisibility();
       }
 
       function onToggleRetencion(event) {
@@ -858,9 +901,15 @@
               <div class="col-12" id="recargoContainer">
                 <div class="form-check mt-2">
                   <input class="form-check-input" type="checkbox" id="aplicarRecargo" name="aplicarRecargo">
-                  <label class="form-check-label" for="aplicarRecargo">
+                  <label class="form-check-label" for="aplicarRecargo" id="aplicarRecargoLabel">
                     Aplicar recargo de equivalencia automático
                   </label>
+                </div>
+                <!-- Non-IVA taxes have no official surcharge table: the rate is typed by hand -->
+                <div class="mt-2" id="tarifaRecargoLibreContainer" style="display:none">
+                  <label for="tarifaRecargoLibre" class="form-label">Tarifa recargo de equivalencia (%)</label>
+                  <input type="number" class="form-control form-control-lg" id="tarifaRecargoLibre"
+                    min="0" max="100" step="0.01" placeholder="0-100%">
                 </div>
               </div>
 
