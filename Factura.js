@@ -1941,6 +1941,41 @@ function getInvoiceGeneralInformation() {
   return InvoiceGeneralInformation;
 }
 
+// Payment method catalogue (idPayment). Source: ValueOption/NameOption table (2026).
+// Top level so the rectificativa dialog can list it (getFormasPago_ in Rectificativas.js).
+const ID_PAYMENT_LABELS = {
+  // Existentes / compatibilidad
+  "No definido": "ND",
+  "Efectivo": "EF",
+  "Transferencia bancaria": "TF",
+  "Tarjeta bancaria": "TB",
+  "Tarjeta": "TB",
+  "Domiciliación bancaria": "DB",
+  "Domiciliacion bancaria": "DB",
+  "PayPal": "PP",
+  "Paypal": "PP",
+  "Factoring": "FR",
+  "Confirming": "CF",
+  "Talón": "TL",
+  "Talon": "TL",
+  "Talonario": "TL",
+
+  // Nuevos
+  "Tarjeta de crédito": "TC",
+  "Tarjeta de credito": "TC",
+  "Tarjeta de débito": "TD",
+  "Tarjeta de debito": "TD",
+  "Pagaré": "PA",
+  "Pagare": "PA",
+  "Cheque": "CH",
+  "Recibo bancario": "RB",
+  "Contado": "CD",
+  "Bizum": "BZ",
+  "Letra de cambio": "LC",
+  "Compensación": "CP",
+  "Compensacion": "CP"
+};
+
 // Mapea el medio de pago textual (E4) al código idPayment requerido por RG
 function mapIdPaymentCode(medioPagoTxt){
   Logger.log("medioPagoTxt" + medioPagoTxt);
@@ -1952,44 +1987,10 @@ function mapIdPaymentCode(medioPagoTxt){
     .toLowerCase().trim();
   const norm = normKey(medioPagoTxt);
 
-  // Catálogo de forma de pago (idPayment)
-  // Fuente: tabla ValueOption/NameOption proporcionada por el usuario (2026)
-  const MAP_RAW = {
-    // Existentes / compatibilidad
-    "No definido": "ND",
-    "Efectivo": "EF",
-    "Transferencia bancaria": "TF",
-    "Tarjeta bancaria": "TB",
-    "Tarjeta": "TB",
-    "Domiciliación bancaria": "DB",
-    "Domiciliacion bancaria": "DB",
-    "PayPal": "PP",
-    "Paypal": "PP",
-    "Factoring": "FR",
-    "Confirming": "CF",
-    "Talón": "TL",
-    "Talon": "TL",
-    "Talonario": "TL",
-
-    // Nuevos
-    "Tarjeta de crédito": "TC",
-    "Tarjeta de credito": "TC",
-    "Tarjeta de débito": "TD",
-    "Tarjeta de debito": "TD",
-    "Pagaré": "PA",
-    "Pagare": "PA",
-    "Cheque": "CH",
-    "Recibo bancario": "RB",
-    "Contado": "CD",
-    "Bizum": "BZ",
-    "Letra de cambio": "LC",
-    "Compensación": "CP",
-    "Compensacion": "CP"
-  };
 
   const MAP = {};
-  Object.keys(MAP_RAW).forEach((k) => {
-    MAP[normKey(k)] = MAP_RAW[k];
+  Object.keys(ID_PAYMENT_LABELS).forEach((k) => {
+    MAP[normKey(k)] = ID_PAYMENT_LABELS[k];
   });
 
   return MAP[norm] || "ND";
@@ -3049,10 +3050,11 @@ function invoiceServicesFetch_(path, method, body) {
 
   let status = 0;
   let data = null;
+  let texto = '';
   try {
     const resp = UrlFetchApp.fetch(getInvoiceApiBaseUrl_() + path, options);
     status = resp.getResponseCode();
-    const texto = resp.getContentText();
+    texto = resp.getContentText();
     try { data = texto ? JSON.parse(texto) : null; } catch (e) { data = null; }
   } catch (err) {
     Logger.log('InvoiceServices ' + path + ' failed: ' + err);
@@ -3064,7 +3066,10 @@ function invoiceServicesFetch_(path, method, body) {
   }
   // ResponseTools bodies report failures with isError even on HTTP 200
   if (status !== 200 || (data && data.isError === true)) {
+    // Two body shapes: the domain one ({exception, messages}) and ASP.NET
+    // ProblemDetails ({title, errors: {field: [msg]}}) for missing fields.
     const mensaje = (data && (data.exception || (typeof data.messages === 'string' ? data.messages : ''))) ||
+      (data && (data.errors || Array.isArray(data.messages)) ? extraerMensajeErrorApi_(texto) : '') ||
       ('Error ' + status + ' al consultar FacturasApp.');
     Logger.log('InvoiceServices ' + path + ' returned ' + status + ': ' + mensaje);
     return { ok: false, status, data, error: mensaje };

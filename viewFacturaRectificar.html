@@ -1,0 +1,55 @@
+<div class="row py-3 px-4 gx-0">
+  <div class="col-12 py-3">
+    <h4 class="mt-1">Rectificar factura</h4>
+    <p class="mb-2">Crea una factura rectificativa sobre una factura ya enviada a FacturasApp.</p>
+  </div>
+
+  <!-- Step 1: pick the original -->
+  <div class="col-12 px-0">
+    <label for="rectNumeroOriginal" class="form-label">Número de la factura original</label>
+    <div class="input-group mb-3">
+      <input type="text" class="form-control" id="rectNumeroOriginal" placeholder="Ej: AC29" autocomplete="off" onkeydown="if (event.key === 'Enter') rectificativaBuscar()">
+      <button class="btn btn-secondary" type="button" id="rectBtnBuscar" onclick="rectificativaBuscar()">Buscar</button>
+    </div>
+  </div>
+
+  <!-- Step 2: choose the kind, shown once the original is found -->
+  <div class="col-12 px-0" id="rectDetalle" style="display:none">
+    <div class="border rounded p-2 mb-3" style="font-size: 13px;">
+      <div><strong id="rectInfoNumero"></strong> · <span id="rectInfoFecha"></span></div>
+      <div id="rectInfoCliente"></div>
+      <div class="text-muted">Estado: <span id="rectInfoEstado"></span></div>
+      <div class="text-muted" id="rectInfoSiguiente"></div>
+      <div class="text-warning" id="rectInfoExistentes" style="display:none"></div>
+    </div>
+
+    <label class="form-label">Tipo de rectificativa</label>
+    <div class="mb-3">
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="radio" name="rectTipo" id="rectTipoCompleta" value="completa" checked>
+        <label class="form-check-label" for="rectTipoCompleta">
+          <strong>Anulación</strong><br>
+          <span class="text-muted" style="font-size: 12px;">Anula por completo la factura original.</span>
+        </label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="rectTipo" id="rectTipoArticulos" value="articulos">
+        <label class="form-check-label" for="rectTipoArticulos">
+          <strong>Sustitución</strong><br>
+          <span class="text-muted" style="font-size: 12px;">Edita líneas, importes y totales en una nueva factura que sustituye a la original.</span>
+        </label>
+      </div>
+    </div>
+    <p class="text-muted mb-0" style="font-size: 12px;">El formulario se abre en una ventana más amplia, igual que en la web de FacturasApp.</p>
+  </div>
+
+  <div class="col-12 mt-3 px-0 d-flex justify-content-between">
+    <a href="#" onclick="showView('facturaMenu')" class="btn btn-outline-primary btn-lg d-flex align-items-center">
+      <span>Volver</span>
+    </a>
+    <a href="#" id="rectBtnAbrir" onclick="rectificativaAbrirDialogo()" class="btn btn-primary btn-lg d-flex align-items-center justify-content-between" style="display:none">
+      <span>Abrir</span>
+      <i class="icon-24-outlined-editor-action-save ms-2" style="font-size: 18px;"></i>
+    </a>
+  </div>
+</div>

@@ -67,7 +67,7 @@
       }
 
       function showView(view) {
-        var views = ['inicio', 'ajustes', 'vincular', 'desvincular', 'eliminarInfo', 'facturaMenu', 'facturaNueva', 'clientes', 'clienteCrear', 'productos', 'productoCrear'];
+        var views = ['inicio', 'ajustes', 'vincular', 'desvincular', 'eliminarInfo', 'facturaMenu', 'facturaNueva', 'facturaRectificar', 'clientes', 'clienteCrear', 'productos', 'productoCrear'];
         views.forEach(function(v) {
           var el = document.getElementById('view-' + v);
           if (el) el.style.display = (v === view) ? 'block' : 'none';
@@ -197,6 +197,88 @@
 
       function abrirSoporte() {
         window.open('https://soporte.facturasapp.com/hc/es-es/articles/34324157226907-Canales-de-Atenci%C3%B3n');
+      }
+
+      // --- Rectificativas -------------------------------------------------
+      // The sidebar only finds the original and picks the kind; the form itself
+      // opens as a modal dialog (rectificativaDialog.html) with room for the
+      // accordion layout of the web app.
+      let rectificativaInfo = null;
+
+      function abrirRectificativa() {
+        rectificativaInfo = null;
+        document.getElementById('rectNumeroOriginal').value = '';
+        document.getElementById('rectDetalle').style.display = 'none';
+        document.getElementById('rectBtnAbrir').style.display = 'none';
+        showView('facturaRectificar');
+      }
+
+      function rectificativaBuscar() {
+        const numero = document.getElementById('rectNumeroOriginal').value.trim();
+        if (!numero) { mostrarAdvertencia('Ingresa el número de la factura a rectificar.'); return; }
+        const btn = document.getElementById('rectBtnBuscar');
+        btn.disabled = true;
+        google.script.run
+          .withSuccessHandler(function(info) {
+            btn.disabled = false;
+            if (!info || !info.ok) {
+              rectificativaInfo = null;
+              document.getElementById('rectDetalle').style.display = 'none';
+              document.getElementById('rectBtnAbrir').style.display = 'none';
+              mostrarError(info && info.error ? info.error : 'No se pudo cargar la factura.');
+              return;
+            }
+            rectificativaInfo = info;
+            rectificativaRender(info);
+          })
+          .withFailureHandler(function(e) { btn.disabled = false; handleServerError(e); })
+          .cargarFacturaParaRectificar(numero);
+      }
+
+      function rectificativaRender(info) {
+        document.getElementById('rectInfoNumero').textContent = info.numero;
+        document.getElementById('rectInfoFecha').textContent = info.fecha || '';
+        document.getElementById('rectInfoCliente').textContent = (info.cliente || '') + (info.nif ? ' · NIF ' + info.nif : '');
+        document.getElementById('rectInfoEstado').textContent = info.estado || '';
+        document.getElementById('rectInfoSiguiente').textContent = info.siguienteNumero
+          ? 'Se asignará el número ' + info.siguienteNumero : '';
+        const existentes = document.getElementById('rectInfoExistentes');
+        if (info.rectificativas && info.rectificativas.length > 0) {
+          existentes.textContent = 'Ya tiene rectificativas: ' + info.rectificativas.join(', ');
+          existentes.style.display = 'block';
+        } else {
+          existentes.style.display = 'none';
+        }
+
+        const puedeSustituir = !!info.tieneJson && info.lineas && info.lineas.length > 0;
+        document.getElementById('rectTipoArticulos').disabled = !puedeSustituir;
+        document.getElementById('rectTipoCompleta').checked = true;
+
+        const bloqueada = !!info.tieneCompleta;
+        document.getElementById('rectDetalle').style.display = 'block';
+        document.getElementById('rectBtnAbrir').style.display = bloqueada ? 'none' : 'flex';
+        if (bloqueada) {
+          mostrarAdvertencia('La factura ' + info.numero + ' ya tiene una rectificativa completa. FacturasApp no permite más rectificativas sobre ella.');
+        }
+      }
+
+      function rectificativaAbrirDialogo() {
+        if (!rectificativaInfo) { mostrarAdvertencia('Primero busca la factura a rectificar.'); return; }
+        const tipo = document.getElementById('rectTipoArticulos').checked ? 'articulos' : 'completa';
+        const btn = document.getElementById('rectBtnAbrir');
+        btn.style.pointerEvents = 'none';
+        google.script.run
+          .withSuccessHandler(function(resultado) {
+            btn.style.pointerEvents = '';
+            if (resultado && typeof resultado === 'object' && resultado.tipo) {
+              mostrarMensaje(resultado.mensaje, resultado.tipo, resultado.titulo);
+            } else if (resultado && resultado.ok) {
+              // The dialog owns the rest of the flow; reset the sidebar step
+              abrirRectificativa();
+            }
+          })
+          .withFailureHandler(function(e) { btn.style.pointerEvents = ''; handleServerError(e); })
+          .abrirDialogoRectificativa(rectificativaInfo.numero, tipo);
       }
 
       // Sistema de mensajes dentro del sidebar (reemplaza pop-ups)
@@ -439,6 +521,9 @@
        </div>
        <div id="view-facturaNueva" style="display:none">
          <?!= include('viewFacturaNueva'); ?>
+       </div>
+       <div id="view-facturaRectificar" style="display:none">
+         <?!= include('viewFacturaRectificar'); ?>
        </div>
        <div id="view-clientes" style="display:none">
          <?!= include('viewClientes'); ?>

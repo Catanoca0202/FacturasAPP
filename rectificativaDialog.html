@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <base target="_top">
+    <title>Factura rectificativa</title>
+    <link href="https://facturasapp.com/Publico/google-sheets-resources/css/bootstrap.css" rel="stylesheet">
+    <link href="https://facturasapp.com/Publico/google-sheets-resources/css/custom.css" rel="stylesheet">
+    <link href="https://facturasapp.com/Publico/google-sheets-resources/css/fontello-codes.css" rel="stylesheet">
+    <style>
+      /* Accordion look of the FacturasApp web form, without Bootstrap JS */
+      html, body { height: 100%; }
+      body { background: #f4f6fa; font-size: 14px; display: flex; flex-direction: column; margin: 0; }
+      #contenido { flex: 1 1 auto; overflow-y: auto; padding: 14px 18px 8px; }
+      #alertas { position: sticky; top: 0; z-index: 20; }
+      #alertas .alert { margin-bottom: 8px; padding: 8px 32px 8px 12px; }
+      .aviso { background: #e3f2fd; border-left: 4px solid #1976d2; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; }
+      .aviso strong { color: #0d47a1; }
+      .seccion { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 10px; }
+      .seccion-cab { display: flex; align-items: center; gap: 12px; padding: 10px 14px; cursor: pointer; user-select: none; background: #f1f3f8; border-radius: 10px; }
+      .seccion-cab.abierta { border-radius: 10px 10px 0 0; }
+      .seccion-icono { width: 34px; height: 34px; border-radius: 8px; background: #1d4ed8; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+      .seccion-titulo { font-weight: 700; font-size: 15px; margin: 0; }
+      .seccion-sub { color: #1d4ed8; font-size: 12px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .seccion-cab .flecha { margin-left: auto; transition: transform .15s; color: #555; }
+      .seccion-cab.abierta .flecha { transform: rotate(180deg); }
+      .seccion-cuerpo { display: none; padding: 12px 14px 14px; }
+      .seccion-cuerpo.show { display: block; }
+      .dato-label { color: #666; font-size: 12px; margin-bottom: 2px; }
+      .dato-valor { font-weight: 600; }
+      table.lineas th, table.lineas td { vertical-align: middle; font-size: 13px; padding: 4px 6px; }
+      table.lineas input, table.lineas select { font-size: 13px; padding: 3px 6px; height: 30px; }
+      table.lineas .col-num { width: 88px; }
+      table.lineas .col-pct { width: 86px; }
+      table.lineas td.importe { text-align: right; font-weight: 600; white-space: nowrap; }
+      tr.eliminada td { opacity: .45; text-decoration: line-through; }
+      tr.eliminada td.acciones { opacity: 1; text-decoration: none; }
+      .btn-icono { border: none; background: transparent; color: #1d4ed8; font-size: 16px; padding: 2px 6px; cursor: pointer; }
+      .btn-icono.rojo { color: #c62828; }
+      .detalle-lista .fila { display: flex; justify-content: space-between; gap: 16px; padding: 8px 10px; border-bottom: 1px solid #eef0f4; }
+      .detalle-lista .fila:nth-child(odd) { background: #f8f9fc; }
+      .detalle-lista .fila.resaltada { background: #fdecea; color: #c62828; font-weight: 700; }
+      .resumen-totales .fila { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eef0f4; }
+      .neto { background: #1d4ed8; color: #fff; border-radius: 10px; padding: 12px 16px; text-align: center; }
+      .neto .valor { font-size: 26px; font-weight: 800; }
+      .contador { font-size: 12px; color: #777; text-align: right; }
+      #pie { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 18px; background: #fff; border-top: 1px solid #dfe3ea; }
+      #overlay { position: fixed; inset: 0; background: rgba(255,255,255,.85); display: none; align-items: center; justify-content: center; z-index: 50; }
+      #overlay.visible { display: flex; }
+      .spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid #e3f2fd; border-top-color: #1976d2; animation: spin .9s linear infinite; flex-shrink: 0; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .spinner-mini { display: inline-block; width: 14px; height: 14px; border-width: 2px; vertical-align: middle; margin-right: 6px; }
+      .modal-backdrop { z-index: 60; }
+      .modal { z-index: 70; }
+      .panel-exito { max-width: 560px; margin: 24px auto; background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+      .is-invalid { border-color: #dc3545 !important; }
+      .texto-rojo { color: #c62828; }
+    </style>
+    <script>
+      var DATOS = <?!= datosJson ?>;
+    </script>
+  </head>
+  <body>
+    <div id="contenido">
+      <div id="alertas"></div>
+      <div id="app"></div>
+    </div>
+    <div id="pie"></div>
+    <div id="overlay">
+      <div class="d-flex align-items-start gap-3" style="max-width: 420px;">
+        <div class="spinner"></div>
+        <div>
+          <strong id="overlayTitulo">Creando la rectificativa en FacturasApp…</strong>
+          <div id="overlayDetalle" class="text-muted" style="font-size: 13px;">Puede tardar hasta un minuto. No cierres esta ventana.</div>
+          <div class="text-muted" style="font-size: 12px; margin-top: 6px;">Tiempo transcurrido: <span id="overlaySegundos">0</span> s</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ------------------------------------------------------------------
+      // State
+      // ------------------------------------------------------------------
+      var MODO = DATOS.tipo === 'articulos' ? 'articulos' : 'completa';
+      var IVA_RATES = [21, 10, 4, 0];
+      var RECARGO_MAP = { 21: [5.2, 1.75], 10: [1.4], 4: [0.5], 0: [0] };
+      var lineas = (DATOS.lineas || []).map(function (l) {
+        return Object.assign({}, l, { eliminada: false, cantidadOriginal: l.quantity });
+      });
+      var cargos = (DATOS.cargosDescuentos || []).map(function (c) {
+        return { tipo: c.tipo, tipoValor: c.tipoValor, valor: c.valor };
+      });
+      var resumen = null;          // last server result (calcularTotalesRectificativa)
+      var resumenSucio = true;     // true when the form changed after the last result
+      var recalculoTimer = null;
+      var recalculando = false;
+      var estado = 'edicion';      // edicion | generando | exito
+      var overlayTimer = null;
+
+      // ------------------------------------------------------------------
+      // Helpers
+      // ------------------------------------------------------------------
+      function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+      function fmt(n) {
+        return (Number(n) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+      }
+      function fmtPct(n) { return (Number(n) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%'; }
+      function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+      }
+      function fechaCorta(iso) {
+        // 'yyyy-MM-dd' -> 'dd/MM/yyyy'
+        var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+        return m ? m[3] + '/' + m[2] + '/' + m[1] : String(iso || '');
+      }
+      function $(id) { return document.getElementById(id); }
+      function valor(id) { var el = $(id); return el ? el.value : ''; }
+
+      function limpiarAlertas() { $('alertas').innerHTML = ''; }
+      function mostrarAlerta(tipo, texto, campoId) {
+        var clase = { error: 'danger', danger: 'danger', warning: 'warning', success: 'success', info: 'info' }[tipo] || 'info';
+        var div = document.createElement('div');
+        div.className = 'alert alert-' + clase + ' alert-dismissible';
+        div.innerHTML = esc(texto).replace(/\n/g, '<br>') +
+          '<button type="button" class="btn-close" aria-label="Cerrar" onclick="this.parentNode.remove()"></button>';
+        $('alertas').appendChild(div);
+        $('contenido').scrollTop = 0;
+        if (campoId && $(campoId)) {
+          $(campoId).classList.add('is-invalid');
+          $(campoId).focus();
+        }
+      }
+
+      function confirmar(texto, titulo, onSi) {
+        var html =
+          '<div class="modal fade show" id="confirmModal" style="display:block" tabindex="-1">' +
+          '  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">' +
+          '    <div class="modal-body text-center p-4">' +
+          '      <h5 class="mb-2">' + esc(titulo) + '</h5>' +
+          '      <p class="mb-0" style="white-space: pre-wrap;">' + esc(texto) + '</p>' +
+          '    </div>' +
+          '    <div class="modal-footer justify-content-center border-0 pb-4 gap-2">' +
+          '      <button type="button" class="btn btn-secondary" id="confirmNo">Cancelar</button>' +
+          '      <button type="button" class="btn btn-primary" id="confirmSi">Confirmar</button>' +
+          '    </div>' +
+          '  </div></div>' +
+          '</div><div class="modal-backdrop fade show" id="confirmBackdrop"></div>';
+        document.body.insertAdjacentHTML('beforeend', html);
+        function cerrar() {
+          var m = $('confirmModal'), b = $('confirmBackdrop');
+          if (m) m.remove();
+          if (b) b.remove();
+        }
+        $('confirmNo').onclick = cerrar;
+        $('confirmBackdrop').onclick = cerrar;
+        $('confirmSi').onclick = function () { cerrar(); onSi(); };
+      }
+
+      function cerrarDialogo() {
+        if (window.google && google.script && google.script.host) google.script.host.close();
+      }
+
+      function setEstado(nuevo) {
+        estado = nuevo;
+        var fieldset = $('formulario');
+        if (fieldset) fieldset.disabled = (nuevo === 'generando');
+        var overlay = $('overlay');
+        if (nuevo === 'generando') {
+          overlay.classList.add('visible');
+          var inicio = Date.now();
+          clearInterval(overlayTimer);
+          overlayTimer = setInterval(function () {
+            var s = Math.round((Date.now() - inicio) / 1000);
+            $('overlaySegundos').textContent = s;
+            if (s > 60) $('overlayDetalle').textContent = 'Está tardando más de lo habitual, pero sigue en proceso. No cierres esta ventana.';
+          }, 1000);
+        } else {
+          overlay.classList.remove('visible');
+          clearInterval(overlayTimer);
+        }
+        actualizarPie();
+      }
+
+      // ------------------------------------------------------------------
+      // Accordion
+      // ------------------------------------------------------------------
+      function seccion(id, numero, titulo, subtitulo, cuerpo, abierta) {
+        return '' +
+          '<div class="seccion" id="sec-' + id + '">' +
+          '  <div class="seccion-cab' + (abierta ? ' abierta' : '') + '" data-toggle="' + id + '">' +
+          '    <div class="seccion-icono">' + esc(numero) + '</div>' +
+          '    <div style="min-width:0">' +
+          '      <p class="seccion-titulo">' + esc(titulo) + '</p>' +
+          '      <p class="seccion-sub" id="sub-' + id + '">' + (subtitulo || '') + '</p>' +
+          '    </div>' +
+          '    <span class="flecha">&#9662;</span>' +
+          '  </div>' +
+          '  <div class="seccion-cuerpo' + (abierta ? ' show' : '') + '" id="cuerpo-' + id + '">' + cuerpo + '</div>' +
+          '</div>';
+      }
+      document.addEventListener('click', function (e) {
+        var cab = e.target.closest('[data-toggle]');
+        if (!cab) return;
+        var id = cab.getAttribute('data-toggle');
+        var cuerpo = $('cuerpo-' + id);
+        var abierta = !cuerpo.classList.contains('show');
+        cuerpo.classList.toggle('show', abierta);
+        cab.classList.toggle('abierta', abierta);
+      });
+      function setSub(id, html) { var el = $('sub-' + id); if (el) el.innerHTML = html; }
+
+      // ------------------------------------------------------------------
+      // Shared blocks
+      // ------------------------------------------------------------------
+      function selectMotivo(id) {
+        return '<select class="form-select" id="' + id + '">' + (DATOS.motivosAeat || []).map(function (m) {
+          return '<option value="' + esc(m.codigo) + '">' + esc(m.label) + '</option>';
+        }).join('') + '</select>';
+      }
+      function textarea(id, placeholder, max, valorInicial) {
+        return '<textarea class="form-control" id="' + id + '" rows="2" maxlength="' + max + '" placeholder="' + esc(placeholder) + '">' + esc(valorInicial || '') + '</textarea>' +
+          '<div class="contador"><span id="' + id + 'Contador">' + String(valorInicial || '').length + '</span>/' + max + '</div>';
+      }
+      function bloqueEmail(idCheck, idEmail, marcado) {
+        return '' +
+          '<div class="form-check mb-2">' +
+          '  <input class="form-check-input" type="checkbox" id="' + idCheck + '"' + (marcado ? ' checked' : '') + '>' +
+          '  <label class="form-check-label" for="' + idCheck + '">Enviar el PDF por correo electrónico al cliente</label>' +
+          '</div>' +
+          '<input type="email" class="form-control" id="' + idEmail + '" placeholder="correo@cliente.com" value="' + esc(DATOS.contacto ? DATOS.contacto.email : '') + '"' + (marcado ? '' : ' disabled') + '>';
+      }
+
+      // ------------------------------------------------------------------
+      // Sustitución (AddRectificativeArticles)
+      // ------------------------------------------------------------------
+      function renderSustitucion() {
+        var emisor = DATOS.emisor || {};
+        var contacto = DATOS.contacto || {};
+        var datosFacturacion =
+          '<div class="row g-3">' +
+          '  <div class="col-md-5">' +
+          '    <div class="dato-label">Nombre de la empresa</div><div class="dato-valor mb-2">' + esc(emisor.nombre || '—') + '</div>' +
+          (emisor.nif ? '    <div class="dato-label">NIF</div><div class="dato-valor mb-2">' + esc(emisor.nif) + '</div>' : '') +
+          (emisor.direccion ? '    <div class="dato-label">Dirección</div><div class="dato-valor mb-2">' + esc(emisor.direccion) + '</div>' : '') +
+          (emisor.poblacion ? '    <div class="dato-label">Ubicación</div><div class="dato-valor mb-2">' + esc(emisor.poblacion) + '</div>' : '') +
+          '    <label class="form-label mt-2 mb-1">Observaciones para el cliente</label>' +
+          textarea('obsCliente', 'Observaciones…', DATOS.obsMax, DATOS.observaciones ? DATOS.observaciones.cliente : '') +
+          '  </div>' +
+          '  <div class="col-md-7">' +
+          '    <div class="row g-2">' +
+          '      <div class="col-6"><div class="dato-label">No. factura a rectificar</div><div class="dato-valor">' + esc(DATOS.numero) + '</div></div>' +
+          '      <div class="col-6"><div class="dato-label">Fecha factura a rectificar</div><div class="dato-valor">' + esc(DATOS.fecha) + '</div></div>' +
+          '      <div class="col-6"><label class="form-label mb-1">Fecha de emisión</label><input type="date" class="form-control" id="fechaEmision" value="' + esc(DATOS.hoy.fecha) + '"></div>' +
+          '      <div class="col-6"><label class="form-label mb-1">Hora de emisión</label><input type="time" class="form-control" id="horaEmision" value="' + esc(DATOS.hoy.hora) + '"></div>' +
+          '      <div class="col-12"><label class="form-label mb-1">Tipo de factura</label>' + selectMotivo('motivoAeat') + '</div>' +
+          '      <div class="col-6"><label class="form-label mb-1">Tipo de rectificativa</label><input type="text" class="form-control" value="Por sustitución" disabled></div>' +
+          '      <div class="col-6"><label class="form-label mb-1">Fecha de operación</label><input type="date" class="form-control" id="fechaOperacion" value="' + esc(DATOS.hoy.fecha) + '"></div>' +
+          '      <div class="col-12"><label class="form-label mb-1">Motivo de la rectificación <span class="text-muted">(opcional)</span></label>' +
+          textarea('motivoTexto', 'Ej: Error en el precio unitario', DATOS.motivoMax, '') + '</div>' +
+          '    </div>' +
+          '  </div>' +
+          '</div>';
+
+        var contactoHtml =
+          '<div class="table-responsive"><table class="table table-sm mb-2"><thead class="table-light"><tr>' +
+          '<th>Nombre</th><th>Identificación</th><th>Dirección</th><th>C. Postal</th><th>Correo electrónico</th><th>Código cliente</th>' +
+          '</tr></thead><tbody><tr>' +
+          '<td>' + esc(contacto.nombre) + '</td><td>' + esc(contacto.identificacion) + '</td><td>' + esc(contacto.direccion) + '</td>' +
+          '<td>' + esc(contacto.codigoPostal) + '</td><td>' + esc(contacto.email) + '</td><td>' + esc(contacto.codigo) + '</td>' +
+          '</tr></tbody></table></div>' +
+          '<div class="aviso mb-0">En caso de ser necesario actualizar los datos del contacto, se deberá emitir una factura rectificativa para anular la factura de alta y, a continuación, emitir una nueva factura de alta con los datos correctos.</div>';
+
+        var productosHtml =
+          '<div class="table-responsive"><table class="table lineas mb-1"><thead class="table-light"><tr>' +
+          '<th>Referencia</th><th>Descripción</th><th class="col-num">Precio unit.</th><th class="col-num">Cantidad</th>' +
+          '<th class="col-pct">IVA %</th><th class="col-pct">Retención %</th><th class="col-pct">Rec. equiv. %</th><th class="col-pct">Dcto %</th>' +
+          '<th class="text-end">Importe</th><th></th>' +
+          '</tr></thead><tbody id="lineasBody"></tbody></table></div>' +
+          '<div class="text-muted" style="font-size:12px">Solo se pueden rectificar las líneas de la factura original. Elimina las que no apliquen y ajusta precio, cantidad, impuestos o descuento.</div>';
+
+        var formasPago = (DATOS.formasPago || []).map(function (f) {
+          var sel = DATOS.pago && DATOS.pago.idPayment === f.codigo ? ' selected' : '';
+          return '<option value="' + esc(f.codigo) + '"' + sel + '>' + esc(f.label) + '</option>';
+        }).join('');
+        var pagoHtml =
+          '<label class="form-label mb-1">Forma de pago</label><select class="form-select mb-2" id="idPayment">' + formasPago + '</select>' +
+          '<label class="form-label mb-1">Observaciones del pago</label>' +
+          textarea('paymentNote', 'Observaciones…', DATOS.obsMax, DATOS.pago ? DATOS.pago.paymentNote : '');
+        var observacionHtml = textarea('textObservations', 'Observaciones…', DATOS.obsMax, DATOS.observaciones ? DATOS.observaciones.factura : '');
+
+        var totalesHtml =
+          '<h6 class="mb-2">Cargos, descuentos y retenciones</h6>' +
+          '<table class="table table-sm lineas mb-1"><thead class="table-light"><tr><th style="width:34%">Tipo</th><th style="width:22%">Tipo de valor</th><th style="width:22%">Valor</th><th class="text-end">Total</th><th></th></tr></thead>' +
+          '<tbody id="cargosBody"></tbody></table>' +
+          '<button type="button" class="btn btn-outline-primary btn-sm mb-3" id="btnAddCargo">+ Añadir</button>' +
+          '<h6 class="mb-2">Impuestos</h6>' +
+          '<table class="table table-sm mb-3"><thead class="table-light"><tr><th>Tipo</th><th>Tarifa</th><th class="text-end">Base gravable</th><th class="text-end">Total impuestos</th></tr></thead>' +
+          '<tbody id="impuestosBody"><tr><td colspan="4" class="text-muted">Calculando…</td></tr></tbody></table>' +
+          '<h6 class="mb-2">Resumen de totales</h6>' +
+          '<div class="row g-3"><div class="col-md-7 resumen-totales" id="resumenTotales"></div>' +
+          '<div class="col-md-5"><div class="neto"><div style="font-size:12px;letter-spacing:.5px">NETO A PAGAR</div><div class="valor" id="netoValor">…</div></div></div></div>';
+
+        $('app').innerHTML =
+          '<div class="aviso"><strong>Factura rectificativa por sustitución.</strong> Esta factura sustituirá por completo a la factura original ' + esc(DATOS.numero) + '. Al confirmarla, la factura rectificada quedará anulada y esta pasará a ser la versión válida.</div>' +
+          '<fieldset id="formulario">' +
+          seccion('datos', '1', 'Datos de facturación', esc(emisor.nombre || '') + ' · Fecha: ' + fechaCorta(DATOS.hoy.fecha), datosFacturacion, true) +
+          seccion('contacto', '2', 'Contacto', esc(contacto.nombre || ''), contactoHtml, false) +
+          seccion('productos', '3', 'Productos y servicios', '', productosHtml, true) +
+          '<div class="row g-2">' +
+          '  <div class="col-md-6">' + seccion('pago', '4', 'Datos de pago', '', pagoHtml, false) + '</div>' +
+          '  <div class="col-md-6">' + seccion('obs', '5', 'Observación', '', observacionHtml, false) + '</div>' +
+          '</div>' +
+          seccion('totales', '6', 'Totales', 'Calculando…', totalesHtml, true) +
+          '<div class="seccion p-3">' + bloqueEmail('enviarEmail', 'email', false) + '</div>' +
+          '</fieldset>';
+
+        renderLineas();
+        renderCargos();
+        actualizarSubtitulos();
+        programarRecalculo(0);
+      }
+
+      function opcionesSelect(valores, actual) {
+        var lista = valores.slice();
+        if (lista.indexOf(actual) < 0) lista.unshift(actual);
+        return lista.map(function (v) {
+          return '<option value="' + v + '"' + (v === actual ? ' selected' : '') + '>' + fmtPct(v).replace(',00', '') + '</option>';
+        }).join('');
+      }
+
+      function renderLineas() {
+        var contacto = DATOS.contacto || {};
+        $('lineasBody').innerHTML = lineas.map(function (l, i) {
+          var esIva = l.taxName === 'IVA';
+          var ivaInput = l.isExempt
+            ? '<input type="number" class="form-control" value="0" disabled title="Operación exenta">'
+            : (esIva
+              ? '<select class="form-select" data-campo="ivaRate" data-i="' + i + '">' + opcionesSelect(IVA_RATES, l.ivaRate) + '</select>'
+              : '<input type="number" class="form-control" data-campo="ivaRate" data-i="' + i + '" min="0" max="100" step="0.01" value="' + l.ivaRate + '">');
+          var recargoOpciones = esIva ? (RECARGO_MAP[l.ivaRate] || [0]) : [0];
+          if (recargoOpciones.indexOf(0) < 0) recargoOpciones = [0].concat(recargoOpciones);
+          var recargoInput = contacto.aplicaRecargo && !l.isExempt
+            ? '<select class="form-select" data-campo="recargoRate" data-i="' + i + '">' + opcionesSelect(recargoOpciones, l.recargoRate) + '</select>'
+            : '<input type="number" class="form-control" value="0" disabled title="Solo para clientes autónomos">';
+          var tituloRet = l.retencionTipo === 'otros' ? 'Retención "Otros"' + (l.retencionDescripcion ? ': ' + l.retencionDescripcion : '') : 'Retención';
+          var avisoCantidad = l.quantity > l.cantidadOriginal ? ' is-invalid" title="Supera la cantidad facturada (' + l.cantidadOriginal + ')' : '';
+          return '<tr class="' + (l.eliminada ? 'eliminada' : '') + '">' +
+            '<td>' + esc(l.reference) + '</td>' +
+            '<td title="' + esc(l.description) + '" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(l.description) + '</td>' +
+            '<td><input type="number" class="form-control" data-campo="unitPrice" data-i="' + i + '" min="0" step="0.01" value="' + l.unitPrice + '"' + (l.eliminada ? ' disabled' : '') + '></td>' +
+            '<td><input type="number" class="form-control' + avisoCantidad + '" data-campo="quantity" data-i="' + i + '" min="1" step="1" value="' + l.quantity + '"' + (l.eliminada ? ' disabled' : '') + '></td>' +
+            '<td>' + ivaInput + '</td>' +
+            '<td title="' + esc(tituloRet) + '"><input type="number" class="form-control" data-campo="retencionRate" data-i="' + i + '" min="0" max="100" step="0.01" value="' + l.retencionRate + '"' + (l.eliminada ? ' disabled' : '') + '></td>' +
+            '<td>' + recargoInput + '</td>' +
+            '<td><input type="number" class="form-control" data-campo="descuentoRate" data-i="' + i + '" min="0" max="100" step="0.01" value="' + l.descuentoRate + '"' + (l.eliminada ? ' disabled' : '') + '></td>' +
+            '<td class="importe" id="importe-' + i + '">' + fmt(importeLinea(l)) + '</td>' +
+            '<td class="acciones">' + (l.eliminada
+              ? '<button type="button" class="btn btn-link btn-sm p-0" data-accion="restaurar" data-i="' + i + '">Restaurar</button>'
+              : '<button type="button" class="btn-icono rojo" data-accion="eliminar" data-i="' + i + '" title="Eliminar línea">&#128465;</button>') + '</td>' +
+            '</tr>';
+        }).join('');
+        if (DATOS.contacto && DATOS.contacto.aplicaRecargo) {
+          // Recargo options depend on the IVA rate: keep them in sync
+          lineas.forEach(function (l, i) {
+            var sel = document.querySelector('select[data-campo="recargoRate"][data-i="' + i + '"]');
+            if (sel) sel.disabled = l.eliminada;
+          });
+        }
+        lineas.forEach(function (l, i) {
+          var ivaSel = document.querySelector('[data-campo="ivaRate"][data-i="' + i + '"]');
+          if (ivaSel) ivaSel.disabled = l.eliminada;
+        });
+      }
+
+      function importeLinea(l) {
+        var baseBruta = round2(l.unitPrice * l.quantity);
+        var dto = round2(baseBruta * l.descuentoRate / 100);
+        var baseNeta = round2(baseBruta - dto);
+        return round2(baseNeta + round2(baseNeta * l.ivaRate / 100) + round2(baseNeta * l.recargoRate / 100) - round2(baseNeta * l.retencionRate / 100));
+      }
+
+      function renderCargos() {
+        var base = resumen && resumen.totales ? resumen.totales.baseImponible : (DATOS.totales ? DATOS.totales.baseImponible : 0);
+        $('cargosBody').innerHTML = cargos.length === 0
+          ? '<tr><td colspan="5" class="text-muted text-center">Sin cargos ni descuentos a nivel de factura</td></tr>'
+          : cargos.map(function (c, i) {
+            var total = c.tipoValor === 'PJ' ? round2(base * c.valor / 100) : round2(c.valor);
+            return '<tr>' +
+              '<td><select class="form-select" data-cargo="tipo" data-i="' + i + '">' +
+              '<option value="CG"' + (c.tipo === 'CG' ? ' selected' : '') + '>Cargo</option>' +
+              '<option value="DT"' + (c.tipo === 'DT' ? ' selected' : '') + '>Descuento</option>' +
+              '<option value="RT"' + (c.tipo === 'RT' ? ' selected' : '') + '>Retención IRPF</option></select></td>' +
+              '<td><select class="form-select" data-cargo="tipoValor" data-i="' + i + '">' +
+              '<option value="PJ"' + (c.tipoValor === 'PJ' ? ' selected' : '') + '>Porcentaje</option>' +
+              '<option value="VR"' + (c.tipoValor !== 'PJ' ? ' selected' : '') + '>Valor</option></select></td>' +
+              '<td><input type="number" class="form-control" data-cargo="valor" data-i="' + i + '" min="0" step="0.01" value="' + c.valor + '"></td>' +
+              '<td class="importe">' + fmt(total) + '</td>' +
+              '<td class="acciones"><button type="button" class="btn-icono rojo" data-accion="quitarCargo" data-i="' + i + '" title="Quitar">&#128465;</button></td>' +
+              '</tr>';
+          }).join('');
+      }
+
+      function renderTotales() {
+        if (!resumen) return;
+        var t = resumen.totales;
+        $('impuestosBody').innerHTML = resumen.impuestos.length === 0
+          ? '<tr><td colspan="4" class="text-muted">Sin impuestos</td></tr>'
+          : resumen.impuestos.map(function (imp) {
+            return '<tr><td>' + esc(imp.tipo) + (imp.exento ? ' <span class="text-muted">(exento)</span>' : '') + '</td><td>' + fmtPct(imp.tarifa) + '</td>' +
+              '<td class="text-end">' + fmt(imp.base) + '</td><td class="text-end">' + fmt(imp.total) + '</td></tr>';
+          }).join('');
+        var filas = [
+          ['Subtotal sin descuentos', t.subtotal],
+          ['Descuentos por línea', t.descuentosLinea],
+          ['Base gravable', t.baseImponible],
+          ['Base exenta', t.baseExenta],
+          ['Impuestos (IVA)', t.iva],
+          ['Recargo de equivalencia', t.recargo],
+          ['Total factura', t.total],
+          ['Retenciones por línea', t.retenciones],
+          ['Descuento de factura', t.descuentoFactura],
+          ['Cargos', t.cargos],
+          ['Retención IRPF', t.irpf]
+        ].filter(function (f) { return f[1] !== 0 || ['Subtotal sin descuentos', 'Base gravable', 'Impuestos (IVA)', 'Total factura'].indexOf(f[0]) >= 0; });
+        $('resumenTotales').innerHTML = filas.map(function (f) {
+          return '<div class="fila"><span>' + esc(f[0]) + '</span><strong>' + fmt(f[1]) + '</strong></div>';
+        }).join('');
+        $('netoValor').textContent = fmt(t.neto);
+        resumen.lineas.forEach(function (l) {
+          var idx = lineas.findIndex(function (x) { return !x.eliminada && x.reference === l.reference; });
+          if (idx >= 0 && $('importe-' + idx)) $('importe-' + idx).textContent = fmt(l.importe);
+        });
+        renderCargos();
+        actualizarSubtitulos();
+      }
+
+      function actualizarSubtitulos() {
+        if (MODO !== 'articulos') return;
+        var activas = lineas.filter(function (l) { return !l.eliminada; }).length;
+        setSub('productos', activas + (activas === 1 ? ' producto' : ' productos'));
+        var pago = (DATOS.formasPago || []).filter(function (f) { return f.codigo === valor('idPayment'); })[0];
+        setSub('pago', esc(pago ? pago.label : 'No definido'));
+        var obs = valor('textObservations');
+        setSub('obs', obs ? esc(obs.substring(0, 60)) : 'Sin observaciones');
+        setSub('totales', recalculando ? '<span class="spinner spinner-mini"></span>Recalculando…' : (resumen ? 'Neto a pagar: ' + esc(fmt(resumen.totales.neto)) : ''));
+        setSub('datos', esc((DATOS.emisor && DATOS.emisor.nombre) || '') + ' · ' + esc(valor('motivoAeat')) + ' · Fecha: ' + esc(fechaCorta(valor('fechaEmision'))));
+      }
+
+      // Form -> datos for the server (shared by preview and send)
+      function recogerDatos() {
+        var datos = {
+          numeroOriginal: DATOS.numero,
+          tipo: MODO,
+          motivoAeat: valor('motivoAeat'),
+          motivoTexto: valor('motivoTexto').trim(),
+          fechaOperacion: valor('fechaOperacion'),
+          enviarEmail: !!($('enviarEmail') && $('enviarEmail').checked),
+          email: valor('email').trim()
+        };
+        if (MODO === 'articulos') {
+          datos.fechaEmision = valor('fechaEmision');
+          datos.horaEmision = valor('horaEmision');
+          datos.observacionesCliente = valor('obsCliente').trim();
+          datos.idPayment = valor('idPayment');
+          datos.paymentNote = valor('paymentNote').trim();
+          datos.textObservations = valor('textObservations').trim();
+          datos.lineas = lineas.filter(function (l) { return !l.eliminada; }).map(function (l) {
+            return { reference: l.reference, quantity: l.quantity, unitPrice: l.unitPrice, ivaRate: l.ivaRate,
+              descuentoRate: l.descuentoRate, retencionRate: l.retencionRate, recargoRate: l.recargoRate };
+          });
+          datos.cargosDescuentos = cargos.map(function (c) { return { tipo: c.tipo, tipoValor: c.tipoValor, valor: c.valor }; });
+        }
+        return datos;
+      }
+
+      function validarCliente(datos) {
+        if (MODO === 'completa' && !datos.motivoTexto) return { msg: 'Describe el motivo de la anulación.', campo: 'motivoTexto' };
+        if (datos.enviarEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(datos.email)) return { msg: 'Ingresa un correo electrónico válido.', campo: 'email' };
+        if (MODO !== 'articulos') return null;
+        if (!datos.fechaEmision) return { msg: 'Indica la fecha de emisión.', campo: 'fechaEmision' };
+        if (!datos.horaEmision) return { msg: 'Indica la hora de emisión.', campo: 'horaEmision' };
+        if (datos.lineas.length === 0) return { msg: 'La rectificativa debe conservar al menos una línea.' };
+        for (var i = 0; i < datos.lineas.length; i++) {
+          var l = datos.lineas[i];
+          if (!(l.quantity >= 1) || Math.trunc(l.quantity) !== l.quantity) return { msg: 'La cantidad de ' + l.reference + ' debe ser un entero mayor o igual a 1.' };
+          if (!(l.unitPrice >= 0)) return { msg: 'El precio de ' + l.reference + ' no es válido.' };
+          if (l.descuentoRate < 0 || l.descuentoRate > 100 || l.retencionRate < 0 || l.retencionRate > 100) return { msg: 'Los porcentajes de ' + l.reference + ' deben estar entre 0 y 100.' };
+        }
+        var irpfs = datos.cargosDescuentos.filter(function (c) { return c.tipo === 'RT'; }).length;
+        if (irpfs > 1) return { msg: 'Solo puede haber una retención IRPF a nivel de factura.' };
+        for (var k = 0; k < datos.cargosDescuentos.length; k++) {
+          var c = datos.cargosDescuentos[k];
+          if (!(c.valor >= 0)) return { msg: 'El valor de los cargos y descuentos debe ser mayor o igual a 0.' };
+          if (c.tipoValor === 'PJ' && c.valor > 100) return { msg: 'Un porcentaje no puede superar 100.' };
+        }
+        return null;
+      }
+
+      function programarRecalculo(ms) {
+        if (MODO !== 'articulos') return;
+        resumenSucio = true;
+        recalculando = true;
+        actualizarSubtitulos();
+        actualizarPie();
+        clearTimeout(recalculoTimer);
+        recalculoTimer = setTimeout(recalcular, ms == null ? 600 : ms);
+      }
+
+      function recalcular(callback) {
+        var datos = recogerDatos();
+        var error = validarCliente(datos);
+        if (error) {
+          recalculando = false;
+          actualizarSubtitulos();
+          actualizarPie();
+          if (callback) mostrarAlerta('warning', error.msg, error.campo);
+          return;
+        }
+        recalculando = true;
+        google.script.run
+          .withSuccessHandler(function (res) {
+            recalculando = false;
+            if (res && res.ok && res.resumen) {
+              resumen = res.resumen;
+              resumenSucio = false;
+              renderTotales();
+            } else {
+              mostrarAlerta('warning', (res && res.error) || 'No se pudieron calcular los totales.');
+              actualizarSubtitulos();
+            }
+            actualizarPie();
+            if (callback) callback(res && res.ok);
+          })
+          .withFailureHandler(function (e) {
+            recalculando = false;
+            actualizarSubtitulos();
+            actualizarPie();
+            mostrarAlerta('danger', 'Error al calcular los totales: ' + (e && e.message ? e.message : e));
+            if (callback) callback(false);
+          })
+          .calcularTotalesRectificativa(datos);
+      }
+
+      function previsualizar() {
+        limpiarAlertas();
+        var mostrar = function () {
+          if (!resumen) return;
+          var t = resumen.totales;
+          var lineasHtml = lineas.filter(function (l) { return !l.eliminada; }).map(function (l) {
+            var r = resumen.lineas.filter(function (x) { return x.reference === l.reference; })[0];
+            return '<tr><td>' + esc(l.reference) + '</td><td>' + esc(l.description) + '</td><td class="text-end">' + l.quantity + ' × ' + fmt(l.unitPrice) + '</td><td class="text-end">' + fmt(r ? r.importe : importeLinea(l)) + '</td></tr>';
+          }).join('');
+          var impuestosHtml = resumen.impuestos.map(function (imp) {
+            return '<tr><td>' + esc(imp.tipo) + ' ' + fmtPct(imp.tarifa) + '</td><td class="text-end">' + fmt(imp.base) + '</td><td class="text-end">' + fmt(imp.total) + '</td></tr>';
+          }).join('');
+          var html =
+            '<div class="modal fade show" id="previewModal" style="display:block" tabindex="-1">' +
+            '  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">' +
+            '    <div class="modal-header"><h5 class="modal-title">Previsualización de la rectificativa</h5></div>' +
+            '    <div class="modal-body">' +
+            '      <p class="mb-2"><strong>Rectifica:</strong> ' + esc(DATOS.numero) + ' · <strong>Cliente:</strong> ' + esc(DATOS.contacto ? DATOS.contacto.nombre : DATOS.cliente) + ' · <strong>Tipo:</strong> ' + esc(valor('motivoAeat')) + ' · Por sustitución</p>' +
+            '      <table class="table table-sm"><thead class="table-light"><tr><th>Ref.</th><th>Descripción</th><th class="text-end">Cant. × Precio</th><th class="text-end">Importe</th></tr></thead><tbody>' + lineasHtml + '</tbody></table>' +
+            '      <table class="table table-sm"><thead class="table-light"><tr><th>Impuesto</th><th class="text-end">Base</th><th class="text-end">Cuota</th></tr></thead><tbody>' + impuestosHtml + '</tbody></table>' +
+            '      <div class="resumen-totales">' +
+            '        <div class="fila"><span>Base gravable</span><strong>' + fmt(t.baseImponible) + '</strong></div>' +
+            '        <div class="fila"><span>Impuestos</span><strong>' + fmt(t.iva + t.recargo) + '</strong></div>' +
+            (t.retenciones ? '<div class="fila"><span>Retenciones por línea</span><strong>-' + fmt(t.retenciones) + '</strong></div>' : '') +
+            (t.descuentoFactura ? '<div class="fila"><span>Descuento de factura</span><strong>-' + fmt(t.descuentoFactura) + '</strong></div>' : '') +
+            (t.cargos ? '<div class="fila"><span>Cargos</span><strong>' + fmt(t.cargos) + '</strong></div>' : '') +
+            (t.irpf ? '<div class="fila"><span>Retención IRPF</span><strong>-' + fmt(t.irpf) + '</strong></div>' : '') +
+            '        <div class="fila" style="font-size:16px"><span>Neto a pagar</span><strong>' + fmt(t.neto) + '</strong></div>' +
+            '      </div>' +
+            '    </div>' +
+            '    <div class="modal-footer"><button type="button" class="btn btn-secondary" id="previewCerrar">Cerrar</button></div>' +
+            '  </div></div>' +
+            '</div><div class="modal-backdrop fade show" id="previewBackdrop"></div>';
+          document.body.insertAdjacentHTML('beforeend', html);
+          var cerrar = function () { $('previewModal').remove(); $('previewBackdrop').remove(); };
+          $('previewCerrar').onclick = cerrar;
+          $('previewBackdrop').onclick = cerrar;
+        };
+        if (resumenSucio || !resumen) {
+          clearTimeout(recalculoTimer);
+          recalcular(function (ok) { if (ok) mostrar(); });
+        } else {
+          mostrar();
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // Anulación (AddRectificativeComplete)
+      // ------------------------------------------------------------------
+      function renderAnulacion() {
+        var t = DATOS.totales;
+        var cons = DATOS.consecutivo || {};
+        var numeroHtml =
+          '<div class="row g-3">' +
+          '  <div class="col-md-4"><label class="form-label mb-1">Prefijo</label><input type="text" class="form-control" value="' + esc(cons.prefijo || '') + '" disabled></div>' +
+          '  <div class="col-md-4"><label class="form-label mb-1">Número</label><input type="text" class="form-control" value="' + esc(cons.siguiente || 'Asignado por FacturasApp') + '" disabled></div>' +
+          '  <div class="col-md-4"><label class="form-label mb-1">Fecha de operación</label><input type="date" class="form-control" id="fechaOperacion" value="' + esc(DATOS.hoy.fecha) + '"></div>' +
+          '</div>' +
+          '<div class="text-muted mt-2" style="font-size:12px">El número definitivo lo asigna FacturasApp al confirmar.</div>';
+        var fila = function (label, valorHtml, clase) {
+          return '<div class="fila' + (clase ? ' ' + clase : '') + '"><span>' + esc(label) + '</span><span class="text-end">' + valorHtml + '</span></div>';
+        };
+        var impuestosTexto = t ? fmt(t.iva + t.recargo) : '—';
+        var detallesHtml = '<div class="detalle-lista">' +
+          fila('Fecha de expedición', esc(fechaCorta(DATOS.hoy.fecha))) +
+          fila('Factura a rectificar', esc(DATOS.numero)) +
+          fila('Fecha de factura original', esc(DATOS.fecha)) +
+          fila('Cliente', esc(DATOS.contacto ? DATOS.contacto.nombre : DATOS.cliente) + (DATOS.nif ? ' · ' + esc(DATOS.nif) : '')) +
+          (t ? fila('Importe a anular', esc(fmt(t.neto)), 'resaltada') : '') +
+          (t ? fila('Base imponible a anular', esc(fmt(t.baseImponible))) : '') +
+          (t ? fila('Impuestos a anular', esc(impuestosTexto)) : '') +
+          (!t ? '<div class="fila text-muted">Los importes de esta factura no están guardados en este libro; FacturasApp anulará el total original.</div>' : '') +
+          '</div>';
+        var motivoHtml =
+          '<label class="form-label mb-1">Tipo de factura</label>' + selectMotivo('motivoAeat') +
+          '<label class="form-label mt-3 mb-1">Motivo de anulación</label>' +
+          textarea('motivoTexto', 'Describa el motivo de la anulación…', DATOS.motivoMax, '') +
+          '<div class="text-muted" style="font-size:12px">Este campo es obligatorio y servirá como justificante oficial de la anulación.</div>';
+        var envioHtml = bloqueEmail('enviarEmail', 'email', false);
+
+        $('app').innerHTML =
+          '<div class="aviso"><strong>Información importante.</strong> Esta factura rectificativa anulará por completo la factura original ' + esc(DATOS.numero) + '. Esta acción no puede deshacerse una vez confirmada.</div>' +
+          '<fieldset id="formulario">' +
+          seccion('numero', '1', 'Número de rectificativa', esc((cons.prefijo || '') + (cons.siguiente || '')), numeroHtml, true) +
+          seccion('detalles', '2', 'Detalles de la factura', 'Factura ' + esc(DATOS.numero) + (t ? ' · ' + esc(fmt(t.neto)) : ''), detallesHtml, true) +
+          seccion('motivo', '3', 'Motivo de anulación', '', motivoHtml, true) +
+          seccion('envio', '4', 'Opciones de envío', '', envioHtml, true) +
+          '</fieldset>';
+      }
+
+      // ------------------------------------------------------------------
+      // Footer, send, success
+      // ------------------------------------------------------------------
+      function actualizarPie() {
+        if (estado === 'exito') { $('pie').innerHTML = ''; return; }
+        var bloqueado = estado === 'generando' || (MODO === 'articulos' && recalculando);
+        $('pie').innerHTML =
+          '<button type="button" class="btn btn-outline-secondary" id="btnSalir"' + (estado === 'generando' ? ' disabled' : '') + '>' + (MODO === 'articulos' ? 'Salir' : 'Cancelar') + '</button>' +
+          '<div class="d-flex gap-2">' +
+          (MODO === 'articulos' ? '<button type="button" class="btn btn-outline-primary" id="btnPrevisualizar"' + (bloqueado ? ' disabled' : '') + '>Previsualizar</button>' : '') +
+          '<button type="button" class="btn btn-primary" id="btnEnviar"' + (bloqueado ? ' disabled' : '') + '>' +
+          (MODO === 'articulos' ? 'Enviar' : 'Confirmar y generar factura') + '</button>' +
+          '</div>';
+        $('btnSalir').onclick = cerrarDialogo;
+        if ($('btnPrevisualizar')) $('btnPrevisualizar').onclick = previsualizar;
+        $('btnEnviar').onclick = enviar;
+      }
+
+      function enviar() {
+        limpiarAlertas();
+        var datos = recogerDatos();
+        var error = validarCliente(datos);
+        if (error) { mostrarAlerta('warning', error.msg, error.campo); return; }
+        var cons = DATOS.consecutivo || {};
+        var numeroNuevo = (cons.prefijo || '') + (cons.siguiente || '');
+        var texto;
+        if (MODO === 'articulos') {
+          var neto = resumen && !resumenSucio ? fmt(resumen.totales.neto) : null;
+          texto = 'Se creará la rectificativa ' + (numeroNuevo || '') + ' por sustitución sobre la factura ' + DATOS.numero +
+            (neto ? ' con un neto a pagar de ' + neto : '') + '.\nLa factura original quedará anulada. Esta acción no se puede deshacer.';
+        } else {
+          texto = 'Se creará la rectificativa ' + (numeroNuevo || '') + ' que anula por completo la factura ' + DATOS.numero +
+            (DATOS.totales ? ' (' + fmt(DATOS.totales.neto) + ')' : '') + '.\nEsta acción no se puede deshacer.';
+        }
+        confirmar(texto, MODO === 'articulos' ? 'Enviar rectificativa' : 'Confirmar anulación', function () {
+          setEstado('generando');
+          google.script.run
+            .withSuccessHandler(function (res) {
+              if (res && res.tipo === 'success') {
+                mostrarExito(res, datos);
+              } else {
+                setEstado('edicion');
+                mostrarAlerta(res && res.tipo === 'warning' ? 'warning' : 'danger', (res && res.mensaje) || 'No se pudo crear la rectificativa.');
+              }
+            })
+            .withFailureHandler(function (e) {
+              setEstado('edicion');
+              mostrarAlerta('danger', 'Error al crear la rectificativa: ' + (e && e.message ? e.message : e));
+            })
+            .crearRectificativa(datos);
+        });
+      }
+
+      function mostrarExito(res, datos) {
+        setEstado('exito');
+        var emailInicial = datos.email || (DATOS.contacto ? DATOS.contacto.email : '');
+        $('app').innerHTML =
+          '<div class="panel-exito text-center">' +
+          '  <div style="font-size:48px;color:#28a745">&#10004;</div>' +
+          '  <h4 class="mb-2">Rectificativa creada</h4>' +
+          '  <p class="mb-1">Número asignado: <strong>' + esc(res.numero || '(ver listado)') + '</strong></p>' +
+          '  <p class="mb-1">Sobre la factura <strong>' + esc(DATOS.numero) + '</strong>' + (res.neto != null ? ' · Neto: <strong>' + esc(fmt(res.neto)) + '</strong>' : '') + '</p>' +
+          '  <p class="text-muted" style="font-size:13px">' + esc(res.mensaje || '') .replace(/\n/g, '<br>') + '</p>' +
+          (res.emailEnviado ? '' :
+            '  <div class="text-start mt-3" id="bloqueEmailExito">' +
+            '    <label class="form-label mb-1">Enviar el PDF por correo electrónico</label>' +
+            '    <div class="input-group"><input type="email" class="form-control" id="emailExito" value="' + esc(emailInicial) + '" placeholder="correo@cliente.com">' +
+            '    <button type="button" class="btn btn-outline-primary" id="btnEmailExito">Enviar</button></div>' +
+            '    <div id="emailExitoMsg" class="mt-1" style="font-size:13px"></div>' +
+            '  </div>') +
+          '  <button type="button" class="btn btn-primary mt-4" id="btnCerrarExito">Cerrar</button>' +
+          '</div>';
+        $('btnCerrarExito').onclick = cerrarDialogo;
+        if ($('btnEmailExito')) {
+          $('btnEmailExito').onclick = function () {
+            var email = $('emailExito').value.trim();
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { $('emailExitoMsg').innerHTML = '<span class="texto-rojo">Ingresa un correo electrónico válido.</span>'; return; }
+            $('btnEmailExito').disabled = true;
+            $('emailExitoMsg').innerHTML = '<span class="spinner spinner-mini"></span>Enviando…';
+            google.script.run
+              .withSuccessHandler(function (r) {
+                $('btnEmailExito').disabled = false;
+                $('emailExitoMsg').innerHTML = r && r.ok ? '<span class="text-success">' + esc(r.mensaje) + '</span>' : '<span class="texto-rojo">' + esc((r && r.mensaje) || 'No se pudo enviar.') + '</span>';
+              })
+              .withFailureHandler(function (e) {
+                $('btnEmailExito').disabled = false;
+                $('emailExitoMsg').innerHTML = '<span class="texto-rojo">' + esc(e && e.message ? e.message : e) + '</span>';
+              })
+              .enviarEmailRectificativa(res.numero, email, DATOS.numero);
+          };
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // Events (delegated)
+      // ------------------------------------------------------------------
+      document.addEventListener('input', function (e) {
+        var el = e.target;
+        if (!el) return;
+        el.classList.remove('is-invalid');
+        if (el.id && $(el.id + 'Contador')) $(el.id + 'Contador').textContent = el.value.length;
+        if (el.dataset.campo) {
+          var l = lineas[Number(el.dataset.i)];
+          l[el.dataset.campo] = Number(el.value) || 0;
+          if (el.dataset.campo === 'quantity') {
+            el.classList.toggle('is-invalid', l.quantity > l.cantidadOriginal);
+            el.title = l.quantity > l.cantidadOriginal ? 'Supera la cantidad facturada (' + l.cantidadOriginal + ')' : '';
+          }
+          if ($('importe-' + el.dataset.i)) $('importe-' + el.dataset.i).textContent = fmt(importeLinea(l));
+          programarRecalculo();
+        } else if (el.dataset.cargo) {
+          var c = cargos[Number(el.dataset.i)];
+          c[el.dataset.cargo] = el.dataset.cargo === 'valor' ? (Number(el.value) || 0) : el.value;
+          programarRecalculo();
+        } else if (['obsCliente', 'paymentNote', 'textObservations', 'motivoTexto'].indexOf(el.id) >= 0) {
+          actualizarSubtitulos();
+        }
+      });
+      document.addEventListener('change', function (e) {
+        var el = e.target;
+        if (!el) return;
+        if (el.dataset.campo === 'ivaRate') {
+          var l = lineas[Number(el.dataset.i)];
+          l.ivaRate = Number(el.value) || 0;
+          // Recargo options depend on the IVA rate
+          var permitidos = RECARGO_MAP[l.ivaRate] || [0];
+          if (permitidos.indexOf(l.recargoRate) < 0) l.recargoRate = 0;
+          renderLineas();
+          programarRecalculo();
+        } else if (el.dataset.campo === 'recargoRate') {
+          lineas[Number(el.dataset.i)].recargoRate = Number(el.value) || 0;
+          if ($('importe-' + el.dataset.i)) $('importe-' + el.dataset.i).textContent = fmt(importeLinea(lineas[Number(el.dataset.i)]));
+          programarRecalculo();
+        } else if (el.dataset.cargo) {
+          var c = cargos[Number(el.dataset.i)];
+          c[el.dataset.cargo] = el.dataset.cargo === 'valor' ? (Number(el.value) || 0) : el.value;
+          programarRecalculo();
+        } else if (el.id === 'enviarEmail') {
+          $('email').disabled = !el.checked;
+          if (el.checked) $('email').focus();
+        } else if (['idPayment', 'motivoAeat', 'fechaEmision'].indexOf(el.id) >= 0) {
+          actualizarSubtitulos();
+        }
+      });
+      document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-accion]');
+        if (btn) {
+          var i = Number(btn.dataset.i);
+          if (btn.dataset.accion === 'eliminar') lineas[i].eliminada = true;
+          if (btn.dataset.accion === 'restaurar') lineas[i].eliminada = false;
+          if (btn.dataset.accion === 'quitarCargo') cargos.splice(i, 1);
+          if (btn.dataset.accion === 'quitarCargo') renderCargos(); else renderLineas();
+          programarRecalculo();
+          return;
+        }
+        if (e.target.id === 'btnAddCargo') {
+          cargos.push({ tipo: 'DT', tipoValor: 'PJ', valor: 0 });
+          renderCargos();
+          document.querySelector('[data-cargo="valor"][data-i="' + (cargos.length - 1) + '"]').focus();
+        }
+      });
+
+      // ------------------------------------------------------------------
+      // Boot
+      // ------------------------------------------------------------------
+      if (MODO === 'articulos') renderSustitucion(); else renderAnulacion();
+      actualizarPie();
+    </script>
+  </body>
+</html>
