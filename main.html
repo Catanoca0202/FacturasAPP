@@ -240,8 +240,17 @@
         document.getElementById('rectInfoFecha').textContent = info.fecha || '';
         document.getElementById('rectInfoCliente').textContent = (info.cliente || '') + (info.nif ? ' · NIF ' + info.nif : '');
         document.getElementById('rectInfoEstado').textContent = info.estado || '';
-        document.getElementById('rectInfoSiguiente').textContent = info.siguienteNumero
-          ? 'Se asignará el número ' + info.siguienteNumero : '';
+        // Mode B: the number shown is the one that will be sent
+        const numeracion = info.numeracion || {};
+        const numeroUsable = !!numeracion.ok;
+        document.getElementById('rectInfoSiguiente').textContent = numeroUsable
+          ? 'Se usará el número ' + numeracion.numero : '';
+        const avisoNumero = document.getElementById('rectInfoNumeracion');
+        avisoNumero.textContent = numeroUsable ? '' : (numeracion.mensaje || 'No se pudo determinar el número de la rectificativa.');
+        avisoNumero.style.display = numeroUsable ? 'none' : 'block';
+        const avisoVerifactu = document.getElementById('rectInfoVerifactu');
+        avisoVerifactu.textContent = info.avisoVerifactu || '';
+        avisoVerifactu.style.display = info.avisoVerifactu ? 'block' : 'none';
         const existentes = document.getElementById('rectInfoExistentes');
         if (info.rectificativas && info.rectificativas.length > 0) {
           existentes.textContent = 'Ya tiene rectificativas: ' + info.rectificativas.join(', ');
@@ -254,10 +263,10 @@
         document.getElementById('rectTipoArticulos').disabled = !puedeSustituir;
         document.getElementById('rectTipoCompleta').checked = true;
 
-        const bloqueada = !!info.tieneCompleta;
+        const bloqueada = !!info.tieneCompleta || !numeroUsable;
         document.getElementById('rectDetalle').style.display = 'block';
         document.getElementById('rectBtnAbrir').style.display = bloqueada ? 'none' : 'flex';
-        if (bloqueada) {
+        if (info.tieneCompleta) {
           mostrarAdvertencia('La factura ' + info.numero + ' ya tiene una rectificativa completa. FacturasApp no permite más rectificativas sobre ella.');
         }
       }

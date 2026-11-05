@@ -17,7 +17,14 @@
 //   - One complete rectificativa per original; after it, by-articles is blocked.
 //   - The API validates references (must exist in the original) but not quantities
 //     or totals, so we compute and validate everything here.
-//   - A gateway 504 can still create the invoice; we confirm via GetConsecutives.
+//   - A gateway 504 can still create the invoice; we confirm it by number.
+//
+// Numbering (v1.6.0.2, "mode B"): we always send invoiceNumber = nextInvoiceNumber
+// of the default rectificativa series. Verified on QA 2026-11-04: letting the API
+// assign the number is unreliable with several series (it ignores the default
+// series' counter and collides with existing numbers), while sending the default
+// series' next number works on both endpoints, also in Verifactu accounts, and
+// advances that series. The number is checked with GetInvoiceStateByNumber first.
 // ---------------------------------------------------------------------------
 
 const RECTIFICATIVA_MOTIVOS_AEAT = [
@@ -155,12 +162,82 @@ function rectificativasLocalesDe_(numeroOriginal) {
     .map(fila => ({ numero: fila[HISTORIAL_COL_NUMERO - 1], tipo: fila[HISTORIAL_COL_TIPO_RECT - 1] }));
 }
 
-/** Default "facturasRectificativas" consecutive from the API, or null. */
-function consecutivoRectificativas_() {
-  const data = fetchConsecutivesFromAPI_();
-  const lista = data && Array.isArray(data.facturasRectificativas) ? data.facturasRectificativas : [];
-  if (lista.length === 0) return null;
-  return lista.find(e => e.isDefault === true) || lista[0];
+// States that only exist in Verifactu accounts and block a rectificativa (the API
+// requires Correcto / Parcialmente correcto). "Creada" is excluded on purpose:
+// accounts without Verifactu keep every invoice in "Creada" and can rectify it.
+const ESTADOS_BLOQUEANTES_VERIFACTU = ['pendiente envio aeat', 'incorrecto', 'fallida'];
+
+function normalizarEstado_(texto) {
+  return String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+}
+
+function mensajeNumeroOcupado_(numero) {
+  return 'El siguiente número de tu serie de rectificativas (' + numero + ') ya está usado en FacturasApp. ' +
+    'Revisa la configuración de consecutivos de rectificativas en la web.';
+}
+
+/**
+ * Looks an invoice number up in FacturasApp. Unlike facturaExisteEnApi_, a
+ * network or server error is reported as 'error', never as "free".
+ * Returns { estado: 'existe'|'libre'|'error', nombre, error }.
+ */
+function consultarNumeroFactura_(numero) {
+  const res = invoiceServicesFetch_('/GetInvoiceStateByNumber/' + encodeURIComponent(String(numero)), 'get');
+  if (res.ok && res.data && res.data.toolObject) {
+    return { estado: 'existe', nombre: String(res.data.toolObject.stateName || '').trim(), error: '' };
+  }
+  if (res.status === 404) return { estado: 'libre', nombre: '', error: '' };
+  return { estado: 'error', nombre: '', error: res.error || ('Error ' + res.status) };
+}
+
+/**
+ * Number the next rectificativa will be sent with: nextInvoiceNumber of the
+ * default series (or the first one), checked to be unused.
+ * Returns { ok:true, numero, prefijo } or { ok:false, motivo, numero, prefijo, mensaje }
+ * with motivo 'existe' | 'sin_serie' | 'error_consulta'.
+ */
+function prepararNumeroRectificativa_() {
+  let data;
+  try {
+    data = fetchConsecutivesFromAPI_();
+  } catch (e) {
+    Logger.log('prepararNumeroRectificativa_: GetConsecutives falló: ' + e);
+    data = null;
+  }
+  if (!data) {
+    return { ok: false, motivo: 'error_consulta', numero: '', prefijo: '',
+      mensaje: 'No se pudo consultar el consecutivo de rectificativas en FacturasApp. Inténtalo de nuevo.' };
+  }
+  const lista = Array.isArray(data.facturasRectificativas) ? data.facturasRectificativas : [];
+  const entrada = lista.find(e => e && e.isDefault === true) || lista[0];
+  const numero = entrada && entrada.nextInvoiceNumber ? String(entrada.nextInvoiceNumber).trim() : '';
+  const prefijo = entrada && entrada.prefijo ? String(entrada.prefijo) : '';
+  if (!numero) {
+    return { ok: false, motivo: 'sin_serie', numero: '', prefijo: prefijo,
+      mensaje: 'No tienes una serie de rectificativas activa en FacturasApp. Configúrala en la web antes de continuar.' };
+  }
+  const consulta = consultarNumeroFactura_(numero);
+  if (consulta.estado === 'existe') {
+    return { ok: false, motivo: 'existe', numero: numero, prefijo: prefijo, mensaje: mensajeNumeroOcupado_(numero) };
+  }
+  if (consulta.estado === 'error') {
+    return { ok: false, motivo: 'error_consulta', numero: numero, prefijo: prefijo,
+      mensaje: 'No se pudo comprobar si el número ' + numero + ' está libre en FacturasApp. Inténtalo de nuevo.' };
+  }
+  return { ok: true, numero: numero, prefijo: prefijo };
+}
+
+/**
+ * Non-blocking warning, shown only for Verifactu-only states (see
+ * ESTADOS_BLOQUEANTES_VERIFACTU). Returns '' when there is nothing to say.
+ */
+function avisoEstadoVerifactu_(numero, consulta) {
+  if (!consulta || consulta.estado !== 'existe') return '';
+  const estado = String(consulta.nombre || '').trim();
+  if (ESTADOS_BLOQUEANTES_VERIFACTU.indexOf(normalizarEstado_(estado)) < 0) return '';
+  return 'La factura ' + numero + ' está en estado "' + estado + '" en FacturasApp. ' +
+    'Solo se pueden rectificar facturas en estado Correcto o Parcialmente correcto; ' +
+    'espera a que la AEAT la procese antes de crear la rectificativa.';
 }
 
 /**
@@ -298,18 +375,18 @@ function cargarFacturaParaRectificar(numeroFactura, opciones) {
   const existentes = rectificativasLocalesDe_(numero);
   const tieneCompleta = existentes.some(r => r.tipo === RECTIFICATIVA_TIPO_LABEL.completa);
 
+  // Number to send (mode B) and AEAT state of the original. Skipped for preview
+  // recalculations, which run on every keystroke.
+  let numeracion = null;
   let consecutivo = { prefijo: '', siguiente: '' };
+  let avisoVerifactu = '';
   if (!opciones.sinConsecutivo) {
+    numeracion = prepararNumeroRectificativa_();
+    consecutivo = { prefijo: numeracion.prefijo || '', siguiente: numeracion.numero || '' };
     try {
-      const entrada = consecutivoRectificativas_();
-      if (entrada) {
-        consecutivo = {
-          prefijo: String(entrada.prefijo || ''),
-          siguiente: String(entrada.nextInvoiceNumber || '')
-        };
-      }
+      avisoVerifactu = avisoEstadoVerifactu_(numero, consultarNumeroFactura_(numero));
     } catch (e) {
-      Logger.log('No se pudo leer el consecutivo de rectificativas: ' + e);
+      Logger.log('No se pudo consultar el estado de ' + numero + ': ' + e);
     }
   }
 
@@ -327,6 +404,8 @@ function cargarFacturaParaRectificar(numeroFactura, opciones) {
     rectificativas: existentes.map(r => String(r.numero)),
     siguienteNumero: consecutivo.siguiente,
     consecutivo: consecutivo,
+    numeracion: numeracion,
+    avisoVerifactu: avisoVerifactu,
     motivosAeat: RECTIFICATIVA_MOTIVOS_AEAT,
     hoy: {
       fecha: Utilities.formatDate(ahora, tz, 'yyyy-MM-dd'),
@@ -457,7 +536,7 @@ function recalcularLineaRectificativa_(producto, edicion) {
  *
  * @param {Object} original        JSON stored when the original was sent (FieldInvoice)
  * @param {Array}  lineasEditadas  [{ reference, quantity, unitPrice, ivaRate, descuentoRate, retencionRate, recargoRate }]
- * @param {Object} opciones        { numeroOriginal, motivoAeat, motivoTexto, invoiceDate, invoiceTime,
+ * @param {Object} opciones        { numeroOriginal, invoiceNumber, motivoAeat, motivoTexto, invoiceDate, invoiceTime,
  *                                   operationDate, observacionesCliente, idPayment, paymentNote,
  *                                   textObservations, cargosDescuentos: [{ tipo, tipoValor, valor }] }
  */
@@ -559,7 +638,8 @@ function construirPayloadRectificativaArticulos_(original, lineasEditadas, opcio
     cancellationReason: motivoTexto,
     typeRectificative: RECTIFICATIVA_TIPO,
     invoiceRectificativeType: String(opciones.motivoAeat),
-    // invoiceNumber omitted on purpose: the API assigns the rectificativa consecutive
+    // Sent explicitly (mode B); undefined keys are dropped by JSON.stringify
+    invoiceNumber: opciones.invoiceNumber ? String(opciones.invoiceNumber) : undefined,
     textCustomerObservations: limitar(opciones.observacionesCliente, RECTIFICATIVA_OBS_MAX),
     invoiceDate: opciones.invoiceDate,
     invoiceTime: opciones.invoiceTime,
@@ -720,47 +800,55 @@ function calcularTotalesRectificativa(datos) {
   }
 }
 
+// Waits before each existence check after a gateway timeout
+const RECTIFICATIVA_ESPERAS_TIMEOUT_MS = [3000, 6000];
+
 /**
- * Sends the rectificativa and confirms it even when the gateway times out.
- * Returns { ok, numero, mensaje }.
+ * Sends the rectificativa with its explicit invoiceNumber and confirms it by that
+ * exact number when the gateway times out. Never retries the POST.
+ * Returns { ok, numero, mensaje, nuevoNumero, reconfirmar }.
  */
 function enviarRectificativa_(path, payload) {
-  let siguienteAntes = '';
-  try {
-    const consecutivo = consecutivoRectificativas_();
-    siguienteAntes = consecutivo ? String(consecutivo.nextInvoiceNumber || '') : '';
-  } catch (e) {
-    Logger.log('No se pudo leer el consecutivo antes de enviar: ' + e);
-  }
-
+  const numero = String(payload.invoiceNumber || '');
   const res = invoiceServicesFetch_(path, 'post', payload);
   if (res.ok) {
-    const numero = (res.data && typeof res.data.toolObject === 'string' && res.data.toolObject) || siguienteAntes;
-    return { ok: true, numero: numero, mensaje: '' };
+    const asignado = (res.data && typeof res.data.toolObject === 'string' && res.data.toolObject) || numero;
+    return { ok: true, numero: asignado, mensaje: '' };
   }
 
   const esTimeout = res.status === 0 || res.status === 502 || res.status === 503 || res.status === 504;
-  if (esTimeout && siguienteAntes) {
+  if (esTimeout && numero) {
     // The API may have created the invoice before the gateway gave up (seen on QA).
-    // If the rectificativa consecutive moved, the number we snapshotted is ours.
-    Utilities.sleep(3000);
-    try {
-      const consecutivo = consecutivoRectificativas_();
-      const siguienteDespues = consecutivo ? String(consecutivo.nextInvoiceNumber || '') : '';
-      if (siguienteDespues && siguienteDespues !== siguienteAntes && facturaExisteEnApi_(siguienteAntes)) {
-        return { ok: true, numero: siguienteAntes, mensaje: 'confirmada tras un tiempo de espera del servidor' };
+    let huboError = false;
+    for (let i = 0; i < RECTIFICATIVA_ESPERAS_TIMEOUT_MS.length; i++) {
+      Utilities.sleep(RECTIFICATIVA_ESPERAS_TIMEOUT_MS[i]);
+      const consulta = consultarNumeroFactura_(numero);
+      if (consulta.estado === 'existe') {
+        return { ok: true, numero: numero, mensaje: 'confirmada tras un tiempo de espera del servidor' };
       }
-    } catch (e) {
-      Logger.log('No se pudo confirmar la rectificativa tras el timeout: ' + e);
+      if (consulta.estado === 'error') huboError = true;
     }
-    return { ok: false, numero: '', mensaje: 'El servidor de FacturasApp no respondió a tiempo y la rectificativa no aparece registrada. Revisa el listado de facturas antes de reintentar.' };
+    return { ok: false, numero: '', mensaje: huboError
+      ? 'El servidor de FacturasApp no respondió a tiempo y no se pudo confirmar si la rectificativa ' + numero + ' se creó. Revisa el listado de facturas antes de reintentar.'
+      : 'El servidor de FacturasApp no respondió a tiempo y la rectificativa ' + numero + ' no aparece registrada. Revisa el listado de facturas antes de reintentar.' };
   }
 
   let mensaje = res.error || 'Error al crear la rectificativa.';
   if (/ya existe una factura rectificativa/i.test(mensaje)) {
     mensaje = 'La factura original ya tiene una rectificativa completa en FacturasApp. No se pueden crear más rectificativas sobre ella.';
+  } else if (/ya existe una factura con el n[uú]mero/i.test(mensaje)) {
+    // Someone took the number between our check and the POST. Do not retry:
+    // re-read the series so the dialog can show the new number.
+    const nueva = prepararNumeroRectificativa_();
+    mensaje = 'FacturasApp indica que el número ' + (numero || '') + ' ya existe; puede que se haya creado otra rectificativa al mismo tiempo. No se creó nada. ' +
+      (nueva.ok ? 'El siguiente número disponible es ' + nueva.numero + '. Revisa y confirma de nuevo.' : nueva.mensaje);
+    return { ok: false, numero: '', mensaje: mensaje, nuevoNumero: nueva.ok ? nueva.numero : '', reconfirmar: nueva.ok };
   } else if (/solo se pueden incluir productos/i.test(mensaje)) {
     mensaje = 'Alguna referencia no existe en la factura original: ' + mensaje;
+  } else if (/para verifactu/i.test(mensaje)) {
+    // Keep FacturasApp's own reason, plus what the user can do about it
+    mensaje = 'FacturasApp rechazó la rectificativa: ' + mensaje.trim() +
+      ' La factura original aún no ha sido aceptada por la AEAT; espera a que la procese e inténtalo de nuevo. No se creó nada.';
   }
   return { ok: false, numero: '', mensaje: mensaje };
 }
@@ -844,7 +932,9 @@ function enviarEmailRectificativa(numero, email, numeroOriginal) {
  *   fechaEmision, horaEmision, fechaOperacion, observacionesCliente,
  *   lineas: [{ reference, quantity, unitPrice, ivaRate, descuentoRate, retencionRate, recargoRate }],
  *   idPayment, paymentNote, textObservations, cargosDescuentos: [{ tipo, tipoValor, valor }],
- *   enviarEmail, email }
+ *   enviarEmail, email, numeroEsperado }
+ * numeroEsperado is the rectificativa number the dialog showed; if the series moved
+ * in the meantime nothing is sent and { reconfirmar, nuevoNumero } come back.
  * Always returns a crearMensaje() object, extended with { numero, neto, emailEnviado,
  * emailMensaje } on success.
  */
@@ -863,6 +953,23 @@ function crearRectificativa(datos) {
     const error = validarDatosRectificativa_(datos, info);
     if (error) return crearMensaje(error, 'warning', 'Rectificativa');
 
+    // Mode B: reserve the number now and refuse if it is not the one the user saw
+    const numeracion = prepararNumeroRectificativa_();
+    if (!numeracion.ok) {
+      const bloqueo = crearMensaje(numeracion.mensaje, numeracion.motivo === 'error_consulta' ? 'error' : 'warning', 'Rectificativa');
+      bloqueo.numeroOcupado = numeracion.motivo === 'existe';
+      return bloqueo;
+    }
+    const numeroEsperado = String(datos.numeroEsperado || '').trim();
+    if (numeroEsperado && numeroEsperado !== numeracion.numero) {
+      const cambio = crearMensaje('El número de la rectificativa cambió de ' + numeroEsperado + ' a ' + numeracion.numero +
+        ' porque se usó el anterior mientras tanto. No se creó nada. Revisa y confirma de nuevo.', 'warning', 'Número actualizado');
+      cambio.nuevoNumero = numeracion.numero;
+      cambio.reconfirmar = true;
+      return cambio;
+    }
+    const numeroRect = numeracion.numero;
+
     const motivoAeat = String(datos.motivoAeat || '').trim().toUpperCase();
     const motivoTexto = String(datos.motivoTexto || '').trim();
     const original = buscarJsonFacturaOriginal_(numeroOriginal);
@@ -871,6 +978,7 @@ function crearRectificativa(datos) {
     if (tipo === 'completa') {
       const payload = {
         originalInvoiceNumber: numeroOriginal,
+        invoiceNumber: numeroRect,
         cancellationReason: motivoTexto,
         typeRectificative: RECTIFICATIVA_TIPO,
         invoiceRectificativeType: motivoAeat
@@ -890,14 +998,21 @@ function crearRectificativa(datos) {
         sumTotalNetPayable: original ? -round2Rect_(original.sumTotalNetPayable) : 0
       });
     } else {
-      const payload = construirPayloadRectificativaArticulos_(original, datos.lineas || [], opcionesPayloadDesdeDatos_(datos, numeroOriginal));
+      const opcionesPayload = opcionesPayloadDesdeDatos_(datos, numeroOriginal);
+      opcionesPayload.invoiceNumber = numeroRect;
+      const payload = construirPayloadRectificativaArticulos_(original, datos.lineas || [], opcionesPayload);
       ajustarRecargoEnContactos_(payload);
       Logger.log('AddRectificativeArticles payload: ' + JSON.stringify(payload));
       envio = enviarRectificativa_('/AddRectificativeArticles', payload);
       payloadListado = payload;
     }
 
-    if (!envio.ok) return crearMensaje(envio.mensaje, 'error', 'Error al crear la rectificativa');
+    if (!envio.ok) {
+      const fallo = crearMensaje(envio.mensaje, envio.reconfirmar ? 'warning' : 'error', 'Error al crear la rectificativa');
+      if (envio.nuevoNumero) fallo.nuevoNumero = envio.nuevoNumero;
+      if (envio.reconfirmar) fallo.reconfirmar = true;
+      return fallo;
+    }
 
     registrarRectificativaEnHistorial_(envio.numero, info, tipo);
     payloadListado.invoiceNumber = envio.numero;
@@ -946,6 +1061,9 @@ function abrirDialogoRectificativa(numeroFactura, tipo) {
     }
     if (tipo === 'articulos' && (!info.tieneJson || info.lineas.length === 0)) {
       return crearMensaje('No se encontraron las líneas de la factura ' + info.numero + ' en este libro. Usa la rectificativa de anulación.', 'error', 'Rectificativa');
+    }
+    if (info.numeracion && !info.numeracion.ok) {
+      return crearMensaje(info.numeracion.mensaje, info.numeracion.motivo === 'error_consulta' ? 'error' : 'warning', 'Rectificativa');
     }
     info.tipo = tipo;
     const template = HtmlService.createTemplateFromFile('rectificativaDialog');

@@ -6,3 +6,6 @@
 !appsscript.json
 !*.js
 !*.html
+
+# Local test scripts, API keys and logs: never pushed (must stay last to win over the !*.js rule)
+scratch/**

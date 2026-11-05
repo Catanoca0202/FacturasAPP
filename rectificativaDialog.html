@@ -95,6 +95,9 @@
       var recalculoTimer = null;
       var recalculando = false;
       var estado = 'edicion';      // edicion | generando | exito
+      // Rectificativa number that will be sent (nextInvoiceNumber of the default
+      // series, already checked as free). It already includes the prefix.
+      var numeroRect = (DATOS.numeracion && DATOS.numeracion.numero) || (DATOS.consecutivo && DATOS.consecutivo.siguiente) || '';
       var overlayTimer = null;
 
       // ------------------------------------------------------------------
@@ -116,6 +119,19 @@
         return m ? m[3] + '/' + m[2] + '/' + m[1] : String(iso || '');
       }
       function $(id) { return document.getElementById(id); }
+      function prefijoRect() { return (DATOS.consecutivo && DATOS.consecutivo.prefijo) || ''; }
+      // "REC-26-0092" -> "0092" when the prefix is "REC-26-"
+      function sufijoNumero(numero) {
+        var pref = prefijoRect();
+        return pref && String(numero).indexOf(pref) === 0 ? String(numero).substring(pref.length) : String(numero);
+      }
+      // The series moved (another rectificativa was created meanwhile): show the new number
+      function actualizarNumero(nuevo) {
+        numeroRect = nuevo;
+        if ($('numeroRectSufijo')) $('numeroRectSufijo').value = sufijoNumero(nuevo);
+        if ($('numeroRectSust')) $('numeroRectSust').value = nuevo;
+        setSub('numero', esc(nuevo));
+      }
       function valor(id) { var el = $(id); return el ? el.value : ''; }
 
       function limpiarAlertas() { $('alertas').innerHTML = ''; }
@@ -250,6 +266,7 @@
           '  </div>' +
           '  <div class="col-md-7">' +
           '    <div class="row g-2">' +
+          '      <div class="col-12"><label class="form-label mb-1">No. rectificativa</label><input type="text" class="form-control" id="numeroRectSust" value="' + esc(numeroRect) + '" disabled></div>' +
           '      <div class="col-6"><div class="dato-label">No. factura a rectificar</div><div class="dato-valor">' + esc(DATOS.numero) + '</div></div>' +
           '      <div class="col-6"><div class="dato-label">Fecha factura a rectificar</div><div class="dato-valor">' + esc(DATOS.fecha) + '</div></div>' +
           '      <div class="col-6"><label class="form-label mb-1">Fecha de emisión</label><input type="date" class="form-control" id="fechaEmision" value="' + esc(DATOS.hoy.fecha) + '"></div>' +
@@ -594,14 +611,13 @@
       // ------------------------------------------------------------------
       function renderAnulacion() {
         var t = DATOS.totales;
-        var cons = DATOS.consecutivo || {};
         var numeroHtml =
           '<div class="row g-3">' +
-          '  <div class="col-md-4"><label class="form-label mb-1">Prefijo</label><input type="text" class="form-control" value="' + esc(cons.prefijo || '') + '" disabled></div>' +
-          '  <div class="col-md-4"><label class="form-label mb-1">Número</label><input type="text" class="form-control" value="' + esc(cons.siguiente || 'Asignado por FacturasApp') + '" disabled></div>' +
+          '  <div class="col-md-4"><label class="form-label mb-1">Prefijo</label><input type="text" class="form-control" id="numeroRectPrefijo" value="' + esc(prefijoRect()) + '" disabled></div>' +
+          '  <div class="col-md-4"><label class="form-label mb-1">Número</label><input type="text" class="form-control" id="numeroRectSufijo" value="' + esc(sufijoNumero(numeroRect)) + '" disabled></div>' +
           '  <div class="col-md-4"><label class="form-label mb-1">Fecha de operación</label><input type="date" class="form-control" id="fechaOperacion" value="' + esc(DATOS.hoy.fecha) + '"></div>' +
           '</div>' +
-          '<div class="text-muted mt-2" style="font-size:12px">El número definitivo lo asigna FacturasApp al confirmar.</div>';
+          '<div class="text-muted mt-2" style="font-size:12px">Siguiente número de tu serie predeterminada de rectificativas en FacturasApp.</div>';
         var fila = function (label, valorHtml, clase) {
           return '<div class="fila' + (clase ? ' ' + clase : '') + '"><span>' + esc(label) + '</span><span class="text-end">' + valorHtml + '</span></div>';
         };
@@ -626,7 +642,7 @@
         $('app').innerHTML =
           '<div class="aviso"><strong>Información importante.</strong> Esta factura rectificativa anulará por completo la factura original ' + esc(DATOS.numero) + '. Esta acción no puede deshacerse una vez confirmada.</div>' +
           '<fieldset id="formulario">' +
-          seccion('numero', '1', 'Número de rectificativa', esc((cons.prefijo || '') + (cons.siguiente || '')), numeroHtml, true) +
+          seccion('numero', '1', 'Número de rectificativa', esc(numeroRect), numeroHtml, true) +
           seccion('detalles', '2', 'Detalles de la factura', 'Factura ' + esc(DATOS.numero) + (t ? ' · ' + esc(fmt(t.neto)) : ''), detallesHtml, true) +
           seccion('motivo', '3', 'Motivo de anulación', '', motivoHtml, true) +
           seccion('envio', '4', 'Opciones de envío', '', envioHtml, true) +
@@ -656,8 +672,8 @@
         var datos = recogerDatos();
         var error = validarCliente(datos);
         if (error) { mostrarAlerta('warning', error.msg, error.campo); return; }
-        var cons = DATOS.consecutivo || {};
-        var numeroNuevo = (cons.prefijo || '') + (cons.siguiente || '');
+        var numeroNuevo = numeroRect;
+        datos.numeroEsperado = numeroRect;
         var texto;
         if (MODO === 'articulos') {
           var neto = resumen && !resumenSucio ? fmt(resumen.totales.neto) : null;
@@ -675,6 +691,7 @@
                 mostrarExito(res, datos);
               } else {
                 setEstado('edicion');
+                if (res && res.nuevoNumero) actualizarNumero(res.nuevoNumero);
                 mostrarAlerta(res && res.tipo === 'warning' ? 'warning' : 'danger', (res && res.mensaje) || 'No se pudo crear la rectificativa.');
               }
             })
