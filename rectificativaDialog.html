@@ -35,6 +35,11 @@
       table.lineas td.importe { text-align: right; font-weight: 600; white-space: nowrap; }
       tr.eliminada td { opacity: .45; text-decoration: line-through; }
       tr.eliminada td.acciones { opacity: 1; text-decoration: none; }
+      tr.editando td { background: #eef4ff; }
+      tr.editor-linea > td { background: #f2f6ff; padding: 14px 18px; }
+      .editor-linea .form-label { font-size: 12px; margin-bottom: 2px; color: #444; }
+      .editor-linea .form-control, .editor-linea .form-select { height: auto; font-size: 13px; padding: 5px 8px; }
+      .editor-linea h6 { font-weight: 700; border-bottom: 1px solid #d6dbe6; padding-bottom: 4px; margin: 14px 0 8px; }
       .btn-icono { border: none; background: transparent; color: #1d4ed8; font-size: 16px; padding: 2px 6px; cursor: pointer; }
       .btn-icono.rojo { color: #c62828; }
       .detalle-lista .fila { display: flex; justify-content: space-between; gap: 16px; padding: 8px 10px; border-bottom: 1px solid #eef0f4; }
@@ -91,6 +96,8 @@
         return { tipo: c.tipo, tipoValor: c.tipoValor, valor: c.valor };
       });
       var resumen = null;          // last server result (calcularTotalesRectificativa)
+      var editando = null;         // index of the product whose editor is open
+      var borrador = null;         // unsaved copy of that product (Guardar applies it)
       var resumenSucio = true;     // true when the form changed after the last result
       var recalculoTimer = null;
       var recalculando = false;
@@ -291,9 +298,9 @@
 
         var productosHtml =
           '<div class="table-responsive"><table class="table lineas mb-1"><thead class="table-light"><tr>' +
-          '<th>Referencia</th><th>Descripción</th><th class="col-num">Precio unit.</th><th class="col-num">Cantidad</th>' +
-          '<th class="col-pct">IVA %</th><th class="col-pct">Retención %</th><th class="col-pct">Rec. equiv. %</th><th class="col-pct">Dcto %</th>' +
-          '<th class="text-end">Importe</th><th></th>' +
+          '<th>Referencia</th><th>Descripción</th><th class="text-end">Precio unit.</th><th class="text-end">Cantidad</th>' +
+          '<th class="text-end">Impuestos</th><th class="text-end">Retención</th><th class="text-end">Rec. equiv.</th><th class="text-end">Dcto</th>' +
+          '<th class="text-end">Importe</th><th class="text-center">Opciones</th>' +
           '</tr></thead><tbody id="lineasBody"></tbody></table></div>' +
           '<div class="text-muted" style="font-size:12px">Solo se pueden rectificar las líneas de la factura original. Elimina las que no apliquen y ajusta precio, cantidad, impuestos o descuento.</div>';
 
@@ -347,56 +354,104 @@
         }).join('');
       }
 
+      // Read-only rows like the web; the pencil opens an inline editor below the row
       function renderLineas() {
-        var contacto = DATOS.contacto || {};
         $('lineasBody').innerHTML = lineas.map(function (l, i) {
-          var esIva = l.taxName === 'IVA';
-          var ivaInput = l.isExempt
-            ? '<input type="number" class="form-control" value="0" disabled title="Operación exenta">'
-            : (esIva
-              ? '<select class="form-select" data-campo="ivaRate" data-i="' + i + '">' + opcionesSelect(IVA_RATES, l.ivaRate) + '</select>'
-              : '<input type="number" class="form-control" data-campo="ivaRate" data-i="' + i + '" min="0" max="100" step="0.01" value="' + l.ivaRate + '">');
-          var recargoOpciones = esIva ? (RECARGO_MAP[l.ivaRate] || [0]) : [0];
-          if (recargoOpciones.indexOf(0) < 0) recargoOpciones = [0].concat(recargoOpciones);
-          var recargoInput = contacto.aplicaRecargo && !l.isExempt
-            ? '<select class="form-select" data-campo="recargoRate" data-i="' + i + '">' + opcionesSelect(recargoOpciones, l.recargoRate) + '</select>'
-            : '<input type="number" class="form-control" value="0" disabled title="Solo para clientes autónomos">';
-          var tituloRet = l.retencionTipo === 'otros' ? 'Retención "Otros"' + (l.retencionDescripcion ? ': ' + l.retencionDescripcion : '') : 'Retención';
-          var avisoCantidad = l.quantity > l.cantidadOriginal ? ' is-invalid" title="Supera la cantidad facturada (' + l.cantidadOriginal + ')' : '';
-          return '<tr class="' + (l.eliminada ? 'eliminada' : '') + '">' +
+          var m = montosLinea(l);
+          var acciones = l.eliminada
+            ? '<button type="button" class="btn btn-link btn-sm p-0" data-accion="restaurar" data-i="' + i + '">Restaurar</button>'
+            : '<button type="button" class="btn-icono" data-accion="editar" data-i="' + i + '" title="Editar producto">&#9998;</button>' +
+              '<button type="button" class="btn-icono rojo" data-accion="eliminar" data-i="' + i + '" title="Eliminar producto">&#128465;</button>';
+          var avisoCantidad = l.quantity > l.cantidadOriginal ? ' class="text-end texto-rojo" title="Supera la cantidad facturada (' + l.cantidadOriginal + ')"' : ' class="text-end"';
+          var fila = '<tr class="' + (l.eliminada ? 'eliminada' : (editando === i ? 'editando' : '')) + '">' +
             '<td>' + esc(l.reference) + '</td>' +
             '<td title="' + esc(l.description) + '" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(l.description) + '</td>' +
-            '<td><input type="number" class="form-control" data-campo="unitPrice" data-i="' + i + '" min="0" step="0.01" value="' + l.unitPrice + '"' + (l.eliminada ? ' disabled' : '') + '></td>' +
-            '<td><input type="number" class="form-control' + avisoCantidad + '" data-campo="quantity" data-i="' + i + '" min="1" step="1" value="' + l.quantity + '"' + (l.eliminada ? ' disabled' : '') + '></td>' +
-            '<td>' + ivaInput + '</td>' +
-            '<td title="' + esc(tituloRet) + '"><input type="number" class="form-control" data-campo="retencionRate" data-i="' + i + '" min="0" max="100" step="0.01" value="' + l.retencionRate + '"' + (l.eliminada ? ' disabled' : '') + '></td>' +
-            '<td>' + recargoInput + '</td>' +
-            '<td><input type="number" class="form-control" data-campo="descuentoRate" data-i="' + i + '" min="0" max="100" step="0.01" value="' + l.descuentoRate + '"' + (l.eliminada ? ' disabled' : '') + '></td>' +
-            '<td class="importe" id="importe-' + i + '">' + fmt(importeLinea(l)) + '</td>' +
-            '<td class="acciones">' + (l.eliminada
-              ? '<button type="button" class="btn btn-link btn-sm p-0" data-accion="restaurar" data-i="' + i + '">Restaurar</button>'
-              : '<button type="button" class="btn-icono rojo" data-accion="eliminar" data-i="' + i + '" title="Eliminar línea">&#128465;</button>') + '</td>' +
+            '<td class="text-end">' + fmtNum(l.unitPrice) + '</td>' +
+            '<td' + avisoCantidad + '>' + fmtNum(l.quantity) + '</td>' +
+            '<td class="text-end" title="' + esc(l.taxName || 'IVA') + ' ' + fmtPct(l.ivaRate) + '">' + fmtNum(m.impuesto) + '</td>' +
+            '<td class="text-end" title="' + fmtPct(l.retencionRate) + '">' + fmtNum(m.retencion) + '</td>' +
+            '<td class="text-end" title="' + fmtPct(l.recargoRate) + '">' + fmtNum(m.recargo) + '</td>' +
+            '<td class="text-end" title="' + fmtPct(l.descuentoRate) + '">' + fmtNum(m.descuento) + '</td>' +
+            '<td class="importe" id="importe-' + i + '">' + fmt(m.importe) + '</td>' +
+            '<td class="acciones text-center" style="white-space:nowrap">' + acciones + '</td>' +
             '</tr>';
+          return fila + (editando === i ? editorLinea(i) : '');
         }).join('');
-        if (DATOS.contacto && DATOS.contacto.aplicaRecargo) {
-          // Recargo options depend on the IVA rate: keep them in sync
-          lineas.forEach(function (l, i) {
-            var sel = document.querySelector('select[data-campo="recargoRate"][data-i="' + i + '"]');
-            if (sel) sel.disabled = l.eliminada;
-          });
-        }
-        lineas.forEach(function (l, i) {
-          var ivaSel = document.querySelector('[data-campo="ivaRate"][data-i="' + i + '"]');
-          if (ivaSel) ivaSel.disabled = l.eliminada;
-        });
       }
 
-      function importeLinea(l) {
-        var baseBruta = round2(l.unitPrice * l.quantity);
-        var dto = round2(baseBruta * l.descuentoRate / 100);
-        var baseNeta = round2(baseBruta - dto);
-        return round2(baseNeta + round2(baseNeta * l.ivaRate / 100) + round2(baseNeta * l.recargoRate / 100) - round2(baseNeta * l.retencionRate / 100));
+      function editorLinea(i) {
+        var b = borrador;
+        var contacto = DATOS.contacto || {};
+        var esIva = b.taxName === 'IVA';
+        var campo = function (col, label, html) {
+          return '<div class="' + col + '"><label class="form-label">' + label + '</label>' + html + '</div>';
+        };
+        var numero = function (nombre, valorCampo, attrs) {
+          return '<input type="number" class="form-control" data-borrador="' + nombre + '" value="' + valorCampo + '" ' + attrs + '>';
+        };
+        var tarifa = b.isExempt
+          ? '<input type="text" class="form-control" value="Exento" disabled>'
+          : (esIva
+            ? '<select class="form-select" data-borrador="ivaRate">' + opcionesSelect(IVA_RATES, b.ivaRate) + '</select>'
+            : numero('ivaRate', b.ivaRate, 'min="0" max="100" step="0.01"'));
+        var recargoOpciones = esIva ? (RECARGO_MAP[b.ivaRate] || [0]) : [0];
+        if (recargoOpciones.indexOf(0) < 0) recargoOpciones = [0].concat(recargoOpciones);
+        var recargo = contacto.aplicaRecargo && !b.isExempt
+          ? '<select class="form-select" data-borrador="recargoRate">' + opcionesSelect(recargoOpciones, b.recargoRate) + '</select>'
+          : '<input type="text" class="form-control" value="No aplica" disabled title="Solo para clientes autónomos">';
+        var etiquetaRet = b.retencionTipo === 'otros' ? 'Retención "Otros"' + (b.retencionDescripcion ? ' (' + esc(b.retencionDescripcion) + ')' : '') + ' %' : 'Retención %';
+        var m = montosLinea(b);
+        return '<tr class="editor-linea"><td colspan="10">' +
+          '<div class="row g-2">' +
+          campo('col-4', 'Referencia', '<input type="text" class="form-control" value="' + esc(b.reference) + '" disabled>') +
+          campo('col-4', 'Descripción', '<input type="text" class="form-control" value="' + esc(b.description) + '" disabled>') +
+          campo('col-4', 'Precio unitario', numero('unitPrice', b.unitPrice, 'min="0" step="0.01"')) +
+          campo('col-4', 'Cantidad', numero('quantity', b.quantity, 'min="1" step="1"') +
+            '<div class="texto-rojo" id="avisoCantidadBorrador" style="font-size:12px;' + (b.quantity > b.cantidadOriginal ? '' : 'display:none') + '">Supera la cantidad facturada (' + fmtNum(b.cantidadOriginal) + ').</div>') +
+          '</div>' +
+          '<h6>Impuestos</h6>' +
+          '<div class="row g-2">' +
+          campo('col-4', 'Impuesto', '<input type="text" class="form-control" value="' + esc(b.taxName || 'IVA') + '" disabled>') +
+          campo('col-4', 'Tarifa %', tarifa) +
+          campo('col-4', 'Cuota (€)', '<input type="text" class="form-control" id="cuotaBorrador" value="' + fmt(m.impuesto) + '" disabled>') +
+          campo('col-4', 'Recargo de equivalencia %', recargo) +
+          '</div>' +
+          '<h6></h6>' +
+          '<div class="row g-2 align-items-end">' +
+          campo('col-4', etiquetaRet, numero('retencionRate', b.retencionRate, 'min="0" max="100" step="0.01"')) +
+          campo('col-4', '% descuento', numero('descuentoRate', b.descuentoRate, 'min="0" max="100" step="0.01"')) +
+          '<div class="col-4 text-end">' +
+          '  <button type="button" class="btn btn-light border me-2" data-accion="guardarLinea" data-i="' + i + '">Guardar</button>' +
+          '  <button type="button" class="btn btn-link text-dark" data-accion="cancelarLinea" data-i="' + i + '">Cancelar</button>' +
+          '</div>' +
+          '</div>' +
+          '</td></tr>';
       }
+
+      // Same validation the send path applies, run when the user saves one product
+      function validarBorrador(b) {
+        if (!(b.quantity >= 1) || Math.trunc(b.quantity) !== b.quantity) return 'La cantidad debe ser un entero mayor o igual a 1.';
+        if (!(b.unitPrice >= 0)) return 'El precio unitario no es válido.';
+        if (!(b.ivaRate >= 0 && b.ivaRate <= 100)) return 'La tarifa del impuesto debe estar entre 0 y 100.';
+        if (!(b.retencionRate >= 0 && b.retencionRate <= 100)) return 'La retención debe estar entre 0 y 100.';
+        if (!(b.descuentoRate >= 0 && b.descuentoRate <= 100)) return 'El descuento debe estar entre 0 y 100.';
+        return '';
+      }
+
+      function fmtNum(n) { return (Number(n) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+      function montosLinea(l) {
+        var baseBruta = round2(l.unitPrice * l.quantity);
+        var descuento = round2(baseBruta * l.descuentoRate / 100);
+        var baseNeta = round2(baseBruta - descuento);
+        var impuesto = round2(baseNeta * l.ivaRate / 100);
+        var recargo = round2(baseNeta * l.recargoRate / 100);
+        var retencion = round2(baseNeta * l.retencionRate / 100);
+        return { descuento: descuento, impuesto: impuesto, recargo: recargo, retencion: retencion,
+                 importe: round2(baseNeta + impuesto + recargo - retencion) };
+      }
+
+      function importeLinea(l) { return montosLinea(l).importe; }
 
       function renderCargos() {
         var base = resumen && resumen.totales ? resumen.totales.baseImponible : (DATOS.totales ? DATOS.totales.baseImponible : 0);
@@ -433,14 +488,14 @@
           ['Descuentos por línea', t.descuentosLinea],
           ['Base gravable', t.baseImponible],
           ['Base exenta', t.baseExenta],
-          ['Impuestos (IVA)', t.iva],
+          ['Impuestos', t.iva],
           ['Recargo de equivalencia', t.recargo],
           ['Total factura', t.total],
           ['Retenciones por línea', t.retenciones],
           ['Descuento de factura', t.descuentoFactura],
           ['Cargos', t.cargos],
           ['Retención IRPF', t.irpf]
-        ].filter(function (f) { return f[1] !== 0 || ['Subtotal sin descuentos', 'Base gravable', 'Impuestos (IVA)', 'Total factura'].indexOf(f[0]) >= 0; });
+        ].filter(function (f) { return f[1] !== 0 || ['Subtotal sin descuentos', 'Base gravable', 'Impuestos', 'Total factura'].indexOf(f[0]) >= 0; });
         $('resumenTotales').innerHTML = filas.map(function (f) {
           return '<div class="fila"><span>' + esc(f[0]) + '</span><strong>' + fmt(f[1]) + '</strong></div>';
         }).join('');
@@ -562,6 +617,7 @@
 
       function previsualizar() {
         limpiarAlertas();
+        if (editando !== null) { mostrarAlerta('warning', 'Guarda o cancela la edición del producto ' + lineas[editando].reference + ' antes de continuar.'); return; }
         var mostrar = function () {
           if (!resumen) return;
           var t = resumen.totales;
@@ -669,6 +725,7 @@
 
       function enviar() {
         limpiarAlertas();
+        if (editando !== null) { mostrarAlerta('warning', 'Guarda o cancela la edición del producto ' + lineas[editando].reference + ' antes de continuar.'); return; }
         var datos = recogerDatos();
         var error = validarCliente(datos);
         if (error) { mostrarAlerta('warning', error.msg, error.campo); return; }
@@ -743,6 +800,13 @@
         }
       }
 
+      function actualizarBorrador(el) {
+        borrador[el.dataset.borrador] = Number(el.value) || 0;
+        var m = montosLinea(borrador);
+        if ($('cuotaBorrador')) $('cuotaBorrador').value = fmt(m.impuesto);
+        if ($('avisoCantidadBorrador')) $('avisoCantidadBorrador').style.display = borrador.quantity > borrador.cantidadOriginal ? '' : 'none';
+      }
+
       // ------------------------------------------------------------------
       // Events (delegated)
       // ------------------------------------------------------------------
@@ -751,15 +815,8 @@
         if (!el) return;
         el.classList.remove('is-invalid');
         if (el.id && $(el.id + 'Contador')) $(el.id + 'Contador').textContent = el.value.length;
-        if (el.dataset.campo) {
-          var l = lineas[Number(el.dataset.i)];
-          l[el.dataset.campo] = Number(el.value) || 0;
-          if (el.dataset.campo === 'quantity') {
-            el.classList.toggle('is-invalid', l.quantity > l.cantidadOriginal);
-            el.title = l.quantity > l.cantidadOriginal ? 'Supera la cantidad facturada (' + l.cantidadOriginal + ')' : '';
-          }
-          if ($('importe-' + el.dataset.i)) $('importe-' + el.dataset.i).textContent = fmt(importeLinea(l));
-          programarRecalculo();
+        if (el.dataset.borrador && borrador) {
+          actualizarBorrador(el);
         } else if (el.dataset.cargo) {
           var c = cargos[Number(el.dataset.i)];
           c[el.dataset.cargo] = el.dataset.cargo === 'valor' ? (Number(el.value) || 0) : el.value;
@@ -771,18 +828,14 @@
       document.addEventListener('change', function (e) {
         var el = e.target;
         if (!el) return;
-        if (el.dataset.campo === 'ivaRate') {
-          var l = lineas[Number(el.dataset.i)];
-          l.ivaRate = Number(el.value) || 0;
-          // Recargo options depend on the IVA rate
-          var permitidos = RECARGO_MAP[l.ivaRate] || [0];
-          if (permitidos.indexOf(l.recargoRate) < 0) l.recargoRate = 0;
-          renderLineas();
-          programarRecalculo();
-        } else if (el.dataset.campo === 'recargoRate') {
-          lineas[Number(el.dataset.i)].recargoRate = Number(el.value) || 0;
-          if ($('importe-' + el.dataset.i)) $('importe-' + el.dataset.i).textContent = fmt(importeLinea(lineas[Number(el.dataset.i)]));
-          programarRecalculo();
+        if (el.dataset.borrador && borrador) {
+          actualizarBorrador(el);
+          if (el.dataset.borrador === 'ivaRate') {
+            // Recargo options depend on the IVA rate
+            var permitidosB = RECARGO_MAP[borrador.ivaRate] || [0];
+            if (permitidosB.indexOf(borrador.recargoRate) < 0) borrador.recargoRate = 0;
+            renderLineas();
+          }
         } else if (el.dataset.cargo) {
           var c = cargos[Number(el.dataset.i)];
           c[el.dataset.cargo] = el.dataset.cargo === 'valor' ? (Number(el.value) || 0) : el.value;
@@ -798,6 +851,31 @@
         var btn = e.target.closest('[data-accion]');
         if (btn) {
           var i = Number(btn.dataset.i);
+          var accion = btn.dataset.accion;
+          if (accion === 'editar') {
+            editando = i;
+            borrador = Object.assign({}, lineas[i]);
+            renderLineas();
+            var primero = document.querySelector('[data-borrador="unitPrice"]');
+            if (primero) primero.focus();
+            return;
+          }
+          if (accion === 'cancelarLinea') {
+            editando = null; borrador = null;
+            renderLineas();
+            return;
+          }
+          if (accion === 'guardarLinea') {
+            limpiarAlertas();
+            var errorB = validarBorrador(borrador);
+            if (errorB) { mostrarAlerta('warning', lineas[i].reference + ': ' + errorB); return; }
+            lineas[i] = borrador;
+            editando = null; borrador = null;
+            renderLineas();
+            programarRecalculo(0);
+            return;
+          }
+          if (accion === 'eliminar' && editando === i) { editando = null; borrador = null; }
           if (btn.dataset.accion === 'eliminar') lineas[i].eliminada = true;
           if (btn.dataset.accion === 'restaurar') lineas[i].eliminada = false;
           if (btn.dataset.accion === 'quitarCargo') cargos.splice(i, 1);
