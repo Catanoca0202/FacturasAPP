@@ -258,6 +258,13 @@
       // ------------------------------------------------------------------
       // Sustitución (AddRectificativeArticles)
       // ------------------------------------------------------------------
+      // The form starts from the latest sustitución, not from the original invoice
+      function avisoDatosDesde() {
+        if (!DATOS.datosDesde) return '';
+        return '<div class="aviso"><strong>Valores actuales.</strong> Los productos e importes parten de la última rectificativa por sustitución de esta factura (' +
+          esc(DATOS.datosDesde) + '), no de la factura original ' + esc(DATOS.numero) + '.</div>';
+      }
+
       function renderSustitucion() {
         var emisor = DATOS.emisor || {};
         var contacto = DATOS.contacto || {};
@@ -328,6 +335,7 @@
 
         $('app').innerHTML =
           '<div class="aviso"><strong>Factura rectificativa por sustitución.</strong> Esta factura sustituirá por completo a la factura original ' + esc(DATOS.numero) + '. Al confirmarla, la factura rectificada quedará anulada y esta pasará a ser la versión válida.</div>' +
+          avisoDatosDesde() +
           '<fieldset id="formulario">' +
           seccion('datos', '1', 'Datos de facturación', esc(emisor.nombre || '') + ' · Fecha: ' + fechaCorta(DATOS.hoy.fecha), datosFacturacion, true) +
           seccion('contacto', '2', 'Contacto', esc(contacto.nombre || ''), contactoHtml, false) +
@@ -697,6 +705,7 @@
 
         $('app').innerHTML =
           '<div class="aviso"><strong>Información importante.</strong> Esta factura rectificativa anulará por completo la factura original ' + esc(DATOS.numero) + '. Esta acción no puede deshacerse una vez confirmada.</div>' +
+          avisoDatosDesde() +
           '<fieldset id="formulario">' +
           seccion('numero', '1', 'Número de rectificativa', esc(numeroRect), numeroHtml, true) +
           seccion('detalles', '2', 'Detalles de la factura', 'Factura ' + esc(DATOS.numero) + (t ? ' · ' + esc(fmt(t.neto)) : ''), detallesHtml, true) +

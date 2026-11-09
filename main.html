@@ -253,7 +253,8 @@
         avisoVerifactu.style.display = info.avisoVerifactu ? 'block' : 'none';
         const existentes = document.getElementById('rectInfoExistentes');
         if (info.rectificativas && info.rectificativas.length > 0) {
-          existentes.textContent = 'Ya tiene rectificativas: ' + info.rectificativas.join(', ');
+          existentes.textContent = 'Ya tiene rectificativas: ' + info.rectificativas.join(', ') +
+            (info.datosDesde ? '. Se partirá de los valores de ' + info.datosDesde + '.' : '');
           existentes.style.display = 'block';
         } else {
           existentes.style.display = 'none';

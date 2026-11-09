@@ -162,6 +162,23 @@ function rectificativasLocalesDe_(numeroOriginal) {
     .map(fila => ({ numero: fila[HISTORIAL_COL_NUMERO - 1], tipo: fila[HISTORIAL_COL_TIPO_RECT - 1] }));
 }
 
+/**
+ * JSON a new rectificativa should start from: the latest sustitución made from
+ * this book, or the original invoice when there is none. A sustitución replaces
+ * the whole invoice, so its values are the current ones (FacturasApp's web
+ * prefills the original instead). Returns { json, desde } where desde is the
+ * sustitución number used, or ''.
+ */
+function jsonVigenteDeFactura_(numeroOriginal, existentes) {
+  existentes = existentes || rectificativasLocalesDe_(numeroOriginal);
+  const sustituciones = existentes.filter(r => r.tipo === RECTIFICATIVA_TIPO_LABEL.articulos);
+  for (let i = sustituciones.length - 1; i >= 0; i--) {
+    const json = buscarJsonFacturaOriginal_(sustituciones[i].numero);
+    if (json) return { json: json, desde: String(sustituciones[i].numero) };
+  }
+  return { json: buscarJsonFacturaOriginal_(numeroOriginal), desde: '' };
+}
+
 // States that only exist in Verifactu accounts and block a rectificativa (the API
 // requires Correcto / Parcialmente correcto). "Creada" is excluded on purpose:
 // accounts without Verifactu keep every invoice in "Creada" and can rectify it.
@@ -371,8 +388,9 @@ function cargarFacturaParaRectificar(numeroFactura, opciones) {
 
   const tz = getSpreadsheetTimeZone_();
   const ahora = new Date();
-  const original = buscarJsonFacturaOriginal_(numero);
   const existentes = rectificativasLocalesDe_(numero);
+  const vigente = jsonVigenteDeFactura_(numero, existentes);
+  const original = vigente.json;
   const tieneCompleta = existentes.some(r => r.tipo === RECTIFICATIVA_TIPO_LABEL.completa);
 
   // Number to send (mode B) and AEAT state of the original. Skipped for preview
@@ -402,6 +420,7 @@ function cargarFacturaParaRectificar(numeroFactura, opciones) {
     tieneJson: !!original,
     tieneCompleta: tieneCompleta,
     rectificativas: existentes.map(r => String(r.numero)),
+    datosDesde: vigente.desde,
     siguienteNumero: consecutivo.siguiente,
     consecutivo: consecutivo,
     numeracion: numeracion,
@@ -787,10 +806,10 @@ function calcularTotalesRectificativa(datos) {
     const error = validarDatosRectificativa_(datos, info);
     if (error) return { ok: false, error: error };
     if (datos.tipo !== 'articulos') {
-      const original = buscarJsonFacturaOriginal_(numeroOriginal);
+      const original = jsonVigenteDeFactura_(numeroOriginal).json;
       return { ok: true, resumen: original ? resumenDesdePayload_(original) : null };
     }
-    const original = buscarJsonFacturaOriginal_(numeroOriginal);
+    const original = jsonVigenteDeFactura_(numeroOriginal).json;
     const payload = construirPayloadRectificativaArticulos_(original, datos.lineas, opcionesPayloadDesdeDatos_(datos, numeroOriginal));
     return { ok: true, resumen: resumenDesdePayload_(payload) };
   } catch (error) {
@@ -972,7 +991,7 @@ function crearRectificativa(datos) {
 
     const motivoAeat = String(datos.motivoAeat || '').trim().toUpperCase();
     const motivoTexto = String(datos.motivoTexto || '').trim();
-    const original = buscarJsonFacturaOriginal_(numeroOriginal);
+    const original = jsonVigenteDeFactura_(numeroOriginal).json;
     let envio;
     let payloadListado;
     if (tipo === 'completa') {
