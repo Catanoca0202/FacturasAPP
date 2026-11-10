@@ -265,6 +265,15 @@
           esc(DATOS.datosDesde) + '), no de la factura original ' + esc(DATOS.numero) + '.</div>';
       }
 
+      // FacturasApp always annuls the alta amounts, even after a sustitución
+      function avisoAnulacionTrasSustitucion() {
+        if (!DATOS.datosDesde) return '';
+        var vigente = DATOS.totales ? ' (neto vigente ' + esc(fmt(DATOS.totales.neto)) + ')' : '';
+        return '<div class="aviso"><strong>Atención: la factura tiene rectificativas por sustitución.</strong> La última es ' +
+          esc(DATOS.datosDesde) + vigente + '. FacturasApp anula siempre el importe de la factura original ' + esc(DATOS.numero) +
+          ', no el de la última sustitución, por eso los importes a anular son los de la factura original.</div>';
+      }
+
       function renderSustitucion() {
         var emisor = DATOS.emisor || {};
         var contacto = DATOS.contacto || {};
@@ -411,8 +420,9 @@
         var m = montosLinea(b);
         return '<tr class="editor-linea"><td colspan="10">' +
           '<div class="row g-2">' +
-          campo('col-4', 'Referencia', '<input type="text" class="form-control" value="' + esc(b.reference) + '" disabled>') +
-          campo('col-4', 'Descripción', '<input type="text" class="form-control" value="' + esc(b.description) + '" disabled>') +
+          campo('col-4', 'Referencia', '<input type="text" class="form-control" data-texto="reference" maxlength="' + (DATOS.referenciaMax || 50) + '" value="' + esc(b.reference) + '">' +
+            (b.reference !== b.referenciaOriginal ? '<div class="text-muted" style="font-size:12px">Original: ' + esc(b.referenciaOriginal) + '. Solo cambia en esta factura.</div>' : '')) +
+          campo('col-4', 'Descripción', '<input type="text" class="form-control" data-texto="description" maxlength="' + (DATOS.descripcionMax || 300) + '" value="' + esc(b.description) + '">') +
           campo('col-4', 'Precio unitario', numero('unitPrice', b.unitPrice, 'min="0" step="0.01"')) +
           campo('col-4', 'Cantidad', numero('quantity', b.quantity, 'min="1" step="1"') +
             '<div class="texto-rojo" id="avisoCantidadBorrador" style="font-size:12px;' + (b.quantity > b.cantidadOriginal ? '' : 'display:none') + '">Supera la cantidad facturada (' + fmtNum(b.cantidadOriginal) + ').</div>') +
@@ -438,6 +448,7 @@
 
       // Same validation the send path applies, run when the user saves one product
       function validarBorrador(b) {
+        if (!String(b.reference || '').trim()) return 'La referencia no puede estar vacía.';
         if (!(b.quantity >= 1) || Math.trunc(b.quantity) !== b.quantity) return 'La cantidad debe ser un entero mayor o igual a 1.';
         if (!(b.unitPrice >= 0)) return 'El precio unitario no es válido.';
         if (!(b.ivaRate >= 0 && b.ivaRate <= 100)) return 'La tarifa del impuesto debe estar entre 0 y 100.';
@@ -508,12 +519,20 @@
           return '<div class="fila"><span>' + esc(f[0]) + '</span><strong>' + fmt(f[1]) + '</strong></div>';
         }).join('');
         $('netoValor').textContent = fmt(t.neto);
-        resumen.lineas.forEach(function (l) {
-          var idx = lineas.findIndex(function (x) { return !x.eliminada && x.reference === l.reference; });
-          if (idx >= 0 && $('importe-' + idx)) $('importe-' + idx).textContent = fmt(l.importe);
+        var activas = indicesActivos();
+        resumen.lineas.forEach(function (l, k) {
+          var idx = activas[k];
+          if (idx !== undefined && $('importe-' + idx)) $('importe-' + idx).textContent = fmt(l.importe);
         });
         renderCargos();
         actualizarSubtitulos();
+      }
+
+      // Positions in `lineas` of the products that are sent, in send order
+      function indicesActivos() {
+        var res = [];
+        lineas.forEach(function (l, i) { if (!l.eliminada) res.push(i); });
+        return res;
       }
 
       function actualizarSubtitulos() {
@@ -547,7 +566,7 @@
           datos.paymentNote = valor('paymentNote').trim();
           datos.textObservations = valor('textObservations').trim();
           datos.lineas = lineas.filter(function (l) { return !l.eliminada; }).map(function (l) {
-            return { reference: l.reference, quantity: l.quantity, unitPrice: l.unitPrice, ivaRate: l.ivaRate,
+            return { origen: l.origen, reference: String(l.reference || '').trim(), description: String(l.description || '').trim(), quantity: l.quantity, unitPrice: l.unitPrice, ivaRate: l.ivaRate,
               descuentoRate: l.descuentoRate, retencionRate: l.retencionRate, recargoRate: l.recargoRate };
           });
           datos.cargosDescuentos = cargos.map(function (c) { return { tipo: c.tipo, tipoValor: c.tipoValor, valor: c.valor }; });
@@ -629,8 +648,8 @@
         var mostrar = function () {
           if (!resumen) return;
           var t = resumen.totales;
-          var lineasHtml = lineas.filter(function (l) { return !l.eliminada; }).map(function (l) {
-            var r = resumen.lineas.filter(function (x) { return x.reference === l.reference; })[0];
+          var lineasHtml = lineas.filter(function (l) { return !l.eliminada; }).map(function (l, k) {
+            var r = resumen.lineas[k];
             return '<tr><td>' + esc(l.reference) + '</td><td>' + esc(l.description) + '</td><td class="text-end">' + l.quantity + ' × ' + fmt(l.unitPrice) + '</td><td class="text-end">' + fmt(r ? r.importe : importeLinea(l)) + '</td></tr>';
           }).join('');
           var impuestosHtml = resumen.impuestos.map(function (imp) {
@@ -674,7 +693,7 @@
       // Anulación (AddRectificativeComplete)
       // ------------------------------------------------------------------
       function renderAnulacion() {
-        var t = DATOS.totales;
+        var t = DATOS.totalesAnulacion || DATOS.totales;
         var numeroHtml =
           '<div class="row g-3">' +
           '  <div class="col-md-4"><label class="form-label mb-1">Prefijo</label><input type="text" class="form-control" id="numeroRectPrefijo" value="' + esc(prefijoRect()) + '" disabled></div>' +
@@ -705,7 +724,7 @@
 
         $('app').innerHTML =
           '<div class="aviso"><strong>Información importante.</strong> Esta factura rectificativa anulará por completo la factura original ' + esc(DATOS.numero) + '. Esta acción no puede deshacerse una vez confirmada.</div>' +
-          avisoDatosDesde() +
+          avisoAnulacionTrasSustitucion() +
           '<fieldset id="formulario">' +
           seccion('numero', '1', 'Número de rectificativa', esc(numeroRect), numeroHtml, true) +
           seccion('detalles', '2', 'Detalles de la factura', 'Factura ' + esc(DATOS.numero) + (t ? ' · ' + esc(fmt(t.neto)) : ''), detallesHtml, true) +
@@ -747,7 +766,7 @@
             (neto ? ' con un neto a pagar de ' + neto : '') + '.\nLa factura original quedará anulada. Esta acción no se puede deshacer.';
         } else {
           texto = 'Se creará la rectificativa ' + (numeroNuevo || '') + ' que anula por completo la factura ' + DATOS.numero +
-            (DATOS.totales ? ' (' + fmt(DATOS.totales.neto) + ')' : '') + '.\nEsta acción no se puede deshacer.';
+            ((DATOS.totalesAnulacion || DATOS.totales) ? ' (' + fmt((DATOS.totalesAnulacion || DATOS.totales).neto) + ')' : '') + '.\nEsta acción no se puede deshacer.';
         }
         confirmar(texto, MODO === 'articulos' ? 'Enviar rectificativa' : 'Confirmar anulación', function () {
           setEstado('generando');
@@ -824,7 +843,9 @@
         if (!el) return;
         el.classList.remove('is-invalid');
         if (el.id && $(el.id + 'Contador')) $(el.id + 'Contador').textContent = el.value.length;
-        if (el.dataset.borrador && borrador) {
+        if (el.dataset.texto && borrador) {
+          borrador[el.dataset.texto] = el.value;
+        } else if (el.dataset.borrador && borrador) {
           actualizarBorrador(el);
         } else if (el.dataset.cargo) {
           var c = cargos[Number(el.dataset.i)];

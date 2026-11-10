@@ -445,6 +445,7 @@ function guardarFactura(){
       // Validaciones previas a guardar: solo validar consecutivo
       let consecutivoOk = verificarEstadoConsecutivo();
       if (consecutivoOk) {
+        asegurarNumeroFacturaNoConsumido_();
         guardarYGenerarInvoice();
         Logger.log("guardar factura");
         // Only record the invoice locally once the API confirmed it. Otherwise a
@@ -1704,6 +1705,47 @@ function asegurarNumeroFacturaEnG2_(sheet, intentos, sleepMs) {
 }
 
 
+// Last nextInvoiceNumber (numeric part) read from GetConsecutives, used as a
+// floor when the API cannot be called (simple onEdit trigger)
+const PROP_ULTIMO_SIGUIENTE_API = 'ConsecutivoUltimoSiguienteApi';
+
+/**
+ * Right before sending: if the number in G2 is below the API's next number of
+ * the default series (already used, e.g. from the web), move it up. Runs with
+ * full authorization, unlike onEdit. Keeps G2 as is when the API is unreachable
+ * or G2 follows another prefix.
+ */
+function asegurarNumeroFacturaNoConsumido_() {
+  const sheet = SpreadsheetApp.getActive().getSheetByName('Factura');
+  const actual = String(sheet.getRange("G2").getDisplayValue() || '').trim();
+  if (!actual || !cumpleEstructura(actual)) return;
+  let apiData;
+  try {
+    apiData = fetchConsecutivesFromAPI_();
+  } catch (e) {
+    Logger.log("[asegurarNumeroFacturaNoConsumido_] API sync failed: " + e.message);
+    return;
+  }
+  if (!apiData || !apiData.facturasDeAlta || apiData.facturasDeAlta.length === 0) return;
+  const defaultEntry = apiData.facturasDeAlta.find(e => e.isDefault === true) || apiData.facturasDeAlta[0];
+  const desdeNext = obtenerParteNumerica(String(defaultEntry.nextInvoiceNumber || ''));
+  const apiSiguiente = desdeNext > 0 ? desdeNext : Number(defaultEntry.consecutivoActual || 0);
+  if (!(apiSiguiente > 0)) return;
+  PropertiesService.getDocumentProperties().setProperty(PROP_ULTIMO_SIGUIENTE_API, String(apiSiguiente));
+  const sufijo = (actual.match(/\d+$/) || [''])[0];
+  const prefijo = actual.slice(0, actual.length - sufijo.length);
+  // Only compare numbers of the same series
+  const prefijoApi = String(defaultEntry.nextInvoiceNumber || '').replace(/\d+$/, '');
+  if (prefijoApi && prefijoApi.toUpperCase() !== prefijo.toUpperCase()) return;
+  const numeroActual = obtenerParteNumerica(actual);
+  if (isFinite(numeroActual) && numeroActual >= apiSiguiente) return;
+  const digitos = Math.max(sufijo.length, 1);
+  const nuevo = prefijo + String(apiSiguiente).padStart(digitos, '0');
+  Logger.log("[asegurarNumeroFacturaNoConsumido_] G2 %s ya usado; se cambia a %s", actual, nuevo);
+  sheet.getRange("G2").setValue(nuevo);
+  SpreadsheetApp.flush();
+}
+
 function generarNumeroFactura(){
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = spreadsheet.getSheetByName('Factura');
@@ -1758,9 +1800,18 @@ function generarNumeroFactura(){
       apiSiguiente = desdeNext > 0 ? desdeNext : Number(defaultEntry.consecutivoActual || 0);
       Logger.log("[generarNumeroFactura] API nextInvoiceNumber=%s consecutivoActual=%s -> apiSiguiente=%s",
         String(defaultEntry.nextInvoiceNumber || ''), String(defaultEntry.consecutivoActual || ''), String(apiSiguiente));
+      if (apiSiguiente > 0) scriptProperties.setProperty(PROP_ULTIMO_SIGUIENTE_API, String(apiSiguiente));
     }
   } catch (apiErr) {
+    // onEdit is a simple trigger and cannot call UrlFetchApp, so picking a
+    // client always lands here. Never go below the number already in G2 or the
+    // last one the API gave us: the local history misses invoices made on the web.
     Logger.log("[generarNumeroFactura] API sync failed, using local history: " + apiErr.message);
+    const ultimoApi = parseInt(scriptProperties.getProperty(PROP_ULTIMO_SIGUIENTE_API) || '', 10);
+    const actualG2 = String(sheet.getRange("G2").getDisplayValue() || '').trim();
+    const numeroG2 = (actualG2 && cumpleEstructura(actualG2)) ? obtenerParteNumerica(actualG2) : -1;
+    apiSiguiente = Math.max(isFinite(ultimoApi) ? ultimoApi : -1, isFinite(numeroG2) ? numeroG2 : -1);
+    Logger.log("[generarNumeroFactura] fallback floor: ultimoApi=%s G2=%s -> %s", String(ultimoApi), actualG2, String(apiSiguiente));
   }
 
   // Buscar el consecutivo máximo en historial que cumpla la estructura actual

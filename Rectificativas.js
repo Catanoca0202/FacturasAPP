@@ -38,6 +38,9 @@ const RECTIFICATIVA_TIPO = 'SU';
 const RECTIFICATIVA_MOTIVO_MAX = 255;
 // Observations / payment note limit used by the web form (API allows up to 500)
 const RECTIFICATIVA_OBS_MAX = 200;
+// Product reference / description limits (same as recalcularLineaRectificativa_ truncation)
+const RECT_REFERENCIA_MAX = 50;
+const RECT_DESCRIPCION_MAX = 300;
 const RECTIFICATIVA_DIALOG_WIDTH = 960;
 const RECTIFICATIVA_DIALOG_HEIGHT = 700;
 // Historial Facturas Data: extra columns that link a rectificativa to its original
@@ -261,7 +264,7 @@ function avisoEstadoVerifactu_(numero, consulta) {
  * Editable view of a stored product line (rates in percent). The dialog edits
  * these fields and recalcularLineaRectificativa_ rebuilds the API object.
  */
-function lineaDesdeProductoOriginal_(p) {
+function lineaDesdeProductoOriginal_(p, indice) {
   const tax = (p.taxes && p.taxes[0]) || {};
   const retenciones = p.withHoldingsSurChargesDto || [];
   const retencion = retenciones.find(w => w.isWithHolding === true) || null;
@@ -274,7 +277,9 @@ function lineaDesdeProductoOriginal_(p) {
     return base > 0 ? round2Rect_((Number(w.cuotaWithHoldings) || 0) / base * 100) : 0;
   };
   return {
+    origen: indice,
     reference: String(p.reference || ''),
+    referenciaOriginal: String(p.reference || ''),
     description: String(p.description || ''),
     quantity: Number(p.quantity) || 0,
     unitPrice: Number(p.unitPrice) || 0,
@@ -433,13 +438,16 @@ function cargarFacturaParaRectificar(numeroFactura, opciones) {
     emisor: leerDatosEmisor_(),
     formasPago: getFormasPago_(),
     obsMax: RECTIFICATIVA_OBS_MAX,
+    referenciaMax: RECT_REFERENCIA_MAX,
+    descripcionMax: RECT_DESCRIPCION_MAX,
     motivoMax: RECTIFICATIVA_MOTIVO_MAX,
     lineas: [],
     contacto: null,
     pago: null,
     observaciones: null,
     cargosDescuentos: [],
-    totales: null
+    totales: null,
+    totalesAnulacion: null
   };
 
   if (original) {
@@ -452,9 +460,38 @@ function cargarFacturaParaRectificar(numeroFactura, opciones) {
     };
     info.cargosDescuentos = cargosDescuentosDesdeOriginal_(original);
     info.totales = totalesDesdePayload_(original);
+    // AddRectificativeComplete always duplicates the alta in negative, even after
+    // a sustitución, so the anulación shows the alta amounts.
+    const alta = vigente.desde ? buscarJsonFacturaOriginal_(numero) : original;
+    info.totalesAnulacion = alta ? totalesDesdePayload_(alta) : null;
     if (!info.nif && original.contacts && original.contacts[0]) info.nif = String(original.contacts[0].identification || '');
   }
   return info;
+}
+
+/** Edited text when the dialog sent one, else the stored value. */
+function textoEditado_(editado, guardado) {
+  const texto = String(editado == null ? '' : editado).trim();
+  return texto || String(guardado || '');
+}
+
+/**
+ * Stored product an edited line comes from: by position (origen) since the
+ * reference itself can be edited, by reference for callers without origen.
+ */
+function productoOrigenDeLinea_(productos, linea) {
+  const origen = Number(linea.origen);
+  if (linea.origen !== undefined && linea.origen !== null && linea.origen !== '' &&
+      Number.isInteger(origen) && origen >= 0 && origen < productos.length) {
+    return { producto: productos[origen], clave: 'i' + origen };
+  }
+  const ref = String(linea.reference || '').trim().toUpperCase();
+  for (let i = 0; i < productos.length; i++) {
+    const p = productos[i];
+    const r = String((p && (p.referenciaOriginal || p.reference)) || '').trim().toUpperCase();
+    if (r === ref) return { producto: p, clave: 'i' + i };
+  }
+  return null;
 }
 
 /**
@@ -532,8 +569,8 @@ function recalcularLineaRectificativa_(producto, edicion) {
 
   return {
     typeUse: producto.typeUse || 'VEN',
-    reference: String(producto.reference || '').substring(0, 50),
-    description: String(producto.description || '').substring(0, 300),
+    reference: String(textoEditado_(edicion.reference, producto.reference)).substring(0, 50),
+    description: String(textoEditado_(edicion.description, producto.description)).substring(0, 300),
     regime: regime,
     productType: producto.productType,
     unitPrice: precio,
@@ -554,7 +591,9 @@ function recalcularLineaRectificativa_(producto, edicion) {
  * the lines edited in the dialog. Pure (no Sheets access) so it can be unit tested.
  *
  * @param {Object} original        JSON stored when the original was sent (FieldInvoice)
- * @param {Array}  lineasEditadas  [{ reference, quantity, unitPrice, ivaRate, descuentoRate, retencionRate, recargoRate }]
+ * @param {Array}  lineasEditadas  [{ origen, reference, description, quantity, unitPrice, ivaRate, descuentoRate, retencionRate, recargoRate }]
+ *                                 origen = index in original.products; reference and description may be edited
+ *                                 (like the web, they only travel on this invoice, no product is created)
  * @param {Object} opciones        { numeroOriginal, invoiceNumber, motivoAeat, motivoTexto, invoiceDate, invoiceTime,
  *                                   operationDate, observacionesCliente, idPayment, paymentNote,
  *                                   textObservations, cargosDescuentos: [{ tipo, tipoValor, valor }] }
@@ -567,18 +606,14 @@ function construirPayloadRectificativaArticulos_(original, lineasEditadas, opcio
     throw new Error('La rectificativa debe conservar al menos una línea.');
   }
 
-  const porReferencia = {};
-  original.products.forEach(p => { porReferencia[String(p.reference || '').trim().toUpperCase()] = p; });
-
   const products = [];
   const vistas = {};
   lineasEditadas.forEach(linea => {
-    const ref = String(linea.reference || '').trim().toUpperCase();
-    const producto = porReferencia[ref];
-    if (!producto) throw new Error('La referencia ' + linea.reference + ' no existe en la factura original.');
-    if (vistas[ref]) throw new Error('La referencia ' + linea.reference + ' está repetida.');
-    vistas[ref] = true;
-    products.push(recalcularLineaRectificativa_(producto, linea));
+    const encontrado = productoOrigenDeLinea_(original.products, linea);
+    if (!encontrado) throw new Error('El producto ' + linea.reference + ' no corresponde a ninguna línea de la factura original.');
+    if (vistas[encontrado.clave]) throw new Error('El producto ' + linea.reference + ' está repetido.');
+    vistas[encontrado.clave] = true;
+    products.push(recalcularLineaRectificativa_(encontrado.producto, linea));
   });
 
   // Totals mirror guardarYGenerarInvoice(): subTotal is gross, taxBase is net
@@ -727,16 +762,17 @@ function validarDatosRectificativa_(datos, info) {
   if (!esHora_(datos.horaEmision)) return 'La hora de emisión no es válida.';
   const lineas = Array.isArray(datos.lineas) ? datos.lineas : [];
   if (lineas.length === 0) return 'La rectificativa debe conservar al menos una línea.';
-  const originales = {};
-  (info.lineas || []).forEach(l => { originales[String(l.reference).trim().toUpperCase()] = l; });
   const vistas = {};
   for (let i = 0; i < lineas.length; i++) {
     const l = lineas[i];
-    const ref = String(l.reference || '').trim().toUpperCase();
-    const original = originales[ref];
-    if (!original) return 'La referencia ' + l.reference + ' no existe en la factura original.';
-    if (vistas[ref]) return 'La referencia ' + l.reference + ' está repetida.';
-    vistas[ref] = true;
+    const encontrado = productoOrigenDeLinea_(info.lineas || [], l);
+    if (!encontrado) return 'El producto ' + l.reference + ' no corresponde a ninguna línea de la factura original.';
+    if (vistas[encontrado.clave]) return 'El producto ' + l.reference + ' está repetido.';
+    vistas[encontrado.clave] = true;
+    const referencia = String(l.reference || '').trim();
+    if (!referencia) return 'La referencia del producto ' + (i + 1) + ' no puede estar vacía.';
+    if (referencia.length > RECT_REFERENCIA_MAX) return 'La referencia ' + referencia + ' no puede superar ' + RECT_REFERENCIA_MAX + ' caracteres.';
+    if (String(l.description || '').trim().length > RECT_DESCRIPCION_MAX) return 'La descripción de ' + referencia + ' no puede superar ' + RECT_DESCRIPCION_MAX + ' caracteres.';
     const cantidad = Number(l.quantity);
     if (!isFinite(cantidad) || cantidad < 1 || Math.trunc(cantidad) !== cantidad) return 'La cantidad de ' + l.reference + ' debe ser un entero mayor o igual a 1.';
     const precio = Number(l.unitPrice);
@@ -806,7 +842,7 @@ function calcularTotalesRectificativa(datos) {
     const error = validarDatosRectificativa_(datos, info);
     if (error) return { ok: false, error: error };
     if (datos.tipo !== 'articulos') {
-      const original = jsonVigenteDeFactura_(numeroOriginal).json;
+      const original = buscarJsonFacturaOriginal_(numeroOriginal);
       return { ok: true, resumen: original ? resumenDesdePayload_(original) : null };
     }
     const original = jsonVigenteDeFactura_(numeroOriginal).json;
@@ -863,7 +899,7 @@ function enviarRectificativa_(path, payload) {
       (nueva.ok ? 'El siguiente número disponible es ' + nueva.numero + '. Revisa y confirma de nuevo.' : nueva.mensaje);
     return { ok: false, numero: '', mensaje: mensaje, nuevoNumero: nueva.ok ? nueva.numero : '', reconfirmar: nueva.ok };
   } else if (/solo se pueden incluir productos/i.test(mensaje)) {
-    mensaje = 'Alguna referencia no existe en la factura original: ' + mensaje;
+    mensaje = 'FacturasApp no aceptó alguna referencia de producto (solo admite referencias de la factura original). Revisa las referencias editadas. No se creó nada. Detalle: ' + mensaje;
   } else if (/para verifactu/i.test(mensaje)) {
     // Keep FacturasApp's own reason, plus what the user can do about it
     mensaje = 'FacturasApp rechazó la rectificativa: ' + mensaje.trim() +
@@ -1010,11 +1046,13 @@ function crearRectificativa(datos) {
       }
       envio = enviarRectificativa_('/AddRectificativeComplete', payload);
       // Minimal row for ListadoEstado: the backend builds the negative duplicate
+      // of the alta (never of a later sustitución)
+      const alta = buscarJsonFacturaOriginal_(numeroOriginal);
       payloadListado = Object.assign({}, payload, {
         products: [],
-        contacts: original ? original.contacts : [],
-        sumTotalTotal: original ? -round2Rect_(original.sumTotalTotal) : 0,
-        sumTotalNetPayable: original ? -round2Rect_(original.sumTotalNetPayable) : 0
+        contacts: alta ? alta.contacts : [],
+        sumTotalTotal: alta ? -round2Rect_(alta.sumTotalTotal) : 0,
+        sumTotalNetPayable: alta ? -round2Rect_(alta.sumTotalNetPayable) : 0
       });
     } else {
       const opcionesPayload = opcionesPayloadDesdeDatos_(datos, numeroOriginal);
@@ -1046,7 +1084,7 @@ function crearRectificativa(datos) {
     }
 
     const neto = tipo === 'completa'
-      ? (info.totales ? -info.totales.neto : null)
+      ? (info.totalesAnulacion ? -info.totalesAnulacion.neto : null)
       : round2Rect_(payloadListado.sumTotalNetPayable);
     const mensaje = crearMensaje(
       'Rectificativa ' + (envio.numero || '') + ' creada sobre la factura ' + numeroOriginal + '.' +
