@@ -54,6 +54,12 @@ const LISTADO_COL_JSON = 13;           // M
 const RECT_ID_RETENCION = '10';
 const RECT_ID_RETENCION_OTROS = '8';
 const RECT_ID_RECARGO = '11';
+// Tax type name -> taxCode, same mapping as getTaxCodeFromName_ (Factura.js)
+const RECT_TAX_CODES = { IVA: '01', IPSI: '02', IGIC: '03', Otros: '05' };
+// Regime "18" is set automatically when the line carries recargo de equivalencia
+const RECT_REGIMEN_RECARGO = '18';
+const RECT_CALIFICACIONES = ['S1', 'S2', 'N1', 'N2'];
+const RECT_TIPOS_PRODUCTO = [1, 2];   // 1 = Producto, 2 = Servicio
 
 function round2Rect_(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
@@ -260,6 +266,41 @@ function avisoEstadoVerifactu_(numero, consulta) {
     'espera a que la AEAT la procese antes de crear la rectificativa.';
 }
 
+/** Tax name as a TAX_TYPE_CONFIG key ('IVA', 'IGIC', 'IPSI', 'Otros'); IVA when unknown. */
+function tipoImpuestoRect_(taxName, taxCode) {
+  const nombre = String(taxName || '').trim().toUpperCase();
+  const porNombre = Object.keys(RECT_TAX_CODES).find(k => k.toUpperCase() === nombre);
+  if (porNombre) return porNombre;
+  const porCodigo = Object.keys(RECT_TAX_CODES).find(k => RECT_TAX_CODES[k] === String(taxCode || ''));
+  return porCodigo || 'IVA';
+}
+
+/**
+ * Tax options for the product editor, from the same tables the Productos sheet
+ * uses (TAX_TYPE_CONFIG, OPERACION_EXENTA_LABELS, CALIFICACION_OPERACION_OPTIONS).
+ */
+function configImpuestosRectificativa_() {
+  const etiquetasRegimen = {};
+  REGIMEN_LISTA_VALORES.forEach(label => {
+    try { etiquetasRegimen[getRegimenCode(label)] = label; } catch (e) { /* label without code */ }
+  });
+  const tipos = {};
+  Object.keys(RECT_TAX_CODES).forEach(nombre => {
+    const cfg = TAX_TYPE_CONFIG[nombre];
+    const regimenes = {};
+    Object.keys(cfg.regimenes).filter(c => c !== RECT_REGIMEN_RECARGO).forEach(c => {
+      regimenes[c] = Object.assign({ label: etiquetasRegimen[c] || c }, cfg.regimenes[c]);
+    });
+    tipos[nombre] = { taxCode: RECT_TAX_CODES[nombre], regimenes: regimenes, recargoMap: cfg.recargoMap || null };
+  });
+  return {
+    tipos: tipos,
+    exentas: OPERACION_EXENTA_LABELS,
+    calificaciones: CALIFICACION_OPERACION_OPTIONS.map(label => ({ codigo: extractCodePrefix_(label), label: label })),
+    retencionOtrosMax: RETENCION_OTROS_DESCRIPCION_MAX
+  };
+}
+
 /**
  * Editable view of a stored product line (rates in percent). The dialog edits
  * these fields and recalcularLineaRectificativa_ rebuilds the API object.
@@ -285,11 +326,12 @@ function lineaDesdeProductoOriginal_(p, indice) {
     unitPrice: Number(p.unitPrice) || 0,
     ivaRate: round2Rect_(tax.rate),
     taxCode: tax.taxCode || '01',
-    taxName: tax.taxName || 'IVA',
-    regime: tax.regime || p.regime || '01',
+    taxName: tipoImpuestoRect_(tax.taxName, tax.taxCode),
+    // "18" only means "has recargo"; the editor shows the base regime
+    regime: regimenBaseRect_(tax.regime || p.regime),
     isExempt: tax.isExemptOperation === true,
     idExento: tax.idExento || null,
-    qualificationOperation: tax.qualificationOperation || null,
+    qualificationOperation: tax.isExemptOperation === true ? null : (tax.qualificationOperation || 'S1'),
     productType: p.productType,
     typeUse: p.typeUse || 'VEN',
     descuentoRate: descuento ? round2Rect_(descuento.discountRate) : 0,
@@ -298,6 +340,11 @@ function lineaDesdeProductoOriginal_(p, indice) {
     retencionDescripcion: retencion && retencion.otherDescription ? String(retencion.otherDescription) : '',
     recargoRate: porcentaje(recargo)
   };
+}
+
+function regimenBaseRect_(regimen) {
+  const r = String(regimen || '01');
+  return r === RECT_REGIMEN_RECARGO ? '01' : r;
 }
 
 /** Read-only contact block for the dialog, from the stored invoice contact. */
@@ -440,6 +487,7 @@ function cargarFacturaParaRectificar(numeroFactura, opciones) {
     obsMax: RECTIFICATIVA_OBS_MAX,
     referenciaMax: RECT_REFERENCIA_MAX,
     descripcionMax: RECT_DESCRIPCION_MAX,
+    configImpuestos: configImpuestosRectificativa_(),
     motivoMax: RECTIFICATIVA_MOTIVO_MAX,
     lineas: [],
     contacto: null,
@@ -502,10 +550,16 @@ function productoOrigenDeLinea_(productos, linea) {
  */
 function recalcularLineaRectificativa_(producto, edicion) {
   const tax = (producto.taxes && producto.taxes[0]) || {};
-  const isExempt = tax.isExemptOperation === true;
+  // Every tax attribute can be edited; fields the caller leaves out keep the stored value
+  const editado = (campo, guardado) => (edicion[campo] === undefined || edicion[campo] === null || edicion[campo] === '') ? guardado : edicion[campo];
+  const taxName = tipoImpuestoRect_(editado('taxName', tax.taxName), tax.taxCode);
+  const taxCode = RECT_TAX_CODES[taxName];
+  // Like guardarYGenerarInvoice, only a 0 % line can be exempt
+  const isExempt = editado('isExempt', tax.isExemptOperation === true) === true && !(Number(editado('ivaRate', tax.rate)) > 0);
+  const productType = Number(editado('productType', producto.productType));
   const cantidad = Math.max(1, Math.trunc(Number(edicion.quantity) || 0));
   const precio = round2Rect_(edicion.unitPrice);
-  const ivaPct = isExempt ? 0 : round2Rect_(edicion.ivaRate);
+  const ivaPct = isExempt ? 0 : round2Rect_(editado('ivaRate', tax.rate));
   const dtoPct = round2Rect_(edicion.descuentoRate);
   const retPct = round2Rect_(edicion.retencionRate);
   const recPct = round2Rect_(edicion.recargoRate);
@@ -518,33 +572,37 @@ function recalcularLineaRectificativa_(producto, edicion) {
   const surChargesAmount = round2Rect_(baseNeta * recPct / 100);
 
   // Regime "18" is the recargo override; drop it when the surcharge is removed
-  let regime = String(tax.regime || producto.regime || '01');
-  if (recPct > 0) regime = '18';
-  else if (regime === '18') regime = '01';
+  let regime = regimenBaseRect_(editado('regime', tax.regime || producto.regime));
+  if (recPct > 0) regime = RECT_REGIMEN_RECARGO;
 
   const taxEntry = {
-    taxName: tax.taxName || 'IVA',
+    taxName: taxName,
     rate: ivaPct,
     taxBase: baseNeta,
     valueTax: taxAmount,
-    taxCode: tax.taxCode || '01',
+    taxCode: taxCode,
     isExemptOperation: isExempt,
-    qualificationOperation: isExempt ? null : (tax.qualificationOperation || 'S1'),
+    qualificationOperation: isExempt ? null : String(editado('qualificationOperation', tax.qualificationOperation || 'S1')),
     regime: regime
   };
-  if (isExempt && tax.idExento) taxEntry.idExento = tax.idExento;
+  if (isExempt) taxEntry.idExento = String(editado('idExento', tax.idExento || 'E1'));
 
   const withHoldingsSurChargesDto = [];
   if (retPct > 0) {
     const retOriginal = (producto.withHoldingsSurChargesDto || []).find(w => w.isWithHolding === true) || null;
+    const tipoGuardado = retOriginal && String(retOriginal.idRateWithHoldings) === RECT_ID_RETENCION_OTROS ? 'otros' : 'retencion';
+    const esOtros = editado('retencionTipo', tipoGuardado) === 'otros';
     const retDto = {
       isWithHolding: true,
-      idRateWithHoldings: retOriginal ? String(retOriginal.idRateWithHoldings) : RECT_ID_RETENCION,
+      idRateWithHoldings: esOtros ? RECT_ID_RETENCION_OTROS : RECT_ID_RETENCION,
       rateValueWithHoldings: fraccionRect_(retPct),
       subTotalWithHoldings: baseNeta,
       cuotaWithHoldings: withHoldingsAmount
     };
-    if (retOriginal && retOriginal.otherDescription) retDto.otherDescription = String(retOriginal.otherDescription);
+    // The API only accepts otherDescription with "Otros", at most 50 characters
+    const descripcionGuardada = retOriginal && retOriginal.otherDescription ? String(retOriginal.otherDescription) : '';
+    const descripcionOtros = esOtros ? String(edicion.retencionDescripcion === undefined ? descripcionGuardada : (edicion.retencionDescripcion || '')).trim() : '';
+    if (descripcionOtros) retDto.otherDescription = descripcionOtros.substring(0, RETENCION_OTROS_DESCRIPCION_MAX);
     withHoldingsSurChargesDto.push(retDto);
   }
   if (recPct > 0) {
@@ -572,7 +630,7 @@ function recalcularLineaRectificativa_(producto, edicion) {
     reference: String(textoEditado_(edicion.reference, producto.reference)).substring(0, 50),
     description: String(textoEditado_(edicion.description, producto.description)).substring(0, 300),
     regime: regime,
-    productType: producto.productType,
+    productType: isFinite(productType) ? productType : producto.productType,
     unitPrice: precio,
     quantity: cantidad,
     subTotal: baseBruta,
@@ -781,11 +839,10 @@ function validarDatosRectificativa_(datos, info) {
       const n = Number(v);
       return (!isFinite(n) || n < 0 || n > 100) ? 'El porcentaje de ' + nombre + ' de ' + l.reference + ' debe estar entre 0 y 100.' : '';
     };
-    const errPct = pct(l.ivaRate, 'IVA') || pct(l.descuentoRate, 'descuento') || pct(l.retencionRate, 'retención') || pct(l.recargoRate, 'recargo');
+    const errPct = pct(l.ivaRate, 'impuesto') || pct(l.descuentoRate, 'descuento') || pct(l.retencionRate, 'retención') || pct(l.recargoRate, 'recargo');
     if (errPct) return errPct;
-    if (Number(l.recargoRate) > 0 && info.contacto && !info.contacto.aplicaRecargo) {
-      return 'El recargo de equivalencia solo aplica a clientes autónomos.';
-    }
+    const errImpuesto = validarImpuestoLinea_(l, encontrado.producto, info);
+    if (errImpuesto) return 'Producto ' + referencia + ': ' + errImpuesto;
   }
   const cargos = Array.isArray(datos.cargosDescuentos) ? datos.cargosDescuentos : [];
   let irpfs = 0;
@@ -802,6 +859,52 @@ function validarDatosRectificativa_(datos, info) {
   const limiteObs = v => String(v || '').trim().length > RECTIFICATIVA_OBS_MAX;
   if (limiteObs(datos.observacionesCliente) || limiteObs(datos.paymentNote) || limiteObs(datos.textObservations)) {
     return 'Las observaciones no pueden superar ' + RECTIFICATIVA_OBS_MAX + ' caracteres.';
+  }
+  return '';
+}
+
+/**
+ * Tax rules of the Productos sheet applied to one edited line (stored values
+ * fill the fields the dialog did not send). Returns '' or the message.
+ */
+function validarImpuestoLinea_(l, guardada, info) {
+  const g = guardada || {};
+  const valor = (campo) => (l[campo] === undefined || l[campo] === null || l[campo] === '') ? g[campo] : l[campo];
+  const taxName = tipoImpuestoRect_(valor('taxName'), g.taxCode);
+  if (l.taxName && taxName.toUpperCase() !== String(l.taxName).trim().toUpperCase()) return 'tipo de impuesto no válido.';
+  const tipo = TAX_TYPE_CONFIG[taxName];
+  const regimen = regimenBaseRect_(valor('regime'));
+  const tarifa = Number(valor('ivaRate'));
+  const exento = valor('isExempt') === true;
+  // A line left as the original was already accepted: only edited taxes are checked
+  const sinCambios = taxName === g.taxName && regimen === g.regime && tarifa === Number(g.ivaRate) &&
+    exento === (g.isExempt === true) && String(valor('idExento') || '') === String(g.idExento || '') &&
+    String(valor('qualificationOperation') || '') === String(g.qualificationOperation || '');
+  const cfg = tipo.regimenes[regimen];
+  if (!cfg && !sinCambios) return 'el régimen ' + regimen + ' no es válido para ' + taxName + '.';
+  if (sinCambios) {
+    // nothing to check on the tax itself
+  } else if (exento) {
+    if (tarifa !== 0) return 'una operación exenta debe tener tarifa 0.';
+    if (cfg.exentoOps.indexOf(String(valor('idExento') || '')) < 0) return 'elige una operación exenta válida para este régimen.';
+  } else {
+    if (cfg.autoExento) return 'este régimen solo admite operaciones exentas.';
+    if (Array.isArray(cfg.rates) && cfg.rates.indexOf(tarifa) < 0) return 'la tarifa ' + tarifa + ' % no está permitida para este régimen.';
+    if (RECT_CALIFICACIONES.indexOf(String(valor('qualificationOperation') || '')) < 0) return 'elige la calificación de la operación.';
+  }
+  const tipoProducto = Number(valor('productType'));
+  if (RECT_TIPOS_PRODUCTO.indexOf(tipoProducto) < 0 && tipoProducto !== Number(g.productType)) return 'elige si es producto o servicio.';
+  const recargo = Number(l.recargoRate) || 0;
+  if (recargo > 0) {
+    if (info.contacto && !info.contacto.aplicaRecargo) return 'el recargo de equivalencia solo aplica a clientes autónomos.';
+    if (exento || !cfg || !cfg.allowRecargo || !tipo.recargoMap) return 'el recargo de equivalencia no aplica con este impuesto o régimen.';
+    if (tipoProducto === 2) return 'el recargo de equivalencia no aplica a servicios.';
+    if ((tipo.recargoMap[tarifa] || []).indexOf(recargo) < 0) return 'el recargo ' + recargo + ' % no corresponde a la tarifa ' + tarifa + ' %.';
+  }
+  const tipoRet = valor('retencionTipo');
+  if (tipoRet && ['retencion', 'otros'].indexOf(tipoRet) < 0) return 'tipo de retención no válido.';
+  if (String(l.retencionDescripcion || '').trim().length > RETENCION_OTROS_DESCRIPCION_MAX) {
+    return 'la descripción de la retención no puede superar ' + RETENCION_OTROS_DESCRIPCION_MAX + ' caracteres.';
   }
   return '';
 }

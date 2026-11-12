@@ -87,8 +87,12 @@
       // State
       // ------------------------------------------------------------------
       var MODO = DATOS.tipo === 'articulos' ? 'articulos' : 'completa';
-      var IVA_RATES = [21, 10, 4, 0];
-      var RECARGO_MAP = { 21: [5.2, 1.75], 10: [1.4], 4: [0.5], 0: [0] };
+      // Tax options of the Productos sheet (server: configImpuestosRectificativa_)
+      var CONFIG_IMP = DATOS.configImpuestos || {
+        tipos: { IVA: { taxCode: '01', recargoMap: { 21: [5.2, 1.75], 10: [1.4], 4: [0.5], 0: [0] },
+          regimenes: { '01': { label: 'Operación de régimen general', rates: [21, 10, 4, 0], allowRecargo: true, exentoOps: ['E1', 'E4', 'E5', 'E6'] } } } },
+        exentas: {}, calificaciones: [{ codigo: 'S1', label: 'S1' }], retencionOtrosMax: 50
+      };
       var lineas = (DATOS.lineas || []).map(function (l) {
         return Object.assign({}, l, { eliminada: false, cantidadOriginal: l.quantity });
       });
@@ -396,49 +400,105 @@
         }).join('');
       }
 
+      function tipoImpuesto(b) { return CONFIG_IMP.tipos[b.taxName] || CONFIG_IMP.tipos.IVA; }
+      function regimenConfig(b) { return tipoImpuesto(b).regimenes[b.regime] || null; }
+
+      // Recargo allowed like isRecargoAllowed (mainScript.js) plus an autónomo client
+      function recargosPermitidos(b) {
+        var cfg = regimenConfig(b);
+        var mapa = tipoImpuesto(b).recargoMap;
+        if (!(DATOS.contacto || {}).aplicaRecargo || b.isExempt || !cfg || !cfg.allowRecargo || !mapa || b.productType === 2) return [0];
+        var lista = (mapa[b.ivaRate] || []).slice();
+        if (lista.indexOf(0) < 0) lista.unshift(0);
+        return lista;
+      }
+
+      // Keeps the draft consistent after a tax field changes (same rules as the Productos sheet)
+      function normalizarBorrador(b) {
+        var tipo = tipoImpuesto(b);
+        if (!tipo.regimenes[b.regime]) b.regime = tipo.regimenes['01'] ? '01' : Object.keys(tipo.regimenes)[0];
+        var cfg = regimenConfig(b);
+        if (cfg.autoExento) b.isExempt = true;
+        if (!cfg.exentoOps.length) b.isExempt = false;
+        if (b.isExempt) {
+          b.ivaRate = 0;
+          if (cfg.exentoOps.indexOf(b.idExento) < 0) b.idExento = cfg.exentoOps[0];
+          b.qualificationOperation = null;
+        } else {
+          b.idExento = null;
+          if (!b.qualificationOperation) b.qualificationOperation = 'S1';
+          if (Array.isArray(cfg.rates) && cfg.rates.indexOf(b.ivaRate) < 0) b.ivaRate = cfg.rates[0];
+        }
+        if (recargosPermitidos(b).indexOf(b.recargoRate) < 0) b.recargoRate = 0;
+        if (!b.retencionTipo) b.retencionTipo = 'retencion';
+        b.taxCode = tipo.taxCode;
+      }
+
+      function selectOpciones(campo, opciones, actual, extra) {
+        return '<select class="form-select" data-opcion="' + campo + '"' + (extra || '') + '>' + opciones.map(function (o) {
+          return '<option value="' + esc(o.valor) + '"' + (String(o.valor) === String(actual) ? ' selected' : '') + '>' + esc(o.label) + '</option>';
+        }).join('') + '</select>';
+      }
+
       function editorLinea(i) {
         var b = borrador;
-        var contacto = DATOS.contacto || {};
-        var esIva = b.taxName === 'IVA';
+        var tipo = tipoImpuesto(b);
+        var cfg = regimenConfig(b) || { rates: null, exentoOps: [] };
         var campo = function (col, label, html) {
           return '<div class="' + col + '"><label class="form-label">' + label + '</label>' + html + '</div>';
         };
         var numero = function (nombre, valorCampo, attrs) {
           return '<input type="number" class="form-control" data-borrador="' + nombre + '" value="' + valorCampo + '" ' + attrs + '>';
         };
+        var opcionesTipoProducto = [{ valor: 1, label: 'Producto' }, { valor: 2, label: 'Servicio' }];
+        if (b.productType !== 1 && b.productType !== 2) opcionesTipoProducto.unshift({ valor: b.productType, label: 'Sin definir' });
+        var regimenes = Object.keys(tipo.regimenes).map(function (c) { return { valor: c, label: c + ' - ' + tipo.regimenes[c].label }; });
+        if (!tipo.regimenes[b.regime]) regimenes.unshift({ valor: b.regime, label: b.regime + ' (de la factura original)' });
         var tarifa = b.isExempt
-          ? '<input type="text" class="form-control" value="Exento" disabled>'
-          : (esIva
-            ? '<select class="form-select" data-borrador="ivaRate">' + opcionesSelect(IVA_RATES, b.ivaRate) + '</select>'
+          ? '<input type="text" class="form-control" value="0 % (exenta)" disabled>'
+          : (Array.isArray(cfg.rates)
+            ? '<select class="form-select" data-borrador="ivaRate">' + opcionesSelect(cfg.rates, b.ivaRate) + '</select>'
             : numero('ivaRate', b.ivaRate, 'min="0" max="100" step="0.01"'));
-        var recargoOpciones = esIva ? (RECARGO_MAP[b.ivaRate] || [0]) : [0];
-        if (recargoOpciones.indexOf(0) < 0) recargoOpciones = [0].concat(recargoOpciones);
-        var recargo = contacto.aplicaRecargo && !b.isExempt
-          ? '<select class="form-select" data-borrador="recargoRate">' + opcionesSelect(recargoOpciones, b.recargoRate) + '</select>'
-          : '<input type="text" class="form-control" value="No aplica" disabled title="Solo para clientes autónomos">';
-        var etiquetaRet = b.retencionTipo === 'otros' ? 'Retención "Otros"' + (b.retencionDescripcion ? ' (' + esc(b.retencionDescripcion) + ')' : '') + ' %' : 'Retención %';
+        var exentoCheck = '<div class="form-check mt-2"><input class="form-check-input" type="checkbox" id="exentoBorrador" data-check="isExempt"' +
+          (b.isExempt ? ' checked' : '') + (cfg.autoExento || !cfg.exentoOps.length ? ' disabled' : '') + '>' +
+          '<label class="form-check-label" for="exentoBorrador">Operación exenta</label></div>';
+        var detalleOperacion = b.isExempt
+          ? campo('col-4', 'Operación exenta', selectOpciones('idExento', cfg.exentoOps.map(function (c) { return { valor: c, label: CONFIG_IMP.exentas[c] || c }; }), b.idExento))
+          : campo('col-4', 'Calificación de la operación', selectOpciones('qualificationOperation', CONFIG_IMP.calificaciones.map(function (c) { return { valor: c.codigo, label: c.label }; }), b.qualificationOperation));
+        var opcionesRecargo = recargosPermitidos(b);
+        var recargo = opcionesRecargo.length > 1
+          ? '<select class="form-select" data-borrador="recargoRate">' + opcionesSelect(opcionesRecargo, b.recargoRate) + '</select>'
+          : '<input type="text" class="form-control" value="No aplica" disabled title="Solo IVA, clientes autónomos, productos (no servicios) y regímenes que lo permiten">';
         var m = montosLinea(b);
         return '<tr class="editor-linea"><td colspan="10">' +
           '<div class="row g-2">' +
           campo('col-4', 'Referencia', '<input type="text" class="form-control" data-texto="reference" maxlength="' + (DATOS.referenciaMax || 50) + '" value="' + esc(b.reference) + '">' +
             (b.reference !== b.referenciaOriginal ? '<div class="text-muted" style="font-size:12px">Original: ' + esc(b.referenciaOriginal) + '. Solo cambia en esta factura.</div>' : '')) +
           campo('col-4', 'Descripción', '<input type="text" class="form-control" data-texto="description" maxlength="' + (DATOS.descripcionMax || 300) + '" value="' + esc(b.description) + '">') +
+          campo('col-4', 'Tipo de producto', selectOpciones('productType', opcionesTipoProducto, b.productType)) +
           campo('col-4', 'Precio unitario', numero('unitPrice', b.unitPrice, 'min="0" step="0.01"')) +
           campo('col-4', 'Cantidad', numero('quantity', b.quantity, 'min="1" step="1"') +
             '<div class="texto-rojo" id="avisoCantidadBorrador" style="font-size:12px;' + (b.quantity > b.cantidadOriginal ? '' : 'display:none') + '">Supera la cantidad facturada (' + fmtNum(b.cantidadOriginal) + ').</div>') +
+          campo('col-4', '% descuento', numero('descuentoRate', b.descuentoRate, 'min="0" max="100" step="0.01"')) +
           '</div>' +
           '<h6>Impuestos</h6>' +
           '<div class="row g-2">' +
-          campo('col-4', 'Impuesto', '<input type="text" class="form-control" value="' + esc(b.taxName || 'IVA') + '" disabled>') +
-          campo('col-4', 'Tarifa %', tarifa) +
+          campo('col-4', 'Impuesto', selectOpciones('taxName', Object.keys(CONFIG_IMP.tipos).map(function (t) { return { valor: t, label: t }; }), b.taxName)) +
+          campo('col-8', 'Régimen', selectOpciones('regime', regimenes, b.regime) +
+            (b.recargoRate > 0 ? '<div class="text-muted" style="font-size:12px">Con recargo de equivalencia se envía el régimen 18.</div>' : '')) +
+          campo('col-4', 'Tarifa %', tarifa + exentoCheck) +
+          detalleOperacion +
           campo('col-4', 'Cuota (€)', '<input type="text" class="form-control" id="cuotaBorrador" value="' + fmt(m.impuesto) + '" disabled>') +
           campo('col-4', 'Recargo de equivalencia %', recargo) +
           '</div>' +
-          '<h6></h6>' +
+          '<h6>Retención</h6>' +
           '<div class="row g-2 align-items-end">' +
-          campo('col-4', etiquetaRet, numero('retencionRate', b.retencionRate, 'min="0" max="100" step="0.01"')) +
-          campo('col-4', '% descuento', numero('descuentoRate', b.descuentoRate, 'min="0" max="100" step="0.01"')) +
-          '<div class="col-4 text-end">' +
+          campo('col-4', 'Tipo de retención', selectOpciones('retencionTipo', [{ valor: 'retencion', label: 'Retención IRPF' }, { valor: 'otros', label: 'Otros' }], b.retencionTipo)) +
+          campo('col-4', 'Retención %', numero('retencionRate', b.retencionRate, 'min="0" max="100" step="0.01"')) +
+          (b.retencionTipo === 'otros'
+            ? campo('col-4', 'Descripción retención', '<input type="text" class="form-control" data-texto="retencionDescripcion" maxlength="' + (CONFIG_IMP.retencionOtrosMax || 50) + '" value="' + esc(b.retencionDescripcion || '') + '">')
+            : '<div class="col-4"></div>') +
+          '<div class="col-12 text-end">' +
           '  <button type="button" class="btn btn-light border me-2" data-accion="guardarLinea" data-i="' + i + '">Guardar</button>' +
           '  <button type="button" class="btn btn-link text-dark" data-accion="cancelarLinea" data-i="' + i + '">Cancelar</button>' +
           '</div>' +
@@ -452,6 +512,9 @@
         if (!(b.quantity >= 1) || Math.trunc(b.quantity) !== b.quantity) return 'La cantidad debe ser un entero mayor o igual a 1.';
         if (!(b.unitPrice >= 0)) return 'El precio unitario no es válido.';
         if (!(b.ivaRate >= 0 && b.ivaRate <= 100)) return 'La tarifa del impuesto debe estar entre 0 y 100.';
+        if (b.isExempt && !b.idExento) return 'Elige la operación exenta.';
+        if (!b.isExempt && !b.qualificationOperation) return 'Elige la calificación de la operación.';
+        if (b.retencionTipo === 'otros' && String(b.retencionDescripcion || '').length > (CONFIG_IMP.retencionOtrosMax || 50)) return 'La descripción de la retención es demasiado larga.';
         if (!(b.retencionRate >= 0 && b.retencionRate <= 100)) return 'La retención debe estar entre 0 y 100.';
         if (!(b.descuentoRate >= 0 && b.descuentoRate <= 100)) return 'El descuento debe estar entre 0 y 100.';
         return '';
@@ -567,7 +630,10 @@
           datos.textObservations = valor('textObservations').trim();
           datos.lineas = lineas.filter(function (l) { return !l.eliminada; }).map(function (l) {
             return { origen: l.origen, reference: String(l.reference || '').trim(), description: String(l.description || '').trim(), quantity: l.quantity, unitPrice: l.unitPrice, ivaRate: l.ivaRate,
-              descuentoRate: l.descuentoRate, retencionRate: l.retencionRate, recargoRate: l.recargoRate };
+              descuentoRate: l.descuentoRate, retencionRate: l.retencionRate, recargoRate: l.recargoRate,
+              productType: l.productType, taxName: l.taxName, regime: l.regime, isExempt: l.isExempt === true,
+              idExento: l.idExento, qualificationOperation: l.qualificationOperation,
+              retencionTipo: l.retencionTipo || 'retencion', retencionDescripcion: String(l.retencionDescripcion || '').trim() };
           });
           datos.cargosDescuentos = cargos.map(function (c) { return { tipo: c.tipo, tipoValor: c.tipoValor, valor: c.valor }; });
         }
@@ -860,12 +926,21 @@
         if (!el) return;
         if (el.dataset.borrador && borrador) {
           actualizarBorrador(el);
-          if (el.dataset.borrador === 'ivaRate') {
-            // Recargo options depend on the IVA rate
-            var permitidosB = RECARGO_MAP[borrador.ivaRate] || [0];
-            if (permitidosB.indexOf(borrador.recargoRate) < 0) borrador.recargoRate = 0;
+          if (el.dataset.borrador === 'ivaRate' || el.dataset.borrador === 'recargoRate') {
+            // Recargo options depend on the rate; the régimen note on the recargo
+            normalizarBorrador(borrador);
             renderLineas();
           }
+        } else if ((el.dataset.opcion || el.dataset.check) && borrador) {
+          if (el.dataset.check === 'isExempt') {
+            // Unchecking "exenta" brings back the rate the product had before
+            if (el.checked) borrador.tarifaPrevia = borrador.ivaRate;
+            else if (borrador.tarifaPrevia !== undefined) borrador.ivaRate = borrador.tarifaPrevia;
+          }
+          if (el.dataset.check) borrador[el.dataset.check] = el.checked;
+          else borrador[el.dataset.opcion] = el.dataset.opcion === 'productType' ? Number(el.value) : el.value;
+          normalizarBorrador(borrador);
+          renderLineas();
         } else if (el.dataset.cargo) {
           var c = cargos[Number(el.dataset.i)];
           c[el.dataset.cargo] = el.dataset.cargo === 'valor' ? (Number(el.value) || 0) : el.value;
@@ -884,7 +959,8 @@
           var accion = btn.dataset.accion;
           if (accion === 'editar') {
             editando = i;
-            borrador = Object.assign({}, lineas[i]);
+            // Not normalized on open: an untouched product keeps the original values
+            borrador = Object.assign({}, lineas[i], { retencionTipo: lineas[i].retencionTipo || 'retencion' });
             renderLineas();
             var primero = document.querySelector('[data-borrador="unitPrice"]');
             if (primero) primero.focus();
